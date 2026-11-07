@@ -1,7 +1,8 @@
 # mhdGO – veřejná doprava celé České republiky
 
-Nástupce aplikace **OpavaGO** pro celou ČR: stejný vzhled (liquid glass, měděný akcent, písmo Outfit) a stejné ovládání,
-ale pro všechna města, regionální a meziregionální autobusy a všechny vlaky.
+Nástupce aplikace **OpavaGO** pro celou ČR: stejný vzhled i ovládání jako OpavaGO (liquid glass, měděný akcent, písmo Outfit,
+síť jako jedna měděná čára, bublina vozidla nad vozidlem, odjezdy s odpočtem, na tabletu a počítači kulatá tlačítka v hlavičce
+a panely vpravo vedle mapy) – jen pro všechna města, regionální a meziregionální autobusy a všechny vlaky.
 
 Aplikace je **jeden HTML soubor** – [`mhdgo.html`](mhdgo.html) (totéž je v `index.html` pro GitHub Pages).
 Jízdní řády si stahuje po okresech z adresáře [`data/`](data) tohoto repozitáře (přes `raw.githubusercontent.com`).
@@ -22,7 +23,7 @@ Jízdní řády si stahuje po okresech z adresáře [`data/`](data) tohoto repoz
   regionální a meziregionální linky mají podobnou barvu s odstínem podle okresu, každý vlak má vlastní barvu.
 - **3D mapa** (Mapbox Standard s 3D budovami) s procedurálními 3D modely vozidel v barvách dopravců
   (autobus 12 m, kloubový, midibus, trolejbusy, regionální a dálkové autobusy, tramvaje, metro, osobní vlaky, rychlíky, dálkové vlaky),
-  denní doba, déšť a sníh, **Jízda vozidlem** (kamera za vozidlem) a **Garáž** s modely vozidel okresu.
+  denní doba, déšť a sníh a **Jízda vozidlem** (kamera za vozidlem).
 - **Bedekr** – nejlepší památky a zajímavosti Česka; lišta krajů → to nejlepší v kraji → lišta okresů → místa v okrese
   (včetně méně známých). Fotografie z Wikimedia Commons, text z Wikipedie, galerie, „Jak se tam dostanu“.
 - **Budík před výstupem** – v kartě vozidla (Budík → klepni na zastávku) nebo u každé jízdy ve vyhledaném spojení;
@@ -92,6 +93,7 @@ Pipeline (Python 3.12+, `pip install osmium shapely numpy scipy pandas pyvalhall
 4. `platforms.py` – rozdělení zastávek na nástupiště podle směru a umístění podle OSM
 5. `shapes.py` – geometrie tras (PID, koleje, Valhalla)
 6. `packs.py` – výstupní balíčky (barvy linek, klasifikace MHD/regio/meziregio/vlak)
+   a `netmerge.py` – sloučení souběžných tras do jedné čáry (síť jako v OpavaGO)
 7. `bedekr.py` – památky z Wikidat
 8. `app/build.py` – sestavení `mhdgo.html` z `app/` (CSS, JS, ikona a logo)
 

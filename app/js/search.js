@@ -53,46 +53,59 @@
  /* ---------- vykreslení panelu ---------- */
  S.render = () => {
   const el = $('sh-search');
-  let h = '<div class="sh-grab"></div><div class="sh-head" style="padding-bottom:6px"><div class="seg-tabs" style="flex:1;margin:0"><button data-tab="stops" class="' + (S.tab === 'stops' ? 'on' : '') + '"><i class="fa-solid fa-location-dot"></i>Zastávky</button><button data-tab="conn" class="' + (S.tab === 'conn' ? 'on' : '') + '"><i class="fa-solid fa-route"></i>Spojení</button></div><button class="xbtn" data-close><i class="fa-solid fa-xmark"></i></button></div><div class="sh-body">';
-  const favs = MG.store.get('favs', []) || [];
-  h += '<div class="favs">' + favs.map((f, i) => '<button class="chip" data-fav="' + i + '"><i class="fa-solid ' + (f.icon || 'fa-star') + '"></i>' + MG.h(f.label) + '</button>').join('') + '<button class="chip" id="fav-add"><i class="fa-solid fa-plus"></i>' + (favs.length ? '' : 'Domů, práce…') + '</button></div>';
+  let h = '<div class="sh-grab"></div><div class="sh-body" style="padding-top:2px"><div class="seg-tabs" style="margin:4px 0 10px"><button data-tab="stops" class="' + (S.tab === 'stops' ? 'on' : '') + '"><i class="fa-solid fa-location-dot"></i>Zastávky</button><button data-tab="conn" class="' + (S.tab === 'conn' ? 'on' : '') + '"><i class="fa-solid fa-route"></i>Spojení</button></div>';
+  h += MG.dep.favStrip('search');
   if (S.tab === 'stops') {
-   h += '<div class="sec-t" style="margin-top:4px">Najít zastávku, linku nebo místo</div><div class="sugg"><div class="field"><i class="fa-solid fa-magnifying-glass"></i><input id="s-q" placeholder="Zastávka, linka nebo adresa v celé ČR" autocomplete="off"><button class="fbtn" id="s-me" title="Nejbližší zastávky"><i class="fa-solid fa-location-crosshairs"></i></button></div></div><div id="s-res"></div>';
+   h += '<div class="s-head"><h3>Najít nejbližší zastávky</h3><button class="xbtn" data-close title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>' +
+    '<div class="s-field"><i class="fa-solid fa-location-dot"></i><input id="s-q" placeholder="Zastávka, linka nebo adresa" autocomplete="off"><button class="fbtn" id="s-clr" title="Vymazat"><i class="fa-solid fa-xmark"></i></button><button class="fbtn" id="s-me" title="Moje poloha"><i class="fa-solid fa-crosshairs"></i></button></div>' +
+    '<div id="s-res" class="s-res"></div><button class="s-light" id="s-clear"><i class="fa-solid fa-eraser"></i>Vymazat</button><button class="btn" id="s-go"><i class="fa-solid fa-magnifying-glass"></i>Hledat</button>';
   } else {
-   h += '<div class="sugg"><div class="field"><i class="fa-regular fa-circle"></i><input id="c-from" placeholder="Odkud – zastávka, adresa, místo" value="' + MG.h(S.from ? S.from.name : '') + '" autocomplete="off"><button class="fbtn" id="c-from-me" title="Moje poloha"><i class="fa-solid fa-location-crosshairs"></i></button></div><div class="sugg-list" id="c-from-l"></div></div>' +
-    '<div style="display:flex;justify-content:flex-end;margin:-4px 8px -4px"><button class="xbtn" id="c-swap" title="Prohodit" style="width:32px;height:32px;position:relative;z-index:2"><i class="fa-solid fa-arrow-right-arrow-left" style="transform:rotate(90deg)"></i></button></div>' +
-    '<div class="sugg"><div class="field"><i class="fa-solid fa-location-dot"></i><input id="c-to" placeholder="Kam – zastávka, adresa, místo" value="' + MG.h(S.to ? S.to.name : '') + '" autocomplete="off"><button class="fbtn" id="c-star" title="Uložit do Mých míst"><i class="fa-regular fa-star"></i></button></div><div class="sugg-list" id="c-to-l"></div></div>' +
-    '<div class="dep-ctl"><button class="chip' + (S.t == null ? ' on' : '') + '" id="c-now">Nyní</button><input type="time" id="c-t" value="' + MG.hm2(S.t != null ? S.t : MG.nowMin()) + '"><input type="date" id="c-d" value="' + (S.ymd || MG.pragueParts(MG.now()).ymd) + '"></div>' +
+   h += '<div class="s-head"><h3>Vyhledat spojení</h3><button class="xbtn" data-close title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>' +
+    '<div class="sugg"><div class="s-field dim"><i class="fa-regular fa-circle"></i><input id="c-from" placeholder="Odkud – adresa nebo místo" value="' + MG.h(S.from ? S.from.name : '') + '" autocomplete="off"><button class="fbtn" id="c-from-me" title="Moje poloha"><i class="fa-solid fa-crosshairs"></i></button></div><div class="sugg-list s-res" id="c-from-l"></div></div>' +
+    '<div class="sugg"><div class="s-field dim"><i class="fa-solid fa-location-dot"></i><input id="c-to" placeholder="Kam – adresa nebo místo" value="' + MG.h(S.to ? S.to.name : '') + '" autocomplete="off"><button class="fbtn" id="c-star" title="Uložit do Mých míst"><i class="fa-regular fa-star"></i></button></div><div class="sugg-list s-res" id="c-to-l"></div></div>' +
+    '<button class="s-light" id="c-swap"><i class="fa-solid fa-arrow-right-arrow-left"></i>Prohodit</button>' +
+    '<div class="dep-ctl" style="margin-top:0"><button class="chip' + (S.t == null ? ' on' : '') + '" id="c-now">Nyní</button><input type="time" id="c-t" value="' + MG.hm2(S.t != null ? S.t : MG.nowMin()) + '"><input type="date" id="c-d" value="' + (S.ymd || MG.pragueParts(MG.now()).ymd) + '"></div>' +
     '<button class="btn" id="c-go"><i class="fa-solid fa-route"></i>Najít spojení</button><div class="status" id="c-st"></div><div id="c-res"></div>';
   }
   h += '</div>';
   el.innerHTML = h;
   MG.qsa('[data-tab]', el).forEach(b => b.onclick = () => { S.tab = b.dataset.tab; S.render(); });
   MG.qsa('[data-close]', el).forEach(b => b.onclick = () => MG.ui.close('sh-search'));
-  MG.qsa('[data-fav]', el).forEach(b => b.onclick = () => { const f = favs[+b.dataset.fav]; S.routeTo({name: f.name, lat: f.lat, lon: f.lon, st: f.st}); });
-  $('fav-add').onclick = () => addFav();
+  MG.dep.bindFav(el, f => S.routeTo({name: f.name, lat: f.lat, lon: f.lon, st: f.st}));
   if (S.tab === 'stops') bindStops(); else { bindConn(); if (S.res) renderResults(); }
  };
+ /* přidání do Mých míst z lišty: vyber místo hledáním */
+ S.addFavFlow = (label) => {
+  S.favLabel = label || ''; S.tab = 'stops'; if (MG.ui.cur !== 'sh-search') MG.ui.open('sh-search', {tall: true}); S.render();
+  MG.toast('Vyhledej místo' + (label ? ' pro „' + label + '“' : '') + ' a klepni na hvězdičku', 3500);
+ };
+ function stopLines(g) { const st = D.st.get(g); if (!st) return ''; const ls = [...st.lines].map(i => D.ln.get(i)).filter(Boolean).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true})); return ls.length ? '<div class="lns">' + ls.slice(0, 9).map(x => D.badge(x)).join('') + (ls.length > 9 ? '<span style="font:700 10px Outfit;color:var(--faint)">+' + (ls.length - 9) + '</span>' : '') + '</div>' : ''; }
+ const star = (i) => '<button class="fbtn" data-star="' + i + '" title="Uložit do Mých míst" style="margin-left:auto"><i class="fa-regular fa-star"></i></button>';
  function bindStops() {
   const q = $('s-q'), res = $('s-res');
+  let items = [];
   const run = MG.debounce(async () => {
    const v = q.value.trim(); if (!v) { res.innerHTML = ''; return; }
-   let h = '';
-   /* linky v načtených okresech */
+   items = []; let h = '';
    const lf = MG.fold(v), lines = [];
    for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) { const L_ = D.ln.get(li); if (L_ && MG.fold(D.lineText(L_)) === lf && !lines.includes(L_)) lines.push(L_); }
-   if (lines.length) h += '<div class="sec-t">Linky</div>' + lines.slice(0, 6).map(L_ => '<div class="list-item" data-line="' + L_.i + '">' + D.badge(L_, {size: 'big'}) + '<div class="li-tx"><b>' + MG.h(L_.ln || '') + '</b><small>' + MG.h(L_.city ? 'MHD ' + L_.city : (L_.sys || '')) + '</small></div><i class="fa-solid fa-chevron-right" style="color:var(--faint)"></i></div>').join('');
+   h += lines.slice(0, 6).map(L_ => '<div class="sg" data-line="' + L_.i + '">' + D.badge(L_, {size: 'big'}) + '<div class="tx"><b>' + MG.h(L_.ln || '') + '</b><small>' + MG.h(L_.city ? 'MHD ' + L_.city : (L_.sys || '')) + '</small></div><i class="fa-solid fa-chevron-right" style="color:var(--faint)"></i></div>').join('');
    const st = await S.findStops(v, 8);
-   if (st.length) h += '<div class="sec-t">Zastávky</div>' + st.map(s => '<div class="list-item" data-st="' + s.g + '" data-ok="' + s.ok + '"><i class="fa-solid ' + sugIcon(s) + '" style="color:var(--acc);width:18px;text-align:center"></i><div class="li-tx"><b>' + MG.h(s.name) + '</b><small>' + (D.okresy[s.ok] ? 'okres ' + MG.h(D.okresy[s.ok].name) : '') + '</small></div><span class="li-r">odjezdy</span></div>').join('');
+   for (const x of st) { await Promise.resolve(); items.push({name: x.name, lat: x.lat, lon: x.lon, st: x.g, ok: x.ok}); h += '<div class="sg stop" data-st="' + x.g + '" data-ok="' + x.ok + '"><span class="ic2"><i class="fa-solid ' + sugIcon(x) + '"></i></span><div class="tx"><b>' + MG.h(x.name) + '</b>' + (stopLines(x.g) || '<small>' + (D.okresy[x.ok] ? 'okres ' + MG.h(D.okresy[x.ok].name) : '') + '</small>') + '</div>' + star(items.length - 1) + '</div>'; }
    res.innerHTML = h + '<div id="s-geo"></div>';
    bindRes();
-   if (v.length >= 3) { const g = await S.geocode(v); const ge = $('s-geo'); if (ge && g.length) { ge.innerHTML = '<div class="sec-t">Místa a adresy</div>' + g.map((a, i) => '<div class="list-item" data-geo="' + i + '"><i class="fa-solid fa-map-pin" style="color:var(--acc);width:18px;text-align:center"></i><div class="li-tx"><b>' + MG.h(a.name) + '</b><small>' + MG.h(a.sub) + '</small></div></div>').join(''); MG.qsa('[data-geo]', ge).forEach(x => x.onclick = () => S.place(g[+x.dataset.geo])); } }
+   if (v.length >= 3) { const g = await S.geocode(v); const ge = $('s-geo'); if (ge && g.length) { ge.innerHTML = g.map((a2) => { items.push(a2); return '<div class="sg" data-geo="' + (items.length - 1) + '"><span class="ic2"><i class="fa-solid fa-map-pin"></i></span><div class="tx"><b>' + MG.h(a2.name) + '</b><small>' + MG.h(a2.sub) + '</small></div>' + star(items.length - 1) + '</div>'; }).join(''); bindRes(); } }
   }, 220);
   q.oninput = run;
+  q.onkeydown = e => { if (e.key === 'Enter') { const f = MG.qs('.sg', res); if (f) f.click(); } };
+  $('s-clr').onclick = $('s-clear').onclick = () => { q.value = ''; res.innerHTML = ''; if (S.pin) { MG.map.m.removeLayer(S.pin); S.pin = null; } q.focus(); };
+  $('s-go').onclick = () => { if (q.value.trim()) run(); else $('s-me').click(); };
   $('s-me').onclick = async () => { const me = MG.app.me || await MG.app.locate(false); if (!me) return MG.toast('Poloha není k dispozici'); S.place({name: 'Moje poloha', lat: me.lat, lon: me.lon, me: true}); };
   function bindRes() {
    MG.qsa('[data-line]', res).forEach(x => x.onclick = () => MG.net.openLine(+x.dataset.line));
-   MG.qsa('[data-st]', res).forEach(x => x.onclick = () => MG.dep.show(+x.dataset.st, +x.dataset.ok));
+   MG.qsa('[data-st]', res).forEach(x => x.onclick = (e) => { if (e.target.closest('[data-star]')) return; MG.dep.show(+x.dataset.st, +x.dataset.ok); });
+   MG.qsa('[data-geo]', res).forEach(x => x.onclick = (e) => { if (e.target.closest('[data-star]')) return; S.place(items[+x.dataset.geo]); });
+   MG.qsa('[data-star]', res).forEach(b => b.onclick = (e) => { e.stopPropagation(); addFav(items[+b.dataset.star], S.favLabel); S.favLabel = ''; });
   }
   setTimeout(() => q.focus(), 300);
  }
@@ -117,18 +130,20 @@
   sugBox($('c-to'), $('c-to-l'), r => { S.to = r; $('c-to').value = r.name; });
   $('c-from-me').onclick = async () => { const me = MG.app.me || await MG.app.locate(false); if (!me) return MG.toast('Poloha není k dispozici'); S.from = {name: 'Moje poloha', lat: me.lat, lon: me.lon, me: true}; $('c-from').value = 'Moje poloha'; };
   $('c-swap').onclick = () => { const a = S.from; S.from = S.to; S.to = a; $('c-from').value = S.from ? S.from.name : ''; $('c-to').value = S.to ? S.to.name : ''; };
-  $('c-star').onclick = () => { if (!S.to) return MG.toast('Nejdřív vyber cíl'); addFav(S.to); };
+  $('c-star').onclick = () => { if (!S.to) return MG.toast('Nejdřív vyber cíl'); addFav(S.to, ''); };
   $('c-now').onclick = () => { S.t = null; S.ymd = null; S.render(); };
   $('c-t').onchange = e => { const [h, m] = e.target.value.split(':').map(Number); if (isFinite(h)) S.t = h * 60 + m; $('c-now').classList.remove('on'); };
   $('c-d').onchange = e => { S.ymd = e.target.value || null; $('c-now').classList.remove('on'); };
   $('c-go').onclick = () => S.find();
  }
- function addFav(pt) {
+ function addFav(pt, label0) {
+  if (!pt) { S.addFavFlow(''); return; }
   const F = MG.store.get('favs', []) || [];
-  const label = prompt('Název místa (např. Domů, Práce, Škola):', pt ? pt.name : 'Domů'); if (!label) return;
-  if (!pt) { MG.toast('Vyber místo v hledání a ulož ho hvězdičkou'); return; }
+  const label = label0 || prompt('Název místa (např. Domů, Práce, Škola):', pt.name); if (!label) return;
   const icon = /dom/i.test(label) ? 'fa-house' : /prác|prac/i.test(label) ? 'fa-briefcase' : /škol|skol/i.test(label) ? 'fa-graduation-cap' : 'fa-star';
-  F.push({label, name: pt.name, lat: pt.lat, lon: pt.lon, st: pt.st, icon}); MG.store.set('favs', F); MG.toast('Uloženo do Mých míst'); S.render();
+  const i = F.findIndex(f => f.label === label); const rec = {label, name: pt.name, lat: pt.lat, lon: pt.lon, st: pt.st, icon};
+  if (i >= 0) F[i] = rec; else F.push(rec);
+  MG.store.set('favs', F); MG.toast('Uloženo do Mých míst: ' + label); S.render();
  }
  S.routeTo = (pt) => {
   S.tab = 'conn'; S.to = pt; S.res = null;

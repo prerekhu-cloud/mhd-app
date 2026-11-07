@@ -1,7 +1,7 @@
 /* ===== mhdGO – vozidla na mapě (jízdní řád + živé polohy) ===== */
 (function(){
  const D = MG.D, LV = MG.live;
- const V = MG.veh = {mk: new Map(), insts: [], byKey: new Map(), sel: null, liveMap: new Map(), extra: [], hideTrains: MG.store.get('hidetrains', false), cap: 420};
+ const V = MG.veh = {mk: new Map(), insts: [], byKey: new Map(), sel: null, liveMap: new Map(), extra: [], cap: 420};
  let simPats = null;
  MG.on('pack', () => { simPats = null; });
  function buildSim() {
@@ -27,7 +27,8 @@
   const [S, W, N, E] = bounds || [-90, -180, 90, 180];
   for (const p of simPats) {
    const L_ = D.ln.get(p.l); if (!L_) continue;
-   if (V.hideTrains && L_.k === 'vlak') continue;
+   if (MG.app.hideTrains && L_.k === 'vlak') continue;
+   if (MG.app.hideRegio && (L_.k === 'regio' || L_.k === 'mezi')) continue;
    if (opt.trainsOnly && L_.k !== 'vlak') continue;
    const bb = bbox(p); if (bb[2] < S || bb[0] > N || bb[3] < W || bb[1] > E) continue;
    const T = p.T, nt = p.nt;
@@ -122,6 +123,7 @@
   /* živé vozy bez spoje v datech */
   if (LV.on) {
    for (const v of (z >= 10 ? (V.extra || []) : [])) {
+    if (v._ok == null) v._ok = D.okresAt(v.lat, v.lon); if (!D.loaded.has(v._ok)) continue;
     if (v.lat < bounds[0] || v.lat > bounds[2] || v.lon < bounds[1] || v.lon > bounds[3]) continue;
     const key = 'x:' + v.src + ':' + (v.plate || v.cis + ':' + v.spoj || v.line);
     const L_ = lineForLive(v);
@@ -129,7 +131,7 @@
     add(key, v.lat, v.lon, html(pseudo, cls), () => V.selectExtra(v, L_), false);
    }
    for (const t of (V.extraTrains || [])) {
-    if (V.hideTrains) continue;
+    if (MG.app.hideTrains) continue;
     if (t.lat < bounds[0] || t.lat > bounds[2] || t.lon < bounds[1] || t.lon > bounds[3]) continue;
     const L_ = {k: 'vlak', c: '#5b6270', tc: '#fff', cat: t.cat, lab: ''};
     const pseudo = {L: L_, delay: t.delay, live: t, hd: t.az || 0, num: t.num};
@@ -138,7 +140,7 @@
   }
   for (const [k, mk] of V.mk) if (!keep.has(k)) { map.removeLayer(mk); V.mk.delete(k); }
   updCard();
-  if (V.sel && Date.now() - lastFull > 4000) { lastFull = Date.now(); const it = V.byKey.get(V.sel); if (it) MG.map.showPattern(it.p, {fromD: it.pos.d, kind: 'veh'}); }
+  if (V.sel && Date.now() - lastFull > 4000) { lastFull = Date.now(); const it = V.byKey.get(V.sel); if (it) MG.map.showPattern(it.p, {fromD: it.pos.d, kind: 'veh', flow: true}); }
  };
  function lineForLive(v) {
   for (const L_ of D.ln.values()) if (L_.cis && v.cis && L_.cis.includes(v.cis)) return L_;
@@ -156,89 +158,101 @@
   const it = {key, p, j, day: d, prof, start: st, m: m + (day - d) * 1440, L: D.ln.get(p.l), spoj: p.c ? p.c[j] : 0, num: p.n ? p.n[j] : '', head: D.headsign(p, j)};
   return V.place(it);
  };
- /* ---------- karta vozidla ---------- */
- const card = MG.$('vcard');
+ /* ---------- bublina vozidla nad vozidlem (jako OpavaGO) ---------- */
+ let pop = null, popEl = null, popSig = '';
+ function openPop(lat, lon) {
+  closePopOnly();
+  popEl = document.createElement('div'); popEl.className = 'lv'; popSig = '';
+  if (MG.mode3d) { MG.m3d.vehPopup(lat, lon, popEl, () => V.close(true)); return; }
+  pop = L.popup({className: 'lv-pop', maxWidth: 300, minWidth: 282, offset: [0, -12], autoPanPaddingTopLeft: [20, 90], autoPanPaddingBottomRight: [20, 120]}).setLatLng([lat, lon]).setContent(popEl);
+  pop.on('remove', () => { if (pop && !pop._quiet) V.close(true); });
+  pop.openOn(MG.map.m);
+ }
+ function closePopOnly() { if (pop) { pop._quiet = true; MG.map.m.closePopup(pop); pop = null; } if (MG.m3d && MG.m3d.closeVehPopup) MG.m3d.closeVehPopup(); }
+ function movePop(lat, lon) { if (pop) pop.setLatLng([lat, lon]); if (MG.mode3d && MG.m3d.moveVehPopup) MG.m3d.moveVehPopup(lat, lon); }
  V.select = (key, opt) => {
   V.sel = key; V.selExtra = null; V.showAll = false; V.pick = false;
   const it = V.byKey.get(key) || V.findSel(); if (!it) return;
-  MG.ui && MG.ui.closeSheets();
-  MG.map.showPattern(it.p, {fromD: it.pos.d, kind: 'veh'}); lastFull = Date.now();
-  card.classList.add('open'); card.setAttribute('aria-hidden', 'false');
-  renderCard(it);
-  if (!opt || !opt.noPan) { const map = MG.map.m; if (!map.getBounds().pad(-.15).contains([it.lat, it.lon])) map.panTo([it.lat, it.lon]); }
+  if (!MG.isWide || !MG.isWide()) MG.ui && MG.ui.closeSheets();
+  MG.map.showPattern(it.p, {fromD: it.pos.d, kind: 'veh', flow: true}); lastFull = Date.now();
+  openPop(it.lat, it.lon); renderCard(it);
   V.tick();
  };
- V.selectExtra = (v, L_) => { V.sel = null; V.selExtra = {v, L: L_}; MG.ui && MG.ui.closeSheets(); MG.map.clearSel(); card.classList.add('open'); renderExtra(v, L_); };
- V.close = () => { V.sel = null; V.selExtra = null; card.classList.remove('open'); card.setAttribute('aria-hidden', 'true'); if (MG.map.selKind === 'veh') MG.map.clearSel(); V.tick(); };
+ V.selectExtra = (v, L_) => { V.sel = null; V.selExtra = {v, L: L_}; MG.map.clearSel(); openPop(v.lat, v.lon); renderExtra(v, L_); };
+ V.close = (fromPopup) => { const had = V.sel || V.selExtra; V.sel = null; V.selExtra = null; V.pick = false; if (!fromPopup) closePopOnly(); else { pop = null; } if (had && MG.map.selKind === 'veh') MG.map.clearSel(); V.tick(); };
  function updCard() {
-  if (!card.classList.contains('open')) return;
-  if (V.sel) { const it = V.byKey.get(V.sel) || V.findSel(); if (it) renderCard(it); }
-  else if (V.selExtra) renderExtra(V.selExtra.v, V.selExtra.L);
+  if (!popEl) return;
+  if (V.sel) { const it = V.byKey.get(V.sel) || V.findSel(); if (it) { movePop(it.lat, it.lon); renderCard(it); } }
+  else if (V.selExtra) { movePop(V.selExtra.v.lat, V.selExtra.v.lon); renderExtra(V.selExtra.v, V.selExtra.L); }
  }
- const KN = {metro: 'Metro', tram: 'Tramvaj', trol: 'Trolejbus', mhd: 'Autobus MHD', regio: 'Regionální autobus', mezi: 'Dálkový autobus', vlak: 'Vlak', lan: 'Lanovka', lod: 'Přívoz'};
+ const KN = {metro: 'Metro', tram: 'Tramvaj', trol: 'Trolejbus', mhd: 'Autobus', regio: 'Regio autobus', mezi: 'Dálkový autobus', vlak: 'Vlak', lan: 'Lanovka', lod: 'Přívoz'};
  const KI = {metro: 'fa-train-subway', tram: 'fa-train-tram', trol: 'fa-bolt', mhd: 'fa-bus', regio: 'fa-bus-simple', mezi: 'fa-bus', vlak: 'fa-train', lan: 'fa-cable-car', lod: 'fa-ferry'};
  V.KN = KN; V.KI = KI;
  function delayChip(it) {
-  if (!it.live) return '<div class="vc-dl tt"><i class="fa-regular fa-clock"></i> dle JŘ</div>';
-  const d = it.delay; if (d == null) return '<div class="vc-dl">živě</div>';
-  if (d <= .5) return '<div class="vc-dl">' + (d < -1 ? 'napřed ' + Math.abs(Math.round(d)) + ' min' : 'včas') + '</div>';
-  return '<div class="vc-dl ' + (d <= 3 ? 'mid' : 'bad') + '">+' + Math.round(d) + ' min</div>';
+  if (!it.live) return '<span class="vc-dl tt" title="Poloha podle jízdního řádu"><i class="fa-regular fa-clock"></i> JŘ</span>';
+  const d = it.delay; if (d == null) return '<span class="vc-dl">živě</span>';
+  if (d <= .5) return '<span class="vc-dl">' + (d < -1 ? '−' + Math.abs(Math.round(d)) + ' min' : 'včas') + '</span>';
+  return '<span class="vc-dl ' + (d <= 3 ? 'mid' : 'bad') + '">+' + Math.round(d) + ' min</span>';
  }
  function renderCard(it) {
+  if (!popEl) return;
   const L_ = it.L, p = it.p, dep = p.dep[it.prof], arr = p.arr[it.prof], n = p.s.length, city = L_.city || '';
   const delay = it.delay && it.delay > 0 ? it.delay : 0;
   const pos = it.pos || {k: 0, at: true};
   let next = pos.at ? pos.k : pos.k + 1;
   if (pos.end) next = n - 1;
+  const al0 = MG.alarm && MG.alarm.cur && MG.alarm.cur.key === it.key ? MG.alarm.cur.k : -1;
+  const sig = [it.key, next, Math.round(delay), Math.floor(it.m), V.showAll, V.pick, al0, !!it.live].join('|');
+  if (sig === popSig) { const s = popEl.querySelector('.vc-src em'); if (s && it.live) s.textContent = ageTxt(it.live); return; }
+  popSig = sig;
   const rows = [];
-  const first = V.showAll ? 0 : next, last = V.showAll ? n - 1 : Math.min(n - 1, next + 3);
+  const first = V.showAll ? 0 : Math.max(1, next), last = V.showAll ? n - 1 : Math.min(n - 1, first + 3);
   for (let k = first; k <= last; k++) {
    const pl = D.pl.get(p.s[k]); const nm = D.shortName(D.stName(pl ? pl.st : 0), city);
-   const sched = it.start + (k === 0 ? dep[k] : arr[k]) - (it.day - V.clock().day) * 1440 * 0;
-   const exp = sched + delay;
-   const past = k < next;
-   const tm = delay >= 1 && !past ? '<s>' + MG.hm2(sched) + '</s> <b>' + MG.hm2(exp) + '</b>' : '<b>' + MG.hm2(sched) + '</b>';
-   const al = MG.alarm && MG.alarm.cur && MG.alarm.cur.key === it.key && MG.alarm.cur.k === k;
-   rows.push('<div class="tl-s' + (k === next ? ' nx' : '') + (past ? ' past' : '') + (k === n - 1 ? ' end' : '') + (V.pick && !past ? ' pick' : '') + '" data-k="' + k + '" data-st="' + (pl ? pl.st : '') + '" data-pl="' + p.s[k] + '"><i></i><span>' + (al ? '<em class="bell"><i class="fa-solid fa-bell"></i></em> ' : '') + MG.h(nm) + (D.isRequest(p, k) ? ' <em class="rq" title="na znamení">✕</em>' : '') + '</span>' + (pl && pl.lab ? '<em class="pl">' + MG.h(pl.lab) + '</em>' : '') + tm + '</div>');
+   const sched = it.start + (k === 0 ? dep[k] : arr[k]);
+   const exp = sched + delay, past = k < next;
+   const tm = '<b>' + MG.hm2(past ? sched : exp) + '</b>' + (delay >= 1 && !past ? '<s>' + MG.hm2(sched) + '</s>' : '');
+   const al = al0 === k;
+   rows.push('<div class="tl-s' + (k === next ? ' nx' : '') + (past ? ' past' : '') + (k === n - 1 ? ' end' : '') + (V.pick && !past ? ' pick' : '') + '" data-k="' + k + '" data-st="' + (pl ? pl.st : '') + '" data-pl="' + p.s[k] + '"><i></i><span>' + (al ? '<em class="bell"><i class="fa-solid fa-bell"></i></em> ' : '') + MG.h(nm) + (D.isRequest(p, k) ? ' <em class="rq" title="na znamení">✕</em>' : '') + '</span>' + (pl && pl.lab && V.showAll ? '<em class="pl">' + MG.h(pl.lab) + '</em>' : '') + tm + '</div>');
   }
-  const more = n > 4 ? '<button class="btn sec sm" id="vc-all" style="margin:2px 14px 6px;width:calc(100% - 28px)">' + (V.showAll ? 'Jen příští zastávky' : 'Celý spoj (' + n + ' zastávek)') + '</button>' : '';
   const lv = it.live;
   const meta = [];
-  meta.push('<span><i class="fa-solid ' + KI[L_.k] + '"></i>' + KN[L_.k] + (lv && lv.plate ? ' · ev. č. ' + MG.h(lv.plate) : '') + '</span>');
-  if (L_.k === 'vlak' && it.num) meta.push('<span><i class="fa-solid fa-hashtag"></i>vlak ' + MG.h(it.num) + (lv && lv.name ? ' ' + MG.h(lv.name) : '') + '</span>');
-  else if (it.spoj) meta.push('<span><i class="fa-solid fa-hashtag"></i>spoj ' + it.spoj + '</span>');
-  if ((p.w === 1) || (typeof p.w === 'string' && p.w[it.j] === '1') || (lv && lv.low)) meta.push('<span><i class="fa-solid fa-wheelchair"></i>bezbariérový</span>');
-  const ag = (lv && lv.carrier) || D.agency(L_.a && L_.a[0]); if (ag) meta.push('<span><i class="fa-solid fa-building"></i>' + MG.h(ag) + '</span>');
-  if (lv && lv.stand) meta.push('<span><i class="fa-solid fa-circle-pause"></i>stojí</span>');
-  const age = lv ? Math.max(0, Math.round((Date.now() - (lv.src === 'Správa železnic' ? LV.at.sz : LV.at.odis || LV.at.worker)) / 1000)) : 0;
-  const src = lv ? '<span class="dot-live"></span>Živá poloha · ' + MG.h(lv.src || '') + (age < 600 ? ' · před ' + age + ' s' : '') : '<span class="dot-tt"></span>Poloha podle jízdního řádu – živá data pro tento spoj nejsou k dispozici';
-  card.innerHTML = '<div class="vc-hd" style="--c:' + L_.c + '"><div class="vc-ln">' + (L_.k === 'vlak' ? '<i class="fa-solid fa-train"></i>' : '') + MG.h(V.label(it)) + '</div><div class="vc-hs"><small>' + KN[L_.k] + ' · směr</small><b>' + MG.h(D.shortName(it.head, city)) + '</b></div>' + delayChip(it) + '<button class="vc-x" id="vc-x" title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>' +
-   '<div class="vc-body"><div class="vc-st">' + rows.join('') + '</div>' + more + '<div class="vc-mt">' + meta.join('') + '</div>' +
-   (V.pick ? '<div class="pick-hint"><i class="fa-solid fa-bell"></i>Klepni na zastávku, kde vystupuješ – budík tě upozorní předem</div>' : '') +
-   '<div class="vc-acts"><button class="btn sec" id="vc-line"><i class="fa-solid fa-route"></i>Linka</button><button class="btn sec' + (V.pick ? ' on' : '') + '" id="vc-bell"><i class="fa-solid fa-bell"></i>Budík</button><button class="btn sec" id="vc-3d"><i class="fa-solid fa-cube"></i>3D</button><button class="btn sec" id="vc-fol"><i class="fa-solid fa-location-crosshairs"></i>Sledovat</button></div></div>' +
-   '<div class="vc-src">' + src + '</div>';
-  MG.$('vc-x').onclick = V.close;
-  MG.$('vc-line').onclick = () => { const li = L_.i; V.close(); MG.net.openLine(li, {pattern: p.i}); };
-  MG.$('vc-3d').onclick = () => { MG.m3d.open({follow: it.key}); };
-  MG.$('vc-fol').onclick = () => { V.follow = !V.follow; MG.toast(V.follow ? 'Mapa sleduje vozidlo' : 'Sledování vypnuto'); };
-  const all = MG.$('vc-all'); if (all) all.onclick = () => { V.showAll = !V.showAll; renderCard(it); };
-  MG.$('vc-bell').onclick = () => { if (MG.alarm.cur && MG.alarm.cur.key === it.key && !V.pick) { MG.alarm.clear(); MG.toast('Budík zrušen'); renderCard(it); return; } V.pick = !V.pick; V.showAll = V.pick || V.showAll; renderCard(it); };
-  MG.qsa('.tl-s', card).forEach(r => r.onclick = () => { if (V.pick && r.classList.contains('pick')) { V.pick = false; MG.alarm.set(it.key, +r.dataset.k); renderCard(it); return; } const st = +r.dataset.st; if (st || st === 0) MG.dep.stopPopup(st, +r.dataset.pl); });
-  if (V.follow && !MG.mode3d) MG.map.m.panTo([it.lat, it.lon], {animate: true, duration: .8});
+  meta.push('<span><i class="fa-solid ' + KI[L_.k] + '"></i>' + MG.h(MG.models ? (MG.models.short(L_) || KN[L_.k]) : KN[L_.k]) + '</span>');
+  if (lv && lv.plate) meta.push('<span>ev. č. ' + MG.h(lv.plate) + '</span>');
+  if (L_.k === 'vlak' && it.num) meta.push('<span>vlak ' + MG.h(it.num) + (lv && lv.name ? ' ' + MG.h(lv.name) : '') + '</span>');
+  else if (it.spoj) meta.push('<span>spoj ' + it.spoj + '</span>');
+  if ((p.w === 1) || (typeof p.w === 'string' && p.w[it.j] === '1') || (lv && lv.low)) meta.push('<span title="Nízkopodlažní"><i class="fa-solid fa-wheelchair"></i></span>');
+  if (lv && lv.stand) meta.push('<span class="st"><i class="fa-solid fa-pause"></i>stojí</span>');
+  const isAl = al0 >= 0;
+  popEl.innerHTML = '<div class="vc-hd" style="--c:' + L_.c + '"><span class="vc-ln">' + (L_.k === 'vlak' ? '<i class="fa-solid fa-train"></i>' : '') + MG.h(V.label(it)) + '</span><div class="vc-hs"><small>' + (L_.k === 'vlak' ? MG.h(D.trainLabel(L_, it.num)) : 'Směr') + '</small><b>' + MG.h(D.shortName(it.head, city)) + '</b></div>' + delayChip(it) + '</div>' +
+   '<div class="vc-st">' + (rows.length ? rows.join('') : '<div class="tl-s nx end"><i></i><span>' + MG.h(D.shortName(it.head, city)) + '</span><b>cíl</b></div>') + '</div>' +
+   (V.pick ? '<div class="pick-hint"><i class="fa-solid fa-bell"></i>Klepni na zastávku, kde vystupuješ</div>' : '') +
+   '<div class="vc-mt">' + meta.join('') + '</div>' +
+   '<div class="lv-acts"><button data-a="bell" class="' + (V.pick || isAl ? 'on' : '') + '"><i class="fa-solid fa-bell"></i>' + (isAl ? 'Budík' : 'Budík') + '</button><button data-a="all"><i class="fa-solid fa-list"></i>' + (V.showAll ? 'Méně' : 'Celý spoj') + '</button><button data-a="line"><i class="fa-solid fa-route"></i>Linka</button><button data-a="3d"><i class="fa-solid fa-cube"></i>3D</button></div>' +
+   '<div class="vc-src">' + (lv ? '<span class="dot-live"></span>Živě · ' + MG.h(lv.src || '') + ' · <em style="font-style:normal">' + ageTxt(lv) + '</em>' : '<span class="dot-tt"></span>Podle jízdního řádu') + '</div>';
+  const A = (k, f) => { const b = popEl.querySelector('[data-a="' + k + '"]'); if (b) b.onclick = (e) => { e.stopPropagation(); f(); }; };
+  A('bell', () => { if (isAl && !V.pick) { MG.alarm.clear(); MG.toast('Budík zrušen'); popSig = ''; renderCard(it); return; } V.pick = !V.pick; if (V.pick) V.showAll = true; popSig = ''; renderCard(it); });
+  A('all', () => { V.showAll = !V.showAll; V.pick = false; popSig = ''; renderCard(it); });
+  A('line', () => { const li = L_.i; V.close(); MG.net.openLine(li, {pattern: p.i}); });
+  A('3d', () => { MG.m3d.open({follow: it.key}); });
+  popEl.querySelectorAll('.tl-s').forEach(r => r.onclick = (e) => { e.stopPropagation(); if (V.pick && r.classList.contains('pick')) { V.pick = false; MG.alarm.set(it.key, +r.dataset.k); popSig = ''; renderCard(it); return; } });
+  if (pop) pop.update();
  }
+ function ageTxt(lv) { const at = lv.src === 'Správa železnic' ? LV.at.sz : (lv.src === 'ODIS' ? LV.at.odis : LV.at.worker); const a = Math.max(0, Math.round((Date.now() - at) / 1000)); return 'před ' + (a < 60 ? a + ' s' : Math.round(a / 60) + ' min'); }
  function renderExtra(v, L_) {
+  if (!popEl) return;
   const isT = !!v.train;
   const lab = isT ? ((v.cat || 'Vlak') + ' ' + v.num) : (L_.n || v.line);
   const d = v.delay;
-  const dl = d == null ? '<div class="vc-dl">živě</div>' : d <= .5 ? '<div class="vc-dl">včas</div>' : '<div class="vc-dl ' + (d <= 3 ? 'mid' : 'bad') + '">+' + Math.round(d) + ' min</div>';
+  const dl = d == null ? '<span class="vc-dl">živě</span>' : d <= .5 ? '<span class="vc-dl">včas</span>' : '<span class="vc-dl ' + (d <= 3 ? 'mid' : 'bad') + '">+' + Math.round(d) + ' min</span>';
   const rows = [];
-  if (v.cur || v.last) rows.push('<div class="tl-s past"><i></i><span>' + MG.h(v.cur || v.last) + '</span></div>');
-  if (v.next) rows.push('<div class="tl-s nx"><i></i><span>' + MG.h(v.next) + '</span>' + (v.nextT ? '<b>' + MG.h(v.nextT) + '</b>' : '') + '</div>');
-  if (v.head) rows.push('<div class="tl-s end"><i></i><span>' + MG.h(v.head) + '</span></div>');
-  card.innerHTML = '<div class="vc-hd" style="--c:' + (L_.c || '#5b6270') + '"><div class="vc-ln">' + (isT ? '<i class="fa-solid fa-train"></i>' : '') + MG.h(lab) + '</div><div class="vc-hs"><small>' + (isT ? 'Vlak' : 'Vozidlo') + ' · směr</small><b>' + MG.h(v.head || '') + '</b></div>' + dl + '<button class="vc-x" id="vc-x"><i class="fa-solid fa-xmark"></i></button></div>' +
-   '<div class="vc-body"><div class="vc-st">' + rows.join('') + '</div><div class="vc-mt">' + (v.name ? '<span><i class="fa-solid fa-tag"></i>' + MG.h(v.name) + '</span>' : '') + (v.from ? '<span><i class="fa-solid fa-flag"></i>z ' + MG.h(v.from) + '</span>' : '') + (v.carrier ? '<span><i class="fa-solid fa-building"></i>' + MG.h(v.carrier) + '</span>' : '') + (v.plate ? '<span>ev. č. ' + MG.h(v.plate) + '</span>' : '') + '</div></div>' +
-   '<div class="vc-src"><span class="dot-live"></span>Živá poloha · ' + MG.h(v.src || '') + ' · spoj není v načtených jízdních řádech</div>';
-  MG.$('vc-x').onclick = V.close;
+  if (v.next) rows.push('<div class="tl-s nx"><i></i><span>' + MG.h(v.next) + '</span><b>' + (v.nextT ? MG.h(v.nextT) : 'příští') + '</b></div>');
+  else if (v.cur || v.last) rows.push('<div class="tl-s nx"><i></i><span>' + MG.h(v.cur || v.last) + '</span><b>poslední</b></div>');
+  const sig = 'x|' + lab + '|' + rows.join('') + '|' + d; if (sig === popSig) return; popSig = sig;
+  popEl.innerHTML = '<div class="vc-hd" style="--c:' + (L_.c || '#5b6270') + '"><span class="vc-ln">' + (isT ? '<i class="fa-solid fa-train"></i>' : '') + MG.h(lab) + '</span><div class="vc-hs"><small>' + (isT ? MG.h((v.cat || 'Vlak') + ' ' + v.num + (v.name ? ' ' + v.name : '')) : 'Směr') + '</small><b>' + MG.h(v.head || '') + '</b></div>' + dl + '</div>' +
+   '<div class="vc-st">' + rows.join('') + '</div><div class="vc-mt">' + (v.from ? '<span><i class="fa-solid fa-flag"></i>z ' + MG.h(v.from) + '</span>' : '') + (v.carrier ? '<span>' + MG.h(D.agency(v.carrier)) + '</span>' : '') + (v.plate ? '<span>ev. č. ' + MG.h(v.plate) + '</span>' : '') + '</div>' +
+   '<div class="vc-src"><span class="dot-live"></span>Živě · ' + MG.h(v.src || '') + '</div>';
+  if (pop) pop.update();
  }
  V.start = () => { setInterval(() => { try { V.tick() } catch (e) { MG.err('veh', e) } }, 1000); MG.on('view', () => V.tick()); };
 })();

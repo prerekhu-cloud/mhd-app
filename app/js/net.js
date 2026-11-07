@@ -29,11 +29,11 @@
    const seat = ok ? ok.seat : '';
    const cRank = c => (c === seat ? -1e6 : 0) - (cc.get(c || '') || 0);
    g.sort(k === 'mhd' || k === 'trol' || k === 'tram' ? (a, b) => cRank(a.city) - cRank(b.city) || (a.city || '').localeCompare(b.city || '', 'cs') || cmpLine(a, b) : cmpLine);
-   html += '<div class="sec-t"><i class="fa-solid ' + D.KIND[k][0] + '"></i>' + D.KIND[k][1] + ' <b>· ' + g.length + ' ' + (g.length === 1 ? 'linka' : g.length < 5 ? 'linky' : 'linek') + '</b></div>';
+   html += '<div class="sec-t">' + D.KIND[k][1] + ' • ' + g.length + ' ' + (g.length === 1 ? 'linka' : g.length < 5 ? 'linky' : 'linek') + '</div>';
    let city = null;
    for (const L_ of g) {
     if ((k === 'mhd' || k === 'trol' || k === 'tram') && L_.city !== city && new Set(g.map(x => x.city)).size > 1) { city = L_.city; html += '<div class="sec-t" style="margin-top:8px;letter-spacing:.06em">MHD ' + MG.h(city) + '</div>'; }
-    html += '<div class="ln-row' + (N.open === L_.i ? ' open' : '') + '" data-l="' + L_.i + '"><div class="ln-h"><span class="ln-ic"><i class="fa-solid ' + D.KIND[L_.k][0] + '"></i></span>' + D.badge(L_, {size: 'big'}) + (MG.alerts && MG.alerts.forLine(L_.i).length ? '<i class="fa-solid fa-triangle-exclamation" style="color:#c98a14" title="mimořádnost"></i>' : '') + '<div class="tx">' + MG.h(terminals(L_)) + (L_.k === 'vlak' || L_.k === 'regio' || L_.k === 'mezi' ? '<small>' + MG.h(L_.ln || '') + '</small>' : '') + '</div><i class="fa-solid fa-chevron-down chev"></i></div>' + (N.open === L_.i ? expand(L_) : '') + '</div>';
+    html += '<div class="ln-row' + (N.open === L_.i ? ' open' : '') + '" data-l="' + L_.i + '"><div class="ln-h">' + thumb(L_) + D.badge(L_, {size: 'big'}) + (MG.alerts && MG.alerts.forLine(L_.i).length ? '<i class="fa-solid fa-triangle-exclamation" style="color:#c98a14" title="mimořádnost"></i>' : '') + '<div class="tx">' + MG.h(terminals(L_)) + (L_.k === 'vlak' || L_.k === 'regio' || L_.k === 'mezi' ? '<small>' + MG.h(L_.ln || '') + '</small>' : '') + '</div><i class="fa-solid fa-chevron-down chev"></i></div>' + (N.open === L_.i ? expand(L_) : '') + '</div>';
    }
   }
   html += '<div class="status" style="text-align:center;margin-top:10px">Jízdní řády CIS JŘ · platnost od ' + MG.h(D.core.d0) + '</div></div>';
@@ -41,7 +41,13 @@
   bind(el);
  };
  function U_head(ok, n) {
-  return MG.ui.head({icon: 'fa-solid fa-bus', eb: 'mhd<b>GO</b>', title: 'Dopravní síť', sub: ok ? 'Okres ' + MG.h(ok.name) + ' · ' + n + ' linek' : ''});
+  return '<div class="sh-grab"></div><div class="sh-head"><div class="sh-tt"><div class="sh-eb brand-eb">mhd<b>GO</b></div><div class="sh-title">Dopravní síť</div><div class="sh-sub">' + (ok ? 'Okres ' + MG.h(ok.name) + ' · ' + n + ' linek' : '') + '</div></div><button class="xbtn" data-close title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>';
+ }
+ /* obrázek vozidla u linky (jako OpavaGO) */
+ function thumb(L_) {
+  const T = MG.THUMBS || {}, dark = document.body.classList.contains('dark');
+  const src = {trol: dark ? T.trolD : T.trol, mhd: dark ? T.busD : T.bus, regio: T.regio, mezi: T.regio, vlak: T.vlak, tram: T.tram, metro: T.metro}[L_.k];
+  return '<span class="ln-th">' + (src ? '<img src="' + src + '" alt="" loading="lazy">' : '<i class="fa-solid ' + D.KIND[L_.k][0] + '"></i>') + '</span>';
  }
  function expand(L_) {
   const pats = D.mainPats(L_);

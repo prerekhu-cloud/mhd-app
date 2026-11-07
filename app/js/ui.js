@@ -4,15 +4,21 @@
  const U = MG.ui = {cur: null};
  const SHEETS = ['sh-search', 'sh-dep', 'sh-net', 'sh-more', 'sh-okres', 'sh-misc'];
  U.head = (o) => '<div class="sh-grab"></div><div class="sh-head">' + (o.icon ? '<div class="sh-ic"><i class="' + o.icon + '"></i></div>' : '') + '<div class="sh-tt">' + (o.eb ? '<div class="sh-eb">' + o.eb + '</div>' : '') + '<div class="sh-title">' + o.title + '</div>' + (o.sub ? '<div class="sh-sub" id="' + (o.subId || '') + '">' + o.sub + '</div>' : '') + '</div>' + (o.extra || '') + '<button class="xbtn" data-close title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>';
+ const TAB_OF = {'sh-search': 'search', 'sh-dep': 'dep', 'sh-net': 'net', 'sh-more': 'more'};
+ const syncBtns = () => {
+  MG.qsa('#tabs button').forEach(b => b.classList.toggle('on', ('sh-' + b.dataset.t) === U.cur));
+  MG.qsa('.hdr-btns .rb:not(.tg)').forEach(b => b.classList.toggle('on', ('sh-' + b.dataset.a) === U.cur));
+  document.body.classList.toggle('has-panel', !!U.cur);
+  clearTimeout(U._rs); U._rs = setTimeout(() => { try { MG.map.m.invalidateSize({pan: false}); MG.m3d.map && MG.m3d.map.resize(); } catch (_) {} }, 330);
+ };
  U.open = (id, opt) => {
   opt = opt || {};
   for (const s of SHEETS) if (s !== id) { const e = $(s); e.classList.remove('open', 'tall'); e.setAttribute('aria-hidden', 'true'); }
-  if (id !== 'vcard') { $('vcard').classList.remove('open'); }
   const el = $(id); el.classList.add('open'); el.setAttribute('aria-hidden', 'false'); el.classList.toggle('tall', !!opt.tall);
-  U.cur = id; MG.qsa('#tabs button').forEach(b => b.classList.toggle('on', ('sh-' + b.dataset.t) === id));
+  U.cur = id; syncBtns();
   bindSheet(el);
  };
- U.close = (id) => { const el = $(id); if (!el) return; el.classList.remove('open', 'tall'); el.setAttribute('aria-hidden', 'true'); if (U.cur === id) { U.cur = null; MG.qsa('#tabs button').forEach(b => b.classList.remove('on')); } MG.emit('sheetclose', id); };
+ U.close = (id) => { const el = $(id); if (!el) return; el.classList.remove('open', 'tall'); el.setAttribute('aria-hidden', 'true'); if (U.cur === id) U.cur = null; syncBtns(); MG.emit('sheetclose', id); };
  U.closeSheets = () => { for (const s of SHEETS) if ($(s).classList.contains('open')) U.close(s); };
  U.isOpen = id => $(id).classList.contains('open');
  function bindSheet(el) {
@@ -24,27 +30,54 @@
   const up = () => { if (y0 == null) return; el.style.transition = ''; el.style.transform = ''; if (dy > 90) U.close(el.id); else if (dy < -40) el.classList.add('tall'); else if (Math.abs(dy) < 6) el.classList.toggle('tall'); y0 = null; };
   grab.addEventListener('pointerdown', down); grab.addEventListener('pointermove', move); grab.addEventListener('pointerup', up); grab.addEventListener('pointercancel', up);
  }
- /* ---------- záložky ---------- */
+ /* ---------- nápovědy nad tlačítky (jako OpavaGO) ---------- */
+ const TIPS = {search: 'Hledat zastávku nebo spojení', dep: 'Odjezdy ze zastávky', net: 'Dopravní síť – linky a trasy', ride: 'Jízda vozidlem ve 3D', more: 'Další funkce a nastavení',
+  'legend-btn': 'Legenda – co znamenají barvy a značky', 'live-btn': 'Živé polohy a zpoždění vozidel', compass: 'Sever nahoru', 'btn-cz': 'Celá Česká republika', 'btn-center': 'Vycentrovat na tvůj okres', clock: 'Čas', scale: 'Měřítko mapy'};
+ U.tip = (el, text) => {
+  const t = $('tip'); if (!t || !el || !text) return;
+  t.textContent = text; t.classList.add('on');
+  const r = el.getBoundingClientRect(), w = t.offsetWidth, h = t.offsetHeight;
+  let x = r.left + r.width / 2 - w / 2, y = r.top - h - 8;
+  if (y < 8) y = r.bottom + 8;
+  t.style.left = MG.clamp(x, 8, innerWidth - w - 8) + 'px'; t.style.top = y + 'px';
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), 1700);
+ };
+ /* ---------- záložky, hlavička ---------- */
+ U.act = (t, from) => {
+  const id = 'sh-' + t;
+  if (from) U.tip(from, TIPS[t] || from.title);
+  if (t === 'ride') { U.closeSheets(); MG.m3d.open({ride: true}); return; }
+  if (t === 'bedekr') return MG.bedekr.open();
+  if (t === 'info') return U.info();
+  if (t === 'dark') { MG.app.setDark(!document.body.classList.contains('dark')); return; }
+  if (t === 'regio') return MG.app.toggleRegio();
+  if (t === 'vlak') return MG.app.toggleTrains();
+  if (U.cur === id) { U.close(id); return; }
+  if (t === 'search') MG.search.render();
+  if (t === 'dep') MG.dep.render();
+  if (t === 'net') MG.net.render();
+  if (t === 'more') renderMore();
+  U.open(id, {tall: t === 'net' || t === 'dep'});
+ };
  U.initTabs = () => {
-  MG.qsa('#tabs button').forEach(b => b.onclick = () => {
-   const t = b.dataset.t, id = 'sh-' + t;
-   if (t === 'ride') { U.closeSheets(); MG.m3d.open({ride: true}); return; }
-   if (U.cur === id) { U.close(id); return; }
-   if (t === 'search') MG.search.render();
-   if (t === 'dep') MG.dep.render();
-   if (t === 'net') MG.net.render();
-   if (t === 'more') renderMore();
-   U.open(id, {tall: t === 'net' || t === 'dep'});
-  });
+  MG.qsa('#tabs button').forEach(b => b.onclick = () => U.act(b.dataset.t, b));
+  MG.qsa('.hdr-btns .rb').forEach(b => b.onclick = () => U.act(b.dataset.a, b));
   $('okres-chip').onclick = () => { renderOkres(); U.open('sh-okres', {tall: true}); };
-  $('brand').onclick = () => U.info();
-  $('legend-btn').onclick = () => U.legend();
-  $('live-btn').onclick = () => U.liveSettings();
-  $('compass').onclick = () => { if (MG.mode3d) MG.m3d.north(); else MG.toast('Sever je nahoře'); };
-  $('btn-cz').onclick = () => MG.app.showCZ();
-  $('btn-center').onclick = () => MG.app.center();
+  $('brand').onclick = () => U.info(); $('brand-tx').onclick = () => U.info();
+  $('legend-btn').onclick = (e) => { U.tip(e.currentTarget, TIPS['legend-btn']); U.legend(); };
+  $('live-btn').onclick = (e) => { MG.live.toggle(!MG.live.on); U.tip(e.currentTarget, MG.live.on ? 'Živé polohy zapnuty' : 'Živé polohy vypnuty – vozidla podle jízdního řádu'); };
+  $('compass').onclick = (e) => { if (MG.mode3d) MG.m3d.north(); U.tip(e.currentTarget, TIPS.compass); };
+  $('btn-cz').onclick = (e) => { U.tip(e.currentTarget, TIPS['btn-cz']); MG.app.showCZ(); };
+  $('btn-center').onclick = (e) => { U.tip(e.currentTarget, MG.mode3d ? 'Centrum tvé obce' : TIPS['btn-center']); MG.app.center(); };
   $('m-2d').onclick = () => MG.m3d.close();
   $('m-3d').onclick = () => MG.m3d.open({});
+  $('m-ride').onclick = () => { U.closeSheets(); MG.m3d.open({ride: true}); };
+  U.syncToggles();
+ };
+ U.syncToggles = () => {
+  const r = MG.qs('.rb[data-a=regio]'), v = MG.qs('.rb[data-a=vlak]');
+  if (r) r.classList.toggle('on', !MG.app.hideRegio); if (v) v.classList.toggle('on', !MG.app.hideTrains);
+  const dk = MG.qs('.rb[data-a=dark]'); if (dk) { const on = document.body.classList.contains('dark'); dk.querySelector('i').className = on ? 'fa-solid fa-sun' : 'fa-solid fa-moon'; dk.querySelector('em').textContent = on ? 'Světlý' : 'Tmavý'; }
  };
  /* ---------- výběr okresu ---------- */
  let okKraj = null;
@@ -67,21 +100,26 @@
  function renderMore() {
   const el = $('sh-more'), dark = document.body.classList.contains('dark');
   const items = [
-   ['fav', 'fa-solid fa-star', 'Moje místa'], ['bedekr', 'fa-solid fa-book-open', 'Bedekr'], ['garage', 'fa-solid fa-warehouse', 'Garáž', 1],
-   ['help', 'fa-solid fa-circle-question', 'Návod'], ['dark', dark ? 'fa-solid fa-sun' : 'fa-solid fa-moon', dark ? 'Světlý režim' : 'Tmavý režim'], ['trains', 'fa-solid fa-train', 'Vlaky', 0, !MG.veh.hideTrains],
-   ['live', 'fa-solid fa-tower-broadcast', 'Živé polohy', 0, MG.live.on], ['color', 'fa-solid fa-palette', 'Barevná síť', 0, MG.map.colorNet], ['alerts', 'fa-solid fa-triangle-exclamation', 'Mimořádnosti'], ['walk', 'fa-solid fa-person-walking', 'K zastávce'], ['install', 'fa-solid fa-mobile-screen', 'Na plochu'], ['set', 'fa-solid fa-gear', 'Nastavení'], ['cz', 'fa-solid fa-earth-europe', 'Celá ČR'], ['info', 'fa-solid fa-circle-info', 'O aplikaci']
+   ['fav', 'fa-solid fa-star', 'Moje místa'], ['bedekr', 'fa-solid fa-landmark', 'Bedekr'], ['help', 'fa-solid fa-circle-question', 'Návod'],
+   ['dark', dark ? 'fa-solid fa-sun' : 'fa-solid fa-moon', dark ? 'Světlý režim' : 'Tmavý režim'], ['regio', 'fa-solid fa-bus-simple', 'Regio linky', 0, !MG.app.hideRegio], ['trains', 'fa-solid fa-train', 'Vlaky', 0, !MG.app.hideTrains],
+   ['live', 'fa-solid fa-tower-broadcast', 'Živé polohy', 0, MG.live.on], ['live3d', 'fa-solid fa-cube', 'ŽIVĚ ve 3D', 1], ['alerts', 'fa-solid fa-triangle-exclamation', 'Mimořádnosti'],
+   ['okres', 'fa-solid fa-map-location-dot', 'Okres'], ['cz', 'fa-solid fa-earth-europe', 'Celá ČR'], ['walk', 'fa-solid fa-person-walking', 'K zastávce'],
+   ['color', 'fa-solid fa-palette', 'Barevná síť', 0, MG.map.colorNet], ['install', 'fa-solid fa-mobile-screen', 'Na plochu'], ['set', 'fa-solid fa-gear', 'Nastavení'],
+   ['info', 'fa-solid fa-circle-info', 'O aplikaci']
   ];
-  el.innerHTML = U.head({icon: 'fa-solid fa-ellipsis', eb: 'mhd<b>GO</b>', title: 'Další funkce', sub: 'Nastavení, bedekr, garáž a informace'}) +
+  el.innerHTML = U.head({icon: 'fa-solid fa-ellipsis', eb: 'mhd<b>GO</b>', title: 'Další funkce', sub: 'Místa, bedekr, zobrazení a nastavení'}) +
    '<div class="sh-body"><div class="more-grid">' + items.map(([k, ic, t, d3, on]) => '<button data-m="' + k + '" class="' + (on ? 'on' : '') + '"><i class="' + ic + '"></i>' + t + (d3 ? '<sup class="b3d">3D</sup>' : '') + '</button>').join('') + '</div></div>';
   MG.qsa('.more-grid button', el).forEach(b => b.onclick = () => {
    const k = b.dataset.m;
    if (k === 'fav') return U.favs();
    if (k === 'bedekr') { U.close('sh-more'); return MG.bedekr.open(); }
-   if (k === 'garage') return MG.garage.open();
    if (k === 'help') return U.help();
    if (k === 'dark') { MG.app.setDark(!document.body.classList.contains('dark')); return renderMore(); }
-   if (k === 'trains') { MG.veh.hideTrains = !MG.veh.hideTrains; MG.store.set('hidetrains', MG.veh.hideTrains); MG.map.drawNet(); MG.veh.tick(); MG.toast(MG.veh.hideTrains ? 'Vlaky skryty' : 'Vlaky zobrazeny'); return renderMore(); }
+   if (k === 'regio') { MG.app.toggleRegio(); return renderMore(); }
+   if (k === 'trains') { MG.app.toggleTrains(); return renderMore(); }
    if (k === 'live') return U.liveSettings();
+   if (k === 'live3d') { U.close('sh-more'); return MG.m3d.open({}); }
+   if (k === 'okres') return renderOkres();
    if (k === 'color') { MG.map.colorNet = !MG.map.colorNet; MG.store.set('colornet', MG.map.colorNet); MG.map.drawNet(); MG.toast(MG.map.colorNet ? 'Síť v barvách linek' : 'Síť v barvě mhdGO'); return renderMore(); }
    if (k === 'info') return U.info();
    if (k === 'set') return U.settings();
@@ -96,13 +134,21 @@
  U.misc = misc;
  /* ---------- legenda ---------- */
  U.legend = () => {
-  const rows = [['#C1784F', 'MHD – autobusy, trolejbusy, tramvaje (každá linka má vlastní barvu čísla)'], ['#d7a17d', 'Regionální autobusy (odstín se liší podle okresu)'], ['#5aa5ad', 'Meziregionální a dálkové autobusy'], ['#4a4f5a', 'Železnice (každý vlak vlastní barvou)']];
-  misc({icon: 'fa-solid fa-list', eb: 'Mapa', title: 'Legenda'}, rows.map(([c, t]) => '<div class="leg-row"><span class="leg-sw" style="background:' + c + '"></span>' + t + '</div>').join('') +
-   '<div class="sec-t">Vozidla</div><div class="leg-row"><span class="veh" style="transform:none;--c:#2344c7"><span class="veh-l">202</span><span class="veh-d">✓</span></span>živá poloha, včas</div>' +
-   '<div class="leg-row"><span class="veh" style="transform:none;--c:#a723c7"><span class="veh-l">211</span><span class="veh-d mid">+2</span></span>živá poloha se zpožděním</div>' +
-   '<div class="leg-row"><span class="veh" style="transform:none;--c:#3923c7"><span class="veh-l">203</span></span>poloha podle jízdního řádu</div>' +
-   '<div class="leg-row"><span class="veh train" style="transform:none;--c:#7b3fa0"><span class="veh-l"><i class="fa-solid fa-train"></i>Os 3912</span><span class="veh-d bad">+6</span></span>vlak (živě ze Správy železnic)</div>' +
-   '<div class="sec-t">Zastávky</div><div class="leg-row"><span class="plat" style="transform:none">A</span>nástupiště (zobrazí se při přiblížení)</div><div class="leg-row"><span style="width:14px;height:14px;border-radius:50%;border:2.5px solid #2f3b52;background:#fff;display:inline-block"></span>železniční stanice / zastávka</div>');
+  const el = $('legend'), btn = $('legend-btn');
+  if (!el.hidden) { el.hidden = true; btn.classList.remove('on'); return; }
+  const dark = document.body.classList.contains('dark');
+  const ln = (c, extra) => '<span class="lg-s"><span class="lg-l" style="background:' + c + ';' + (extra || '') + '"></span></span>';
+  el.innerHTML = '<div class="lg-h">Legenda<button type="button" aria-label="Zavřít">✕</button></div>' +
+   '<div class="lg-r">' + ln(dark ? '#E39A70' : '#C1784F') + 'Linky MHD (tramvaje, trolejbusy, autobusy)</div>' +
+   '<div class="lg-r">' + ln('#b98c6e', 'height:4px') + 'Regionální a dálkové autobusy</div>' +
+   '<div class="lg-r">' + ln('#4a4f5a', 'background:repeating-linear-gradient(90deg,#4a4f5a 0 7px,#fff 7px 12px);border:1.5px solid #4a4f5a;height:7px') + 'Železnice (vlaky)</div>' +
+   '<div class="lg-r">' + ln('transparent', 'border-top:3px dotted #6b625b;height:0') + 'Pěší úsek vyhledaného spojení</div>' +
+   '<div class="lg-r"><span class="lg-s"><span style="width:13px;height:13px;border-radius:50%;border:2.5px solid #24201c;background:#fff;display:inline-block"></span></span>Zastávka · <span class="plat" style="transform:none;display:inline-grid;width:16px;height:16px;font-size:8.5px">A</span> nástupiště</div>' +
+   '<div class="lg-r"><span class="lg-s"><span class="veh" style="transform:none;--c:#2344c7"><span class="veh-l" style="min-width:24px;height:18px;font-size:10px">202</span><span class="veh-d" style="min-width:16px;height:16px;font-size:9px">✓</span></span></span>Vozidlo – živě, včas / +min zpoždění</div>' +
+   '<div class="lg-r"><span class="lg-s"><span class="veh" style="transform:none;--c:#3923c7"><span class="veh-l" style="min-width:24px;height:18px;font-size:10px">203</span></span></span>Vozidlo podle jízdního řádu</div>' +
+   '<div class="lg-n">Regionální linky a vlaky zapneš v nabídce Více (na počítači tlačítky Regio a Vlak). Každé město má vlastní barvy linek, každý vlak vlastní barvu. Měřítko a čas jsou vlevo dole, sever ukazuje směrovka. Podklad © OpenStreetMap, Mapbox.</div>';
+  el.hidden = false; btn.classList.add('on');
+  el.querySelector('button').onclick = () => { el.hidden = true; btn.classList.remove('on'); };
  };
  /* ---------- živá data ---------- */
  U.liveSettings = () => {
@@ -141,7 +187,7 @@
   '<h3><i class="fa-solid fa-route"></i> Síť</h3><p>Seznam linek okresu. Po rozbalení se linka ukáže na mapě se zastávkami, tlačítko <b>Otočit směr</b> přepne směr a odkaz vede na oficiální jízdní řád.</p>' +
   '<h3><i class="fa-regular fa-clock"></i> Odjezdy</h3><p>Odjezdová tabule z libovolné zastávky v ČR, i na jiný den a čas, s filtrem linek a nástupišti.</p>' +
   '<h3><i class="fa-solid fa-magnifying-glass"></i> Hledat</h3><p>Zastávky v celé ČR, adresy a místa a vyhledání spojení včetně přestupů a vlaků mezi okresy.</p>' +
-  '<h3><i class="fa-solid fa-cube"></i> 3D</h3><p>3D mapa se otevře v centru obce, kde jsi. Vozidla jsou 3D modely; v režimu Jízda se svezeš vybraným spojem.</p>' +
+  '<h3><i class="fa-solid fa-cube"></i> 3D</h3><p>Model 3D se otevře v centru obce, kde jsi. Vozidla jsou 3D modely v barvách dopravců; v režimu Jízda 3D se svezeš vybraným spojem.</p>' +
   '<h3><i class="fa-solid fa-earth-europe"></i> Celá ČR a Vycentrovat</h3><p><b>Celá ČR</b> ukáže celou republiku s hranicemi okresů (klepnutím na okres ho otevřeš). <b>Vycentrovat</b> vrátí mapu na tvůj okres (bez polohy na celou ČR), ve 3D na centrum tvé obce.</p></div>', true);
  /* ---------- o aplikaci ---------- */
  U.info = () => {

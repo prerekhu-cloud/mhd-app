@@ -2,8 +2,8 @@
 """Sestaví jediný soubor mhdgo.html (a index.html) z app/ – vše vložené jako u OpavaGO."""
 import os, json, re, sys
 H = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(H)
-JS = ['util.js', 'krovak.js', 'data.js', 'map2d.js', 'live.js', 'vehicles.js', 'ui.js', 'net.js', 'dep.js', 'raptor.js', 'search.js',
-      'models.js', 'map3d.js', 'garage.js', 'bedekr.js', 'extras.js', 'app.js']
+JS = ['util.js', 'thumbs.js', 'krovak.js', 'data.js', 'map2d.js', 'live.js', 'vehicles.js', 'ui.js', 'net.js', 'dep.js', 'raptor.js', 'search.js',
+      'models.js', 'map3d.js', 'bedekr.js', 'extras.js', 'app.js']
 rd = lambda p: open(os.path.join(H, p), encoding='utf-8').read()
 def decode(s):
     out = []; i = la = lo = 0
@@ -31,7 +31,7 @@ html = rd('index.html')
 logo = rd('assets/logo.svg').strip()
 html = html.replace('@ICON96@', rd('assets/icon96.b64').strip()).replace('@ICON512@', rd('assets/icon512.b64').strip())
 html = html.replace('@LOGO@', logo).replace('@CZPATH@', path).replace('@CZVIEW@', '0 0 1000 %d' % round(Hh * S))
-html = html.replace('/*@SPLASHCSS@*/', rd('css/splash.css')).replace('/*@CSS@*/', rd('css/base.css'))
+html = html.replace('/*@SPLASHCSS@*/', rd('css/splash.css')).replace('/*@CSS@*/', rd('css/base.css') + '\n' + rd('css/opava.css'))
 js = '\n'.join('/* ---- %s ---- */\n' % f + rd('js/' + f) for f in JS if os.path.exists(os.path.join(H, 'js', f)))
 html = html.replace('/*@JS@*/', js.replace('</script>', '<\\/script>'))
 tok = os.environ.get('MAPBOX_TOKEN') or (open(os.path.join(H, '.mapbox-token')).read().strip() if os.path.exists(os.path.join(H, '.mapbox-token')) else '')

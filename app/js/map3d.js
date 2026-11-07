@@ -101,7 +101,7 @@
   const lines = [], stops = [];
   const seen = new Set();
   for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) {
-   if (seen.has(li)) continue; seen.add(li); const L_ = D.ln.get(li); if (!L_ || L_.k === 'vlak' && MG.veh.hideTrains) continue;
+   if (seen.has(li)) continue; seen.add(li); const L_ = D.ln.get(li); if (!L_ || (L_.k === 'vlak' && MG.app.hideTrains) || ((L_.k === 'regio' || L_.k === 'mezi') && MG.app.hideRegio)) continue;
    const col = L_.k === 'vlak' ? '#4a4f5a' : L_.k === 'regio' ? '#d7a17d' : L_.k === 'mezi' ? '#5aa5ad' : (MG.map.colorNet || L_.k === 'metro' ? L_.c : '#C1784F');
    for (const p of D.mainPats(L_).filter(Boolean)) lines.push({type: 'Feature', properties: {c: col}, geometry: {type: 'LineString', coordinates: D.geo3(p).pts.map(q => [q[1], q[0]])}});
   }
@@ -203,6 +203,11 @@
   h.innerHTML = D.badge(it.L, {size: 'big', text: MG.veh.label(it)}) + '<div style="flex:1;min-width:0"><div style="font:800 13.5px Outfit,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">→ ' + MG.h(it.head) + '</div><div style="font:600 11.5px Outfit,sans-serif;color:var(--mut)">Příští: ' + MG.h(pl ? D.stName(pl.st) : '') + ' · ' + MG.hm2(t) + '</div></div><button class="btn sm" id="ride-end"><i class="fa-solid fa-xmark"></i>Ukončit</button>';
   $('ride-end').onclick = () => T.endRide();
  }
+ /* ---------- bublina vozidla ve 3D ---------- */
+ let vpop = null;
+ T.vehPopup = (lat, lon, el, onClose) => { T.closeVehPopup(); vpop = new mapboxgl.Popup({className: 'lv-pop', maxWidth: '300px', offset: 18, closeOnClick: true}).setLngLat([lon, lat]).setDOMContent(el).addTo(T.map); vpop.on('close', () => { if (vpop && !vpop._quiet) { vpop = null; onClose(); } }); };
+ T.moveVehPopup = (lat, lon) => { if (vpop) vpop.setLngLat([lon, lat]); };
+ T.closeVehPopup = () => { if (vpop) { vpop._quiet = true; vpop.remove(); vpop = null; } };
  /* ---------- okno ve 3D ---------- */
  let pop = null;
  T.popup = (lat, lon, html) => { T.closePopup(); pop = new mapboxgl.Popup({className: 'pop-mg', maxWidth: '300px', offset: 12}).setLngLat([lon, lat]).setHTML(html).addTo(T.map); };

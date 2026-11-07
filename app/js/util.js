@@ -22,9 +22,10 @@ const MG = window.MG = window.MG || {};
   WORKER: saved.worker || '',
   SZ: 'https://mapy.spravazeleznic.cz/serverside/request2.php?module=Layers\\OsVlaky&&action=load',
   PHOTON: 'https://photon.komoot.io/api/',
-  VERSION: '1.1'
+  VERSION: '1.2'
  };
  MG.$ = id => document.getElementById(id);
+ MG.isWide = () => matchMedia('(min-width:900px) and (min-height:521px), (orientation:landscape) and (max-height:520px)').matches;
  MG.qs = (s, r) => (r || document).querySelector(s);
  MG.qsa = (s, r) => [...(r || document).querySelectorAll(s)];
  MG.h = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

@@ -38,12 +38,24 @@
 
 <div id="app">
  <header id="hdr" class="glass">
-  <div class="brand" id="brand" title="O aplikaci mhdGO"><div class="brand-ic">@LOGO@</div><div class="brand-tx">mhd<b>GO</b></div></div>
-  <button id="okres-chip" type="button" title="Vybrat okres"><i class="fa-solid fa-location-dot"></i><span id="okres-name">Načítám…</span><i class="fa-solid fa-chevron-down chev"></i></button>
+  <div class="brand"><div class="brand-ic" id="brand" title="O aplikaci mhdGO">@LOGO@</div><div class="brand-tt"><div class="brand-tx" id="brand-tx">mhd<b>GO</b></div><button id="okres-chip" type="button" title="Vybrat okres"><span id="okres-name">Načítám…</span><i class="fa-solid fa-chevron-down"></i></button></div></div>
   <div class="hdr-sp"></div>
+  <nav class="hdr-btns" aria-label="Funkce">
+   <button class="rb" data-a="search" title="Hledat zastávku, adresu nebo spojení"><i class="fa-solid fa-magnifying-glass"></i></button>
+   <button class="rb" data-a="dep" title="Odjezdy ze zastávky"><i class="fa-regular fa-clock"></i><em>Odjezdy</em></button>
+   <button class="rb" data-a="bedekr" title="Bedekr – památky a zajímavosti"><i class="fa-solid fa-landmark"></i><em>Bedekr</em></button>
+   <button class="rb" data-a="info" title="O aplikaci"><i class="ri">i</i><em>Info</em></button>
+   <button class="rb" data-a="dark" title="Tmavý režim"><i class="fa-solid fa-moon"></i><em>Tmavý</em></button>
+   <button class="rb" data-a="net" title="Dopravní síť – všechny linky a jejich trasy"><i class="fa-solid fa-route"></i><em>Síť</em></button>
+   <button class="rb" data-a="more" title="Další funkce a nastavení"><i class="fa-solid fa-ellipsis"></i><em>Více</em></button>
+   <span class="hb-sep"></span>
+   <button class="rb tg" data-a="regio" title="Regionální linky"><i class="fa-solid fa-bus-simple"></i><em>Regio</em></button>
+   <button class="rb tg" data-a="vlak" title="Vlaky"><i class="fa-solid fa-train"></i><em>Vlak</em></button>
+  </nav>
   <div class="mode-sw" role="tablist" aria-label="Režim mapy">
-   <button id="m-2d" class="on" title="2D mapa"><i class="fa-regular fa-map"></i></button>
-   <button id="m-3d" title="3D mapa"><i class="fa-solid fa-cube"></i></button>
+   <button id="m-2d" class="on" title="Mapa 2D"><i class="fa-regular fa-map"></i><span>Mapa 2D</span></button>
+   <button id="m-3d" title="Model 3D"><i class="fa-solid fa-cube"></i><span>Model 3D</span></button>
+   <button id="m-ride" title="Jízda vozidlem ve 3D"><i class="fa-solid fa-cubes"></i><span>Jízda 3D</span><sup>+</sup></button>
   </div>
  </header>
  <main id="mapwrap">
@@ -53,6 +65,7 @@
    <div class="zoomgrp"><button class="hbtn" id="z-in" title="Přiblížit">+</button><button class="hbtn" id="z-out" title="Oddálit">−</button></div>
   </div>
   <div class="hud hud-tr">
+   <div class="layseg glass" id="layseg"><button data-l="basic"><i class="fa-solid fa-layer-group"></i>Základní</button><button data-l="light">Světlá</button><button data-l="sat">Letecká</button></div>
    <div class="layers" id="layers">
     <button class="lay on" data-l="basic"><span id="lay-basic"></span><em>Základní</em></button>
     <button class="lay" data-l="light"><span id="lay-light"></span><em>Světlá</em></button>
@@ -78,6 +91,7 @@
    </div>
   </div>
   <div id="ride-hud" class="glass"></div>
+  <div id="legend" class="glass" hidden></div>
   <div class="loadbar glass" id="loadbar" hidden><span class="spin"></span><span id="loadbar-t">Načítám…</span></div>
  </main>
 </div>
@@ -99,6 +113,7 @@
 <section id="vcard" aria-hidden="true"></section>
 <section id="bedekr" aria-hidden="true"></section>
 <div id="toast"></div>
+<div id="tip"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>

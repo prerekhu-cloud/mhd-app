@@ -58,7 +58,7 @@
    const L = D.ln.get(p.l); if (L) L.pats.push(p);
    p.s.forEach((pg, k) => { const pl = D.pl.get(pg); if (pl) pl.pats.push([p, k]); const st = pl && D.st.get(pl.st); if (st) st.lines.add(p.l); });
   }
-  if (oi >= 0) { D.okLines.set(oi, pk.ln.map(l => l.i)); D.okSt.set(oi, pk.st.filter(s => s[4] === oi).map(s => s[0])); D.okObce = D.okObce || new Map(); D.okObce.set(oi, (pk.ob || []).map(o => ({name: o[0], lat: o[1], lon: o[2], pop: o[3], rings: o[4].map(MG.decode)}))); }
+  if (oi >= 0) { D.okLines.set(oi, pk.ln.map(l => l.i)); D.okSt.set(oi, pk.st.filter(s => s[4] === oi).map(s => s[0])); D.okNet = D.okNet || new Map(); if (pk.net) D.okNet.set(oi, {mhd: (pk.net.mhd || []).map(MG.decode), regio: (pk.net.regio || []).map(MG.decode), vlak: (pk.net.vlak || []).map(MG.decode)}); D.okObce = D.okObce || new Map(); D.okObce.set(oi, (pk.ob || []).map(o => ({name: o[0], lat: o[1], lon: o[2], pop: o[3], rings: o[4].map(MG.decode)}))); }
  };
  function prepPattern(p) {
   p.dep = []; p.arr = [];

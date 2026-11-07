@@ -1,0 +1,181 @@
+/* ===== mhdGO – vrstva vzhledu 1:1 podle OpavaGO ===== */
+/* ---------- hlavička ---------- */
+#hdr{height:58px;padding:6px 8px 6px 8px;gap:10px;border-radius:22px}
+.brand{gap:10px;cursor:default;min-width:0;flex:0 1 auto}
+.brand-ic{width:38px;height:38px;cursor:pointer}
+.brand-tt{display:flex;flex-direction:column;justify-content:center;min-width:0;line-height:1}
+.brand-tx{font-size:17.5px;font-weight:800;letter-spacing:-.02em;cursor:pointer}
+#okres-chip{all:unset;display:inline-flex;align-items:center;gap:4px;margin-top:3px;font:800 9.5px/1.1 Outfit,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);cursor:pointer;max-width:46vw;white-space:nowrap}
+#okres-chip span{overflow:hidden;text-overflow:ellipsis}
+#okres-chip i{font-size:8px;color:var(--acc)}
+#okres-chip:hover{color:var(--acc)}
+.mode-sw{gap:4px;padding:4px;border-radius:18px;background:var(--hover)}
+.mode-sw button{width:42px;height:38px;border-radius:14px;font-size:15px;position:relative;display:flex;align-items:center;justify-content:center;gap:7px;color:var(--tx)}
+.mode-sw button span{display:none}
+.mode-sw button sup{font:800 10px Outfit,sans-serif;margin-left:-3px}
+.mode-sw button.on{background:var(--surf);color:var(--tx);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+body.dark .mode-sw button.on{background:#3a3633}
+.hdr-btns{display:none;align-items:center;gap:7px}
+.rb{position:relative;width:44px;height:44px;border-radius:50%;border:2.5px solid var(--acc);background:transparent;color:var(--acc);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;padding:0;transition:background .15s,transform .15s}
+.rb i{font-size:16px;line-height:1}
+.rb i.ri{font:italic 800 18px/1 Georgia,serif}
+.rb em{font:800 6.5px/1 Outfit,sans-serif;font-style:normal;letter-spacing:.04em;text-transform:uppercase}
+.rb:hover{background:var(--acc-soft)}
+.rb:active{transform:scale(.94)}
+.rb.on{background:var(--acc);color:#fff}
+.rb.tg{opacity:.55}.rb.tg.on{opacity:1;background:transparent;color:var(--acc);border-color:#9a5a33}
+body.dark .rb.tg.on{border-color:#E39A70}
+.hb-sep{width:2px;height:30px;border-radius:2px;background:var(--line2);margin:0 4px}
+/* ---------- podklady ---------- */
+.layseg{display:none;padding:4px;border-radius:999px;gap:2px}
+.layseg button{height:30px;padding:0 13px;border:0;border-radius:999px;background:transparent;color:var(--mut);font:600 12px Outfit,sans-serif;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.layseg button.on{background:var(--tx);color:var(--g-solid)}
+.layseg button i{font-size:11px}
+/* ---------- tlačítka dole vpravo ---------- */
+.cz-btns{flex-direction:column;gap:8px}
+#btn-cz,#btn-center{width:44px;height:44px;padding:0;border-radius:50%;justify-content:center}
+#btn-cz span,#btn-center span{display:none}
+#btn-cz i,#btn-center i{font-size:16px}
+#btn-center i{color:var(--acc)}
+.hud-br{bottom:10px}
+/* ---------- HUD vlevo dole ---------- */
+.hud-bl .hbtn{height:32px;border-radius:999px}
+#legend-btn.on{background:var(--acc);color:#fff;border-color:transparent}
+#live-btn{border-radius:999px}
+/* ---------- nápovědy (jako OpavaGO) ---------- */
+#tip{position:fixed;z-index:6000;padding:8px 12px;border-radius:10px;background:#1d1a17;color:#fff;font:700 12px Outfit,sans-serif;white-space:nowrap;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .18s,transform .18s;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#tip.on{opacity:1;transform:none}
+/* ---------- legenda (plovoucí karta) ---------- */
+#legend{position:absolute;z-index:1150;left:10px;bottom:52px;width:min(340px,calc(100% - 20px));border-radius:18px;padding:12px 14px 12px;background:var(--g-solid)!important}
+#legend .lg-h{display:flex;align-items:center;justify-content:space-between;font:800 11px Outfit,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+#legend .lg-h button{border:0;background:none;color:var(--mut);font-size:15px;cursor:pointer}
+#legend .lg-r{display:flex;align-items:center;gap:12px;padding:4px 0;font:600 13px Outfit,sans-serif;color:var(--tx)}
+#legend .lg-s{width:30px;flex:0 0 auto;display:flex;justify-content:center}
+#legend .lg-l{height:5px;width:30px;border-radius:4px}
+#legend .lg-n{font:500 11px/1.4 Outfit,sans-serif;color:var(--mut);margin-top:8px}
+/* ---------- síť: obrázky vozidel ---------- */
+.ln-th{width:44px;height:24px;flex:0 0 auto;display:grid;place-items:center}
+.ln-th img{max-width:44px;max-height:24px;object-fit:contain;display:block}
+.ln-th i{color:var(--faint);font-size:16px}
+.ln-h{gap:10px;padding:11px 12px}
+.ln-h .tx{font-size:13.5px}
+.sh-eb.brand-eb{font:800 13px/1 Outfit,sans-serif;letter-spacing:-.01em;text-transform:none;color:var(--tx)}
+.sh-eb.brand-eb b{color:var(--acc);font-style:italic}
+/* ---------- bublina vozidla (Leaflet popup jako lv41) ---------- */
+.lv-pop .leaflet-popup-content-wrapper{padding:0;border-radius:20px;overflow:hidden;background:var(--g-solid);box-shadow:0 18px 50px rgba(0,0,0,.25)}
+.lv-pop .leaflet-popup-content{margin:0;width:282px!important}
+.lv-pop .leaflet-popup-tip{background:var(--g-solid)}
+.lv-pop a.leaflet-popup-close-button{top:13px!important;right:12px!important;width:28px!important;height:28px!important;border-radius:50%;background:rgba(255,255,255,.95)!important;color:#333!important;font:600 17px/27px Outfit,sans-serif!important;text-align:center;z-index:3}
+.lv{font-family:Outfit,sans-serif;color:var(--tx)}
+.lv .vc-hd{padding:14px 48px 14px 14px}
+.lv .vc-ln{min-width:44px;height:34px;font-size:17px;line-height:34px;border-radius:10px}
+.lv .vc-hs b{font-size:15.5px}
+.lv .vc-dl{padding:5px 9px;font-size:12px}
+.lv .vc-st{padding:10px 14px 4px;max-height:260px;overflow:auto}
+.lv .vc-mt{padding:6px 14px 8px}
+.lv .vc-mt span{font-size:11px;padding:4px 9px}
+.lv .vc-src{padding:8px 14px 11px}
+.lv .lv-acts{display:flex;gap:5px;padding:2px 14px 10px;flex-wrap:wrap}
+.lv .lv-acts button{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:var(--chip);font:700 11px Outfit,sans-serif;color:var(--tx);display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.lv .lv-acts button i{color:var(--acc);font-size:11px}
+.lv .lv-acts button.on{background:var(--acc);color:#fff;border-color:transparent}.lv .lv-acts button.on i{color:#fff}
+.lv .tl-s{font-size:13px;padding:5px 0 5px 2px}
+.lv .pick-hint{margin:0 14px 6px}
+.mapboxgl-popup.lv-pop .mapboxgl-popup-content{padding:0;border-radius:20px;overflow:hidden;background:var(--g-solid);box-shadow:0 18px 50px rgba(0,0,0,.25);width:282px}
+.mapboxgl-popup.lv-pop .mapboxgl-popup-close-button{top:12px;right:12px;width:28px;height:28px;border-radius:50%;background:#fff;color:#333;font-size:17px;z-index:3}
+/* tekoucí čárky po zbývající trase (flow41) */
+.flow{stroke-dasharray:6 12;animation:flow 1.2s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-18}}
+/* ---------- oblíbená místa (lišta jako fav41) ---------- */
+.fav-strip{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}
+.fav-strip::-webkit-scrollbar{display:none}
+.fav-strip .fav-lab{color:var(--acc);font-size:13px;padding:0 4px}
+.fav-strip button{flex:0 0 auto;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--chip);display:inline-flex;align-items:center;gap:7px;font:700 12px Outfit,sans-serif;color:var(--tx);cursor:pointer}
+.fav-strip button i{font-size:11px;color:var(--mut)}
+.fav-strip button.ghost{color:var(--mut)}
+.fav-strip button .pl{font-size:9px;color:var(--faint)}
+/* ---------- odjezdy jako dep42 ---------- */
+.dep-lc{flex:0 0 auto;height:34px;min-width:44px;padding:0 9px;border-radius:999px;border:2.5px solid var(--lc);background:var(--surf);font:800 12.5px Outfit,sans-serif;color:var(--tx);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.dep-lc.on{background:var(--lc);color:var(--lt)}
+.dep-lc.all{border-color:var(--tx)}
+.dep-lc.all.on{background:var(--tx);color:var(--g-solid)}
+.dep .d-t b{color:#a8432a;font-size:19px}
+body.dark .dep .d-t b{color:#f08a6b}
+.dep .d-t b.cd{letter-spacing:-.01em}
+.dep .chev{color:var(--faint);font-size:11px;margin-left:2px}
+.dep-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 4px 2px;font:600 11px Outfit,sans-serif;color:var(--mut)}
+.dep-foot a{color:var(--acc);font-weight:800;text-decoration:none}
+.wx-line{display:flex;align-items:center;gap:7px;font:700 12px Outfit,sans-serif;color:var(--tx);padding:0 4px 8px}
+.wx-line i{color:var(--acc)}
+.wx-line small{font-weight:600;color:var(--mut)}
+/* ---------- hledání jako search-panel ---------- */
+.s-head{display:flex;align-items:center;justify-content:space-between;margin:10px 4px 10px}
+.s-head h3{margin:0;font:800 17px Outfit,sans-serif;letter-spacing:-.01em}
+.s-field{display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 14px;border:1.5px solid var(--acc);border-radius:16px;background:var(--surf);box-shadow:0 0 0 4px var(--acc-ring);margin-bottom:10px}
+.s-field.dim{border-color:var(--line);box-shadow:none}
+.s-field:focus-within{border-color:var(--acc);box-shadow:0 0 0 4px var(--acc-ring)}
+.s-field>i{color:var(--faint);font-size:13px}
+.s-field input{flex:1;min-width:0;border:0;outline:0;background:transparent;font:600 14.5px Outfit,sans-serif;height:100%}
+.s-field .fbtn{width:34px;height:34px;border-radius:12px;border:0;background:var(--hover);cursor:pointer;color:var(--mut);display:grid;place-items:center}
+.s-light{height:34px;border-radius:12px;border:0;background:var(--hover);font:700 12px Outfit,sans-serif;color:var(--tx);width:100%;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px}
+.s-res .sg{padding:10px 8px;border-bottom:1px solid var(--line);border-radius:0}
+.s-res .sg .ic2{width:30px;height:30px;border-radius:50%;background:var(--hover);display:grid;place-items:center;color:var(--faint);font-size:12px;flex:0 0 auto}
+.s-res .sg.stop .ic2{color:var(--acc)}
+.s-res .sg .lns{margin-top:4px}
+.s-res .sg .lns .ln{min-width:22px;height:17px;font-size:9.5px;padding:0 4px;border-radius:5px}
+/* ---------- Více jako more41 ---------- */
+.more-grid button{height:96px;border-radius:22px}
+.more-grid button i{width:40px;height:40px}
+.more-grid button.on i{background:var(--acc);color:#fff}
+/* ---------- mobil na šířku: lišta dole uprostřed, panely vpravo (OpavaGO) ---------- */
+@media (orientation:landscape) and (max-height:520px){
+ :root{--tabh:52px}
+ #app{padding:calc(6px + var(--safe-t)) calc(8px + env(safe-area-inset-right,0px)) calc(var(--tabh) + 12px + var(--safe-b)) calc(8px + env(safe-area-inset-left,0px))}
+ #hdr{height:48px}
+ #tabs{left:50%!important;right:auto!important;top:auto!important;transform:translateX(-50%);bottom:calc(6px + var(--safe-b))!important;width:min(520px,calc(100vw - 24px))!important;height:var(--tabh)!important;grid-template-columns:repeat(5,1fr)!important;grid-auto-rows:auto!important}
+ #tabs button{flex-direction:row!important;gap:6px!important;font-size:11px!important}
+ #tabs button i{font-size:16px!important}
+ .sheet,#vcard{left:auto!important;right:calc(8px + env(safe-area-inset-right,0px))!important;top:calc(60px + var(--safe-t))!important;bottom:calc(var(--tabh) + 12px + var(--safe-b))!important;width:min(380px,48vw)!important;max-height:none!important;height:auto!important;transform:translateX(calc(100% + 30px))}
+ .sheet.open{transform:none}
+ body.has-panel #mapwrap{margin-right:min(388px,calc(48vw + 8px))}
+ .topbar{left:50%!important}
+}
+/* ---------- tablet a počítač: kulatá tlačítka v hlavičce, panely vpravo vedle mapy (OpavaGO) ---------- */
+@media (min-width:900px) and (min-height:521px){
+ :root{--tabh:0px}
+ #app{padding:12px;gap:10px}
+ #hdr{height:66px;padding:8px 10px 8px 12px}
+ .brand-ic{width:42px;height:42px}
+ .brand-tx{font-size:19px}
+ #okres-chip{font-size:10px}
+ .hdr-btns{display:flex}
+ .mode-sw{padding:5px;border-radius:999px;background:var(--hover)}
+ .mode-sw button{width:auto;height:36px;padding:0 15px;border-radius:999px;font:600 13px Outfit,sans-serif}
+ .mode-sw button span{display:inline}
+ .mode-sw button i{font-size:13px}
+ #tabs{display:none!important}
+ .layers{display:none!important}
+ .layseg{display:flex}
+ #btn-cz,#btn-center{width:auto;height:34px;padding:0 13px;border-radius:999px}
+ #btn-cz span,#btn-center span{display:inline}
+ #btn-cz i,#btn-center i{font-size:12px}
+ .cz-btns{flex-direction:row}
+ .sheet,#vcard{left:auto!important;right:12px!important;top:88px!important;bottom:12px!important;width:400px!important;max-height:none!important;height:auto!important;border-radius:26px;transform:translateX(calc(100% + 40px))!important;transition:transform .3s cubic-bezier(.2,.9,.2,1)}
+ .sheet.open,#vcard.open{transform:none!important}
+ body.has-panel #mapwrap{margin-right:412px}
+ #mapwrap{transition:margin-right .3s cubic-bezier(.2,.9,.2,1)}
+ .topbar{top:88px;left:calc(50% - 206px)}
+ body:not(.has-panel) .topbar{left:50%}
+ #legend{bottom:54px}
+}
+@media (min-width:900px) and (max-width:1180px) and (min-height:521px){
+ .rb{width:40px;height:40px}.rb i{font-size:14px}.rb em{font-size:6px}
+ .hdr-btns{gap:5px}
+ .mode-sw button{padding:0 11px;font-size:12px}
+ .sheet,#vcard{width:360px!important}
+ body.has-panel #mapwrap{margin-right:372px}
+}
+@media (min-width:900px) and (max-width:1040px) and (min-height:521px){
+ .mode-sw button span{display:none}
+ .mode-sw button{padding:0 12px}
+}

@@ -1,7 +1,9 @@
 /* ===== mhdGO – start aplikace, okres, poloha ===== */
 (function(){
  const D = MG.D, $ = MG.$;
- const A = MG.app = {cur: -1, me: null, home: -1, perm: 'unknown', rnd: -1};
+ const A = MG.app = {cur: -1, me: null, home: -1, perm: 'unknown', rnd: -1, hideTrains: MG.store.get('hidetrains', false), hideRegio: MG.store.get('hideregio', false)};
+ A.toggleTrains = () => { A.hideTrains = !A.hideTrains; MG.store.set('hidetrains', A.hideTrains); MG.map.drawNet(); MG.veh.tick(); MG.m3d.updData && MG.m3d.updData(); MG.ui.syncToggles(); MG.toast(A.hideTrains ? 'Vlaky skryty' : 'Vlaky zobrazeny'); };
+ A.toggleRegio = () => { A.hideRegio = !A.hideRegio; MG.store.set('hideregio', A.hideRegio); MG.map.drawNet(); MG.veh.tick(); MG.m3d.updData && MG.m3d.updData(); MG.ui.syncToggles(); MG.toast(A.hideRegio ? 'Regionální linky skryty' : 'Regionální linky zobrazeny'); };
  const stage = t => { const e = $('sp-stage'); if (e) e.textContent = t; };
  const loadbar = (t) => { const b = $('loadbar'); if (!t) { b.hidden = true; return; } $('loadbar-t').textContent = t; b.hidden = false; };
  A.loadbar = loadbar;
@@ -10,6 +12,7 @@
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = on ? '#1d1a18' : '#f4ebe2';
   if (MG.map.m) { MG.map.retheme(); MG.map.drawNet(); MG.map.drawOkresy(A.cur); }
   MG.m3d && MG.m3d.retheme && MG.m3d.retheme();
+  MG.ui && MG.ui.syncToggles && MG.ui.syncToggles();
  };
  A.selectOkres = async (oi, opt) => {
   opt = opt || {};
@@ -67,10 +70,12 @@
  async function weather() {
   try {
    const c = MG.map.m.getCenter();
-   const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + c.lat.toFixed(3) + '&longitude=' + c.lng.toFixed(3) + '&current=temperature_2m,weather_code,is_day&timezone=Europe%2FPrague');
+   const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + c.lat.toFixed(3) + '&longitude=' + c.lng.toFixed(3) + '&current=temperature_2m,weather_code,is_day,precipitation&hourly=precipitation&forecast_hours=12&timezone=Europe%2FPrague');
    const j = await r.json(); const cur = j.current; if (!cur) return;
    const w = WX[cur.weather_code] || ['fa-cloud', ''];
-   A.wx = {t: Math.round(cur.temperature_2m), code: cur.weather_code, txt: w[1], ic: w[0]};
+   let rain = '';
+   try { const hp = (j.hourly && j.hourly.precipitation) || []; const now = (cur.precipitation || 0) > 0.05; let k = hp.findIndex(x => x > 0.1); if (now) { let e = hp.findIndex(x => x <= 0.05); rain = e > 0 ? 'srážky ještě ~' + e + ' h' : 'prší'; } else rain = k < 0 ? '12 h bez srážek' : k <= 0 ? 'brzy srážky' : k + ' h bez srážek'; } catch (_) {}
+   A.wx = {t: Math.round(cur.temperature_2m), code: cur.weather_code, txt: w[1], ic: w[0], rain};
    const b = $('weather'); b.hidden = false; b.innerHTML = '<i class="fa-solid ' + w[0] + '"></i>' + A.wx.t + ' °C'; b.title = 'Počasí: ' + w[1];
    MG.emit('wx', A.wx);
   } catch (_) {}

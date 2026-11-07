@@ -23,6 +23,7 @@
   map.createPane('me').style.zIndex = 640;
   M.rNet = L.canvas({pane: 'net', padding: .4});
   M.rSel = L.canvas({pane: 'sel', padding: .4});
+  M.rFlow = L.svg({pane: 'sel', padding: .3});
   M.rStops = L.canvas({pane: 'stops', padding: .3, tolerance: 6});
   M.gOkres = L.layerGroup().addTo(map);
   M.gNet = L.layerGroup().addTo(map);
@@ -32,11 +33,12 @@
   M.gMe = L.layerGroup().addTo(map);
   $('z-in').onclick = () => MG.mode3d ? MG.m3d.zoom(1) : map.zoomIn();
   $('z-out').onclick = () => MG.mode3d ? MG.m3d.zoom(-1) : map.zoomOut();
-  MG.qsa('#layers .lay').forEach(b => b.onclick = () => M.setLayer(b.dataset.l));
+  MG.qsa('#layers .lay, #layseg button').forEach(b => b.onclick = () => M.setLayer(b.dataset.l));
   const thumb = (st) => MG.cfg.MAPBOX ? 'https://api.mapbox.com/styles/v1/mapbox/' + st + '/tiles/256/12/2211/1387?access_token=' + MG.cfg.MAPBOX : FALLBACK[st].replace('{s}', 'a').replace('{z}', 12).replace('{x}', 2211).replace('{y}', 1387).replace('{r}', '');
   $('lay-basic').style.backgroundImage = 'url(' + thumb('streets-v12') + ')';
   $('lay-light').style.backgroundImage = 'url(' + thumb('light-v11') + ')';
   $('lay-sat').style.backgroundImage = 'url(' + thumb('satellite-streets-v12') + ')';
+  map.on('zoomend', () => M.restyleNet && M.restyleNet());
   map.on('zoomend moveend', () => { updScale(); M.refreshStops(); MG.emit('view'); });
   map.on('click', () => MG.emit('mapclick'));
   updScale();
@@ -46,7 +48,7 @@
   M.layerKey = k; MG.store.set('layer', k);
   if (M.base) M.m.removeLayer(M.base);
   M.base = tile(M.styles[k]()).addTo(M.m); M.base.bringToBack();
-  MG.qsa('#layers .lay').forEach(b => b.classList.toggle('on', b.dataset.l === k));
+  MG.qsa('#layers .lay, #layseg button').forEach(b => b.classList.toggle('on', b.dataset.l === k));
  };
  M.retheme = () => M.setLayer(M.layerKey);
  function updScale() {
@@ -80,36 +82,37 @@
  /* ---------- síť linek ---------- */
  const NETC = {mhd: '#C1784F', tram: '#b2603a', trol: '#C1784F', metro: null, regio: '#d7a17d', mezi: '#5aa5ad', vlak: '#4a4f5a', lan: '#8b6d5c', lod: '#2c7ab0'};
  const NETW = {mhd: 3, tram: 3.4, trol: 3, metro: 4.5, regio: 2, mezi: 2, vlak: 3, lan: 3, lod: 2.5};
+ /* síť: sloučené souběžné trasy (jedna čára jako v OpavaGO), šířka podle přiblížení */
+ const W = z => z >= 17 ? 8 : z >= 16 ? 6 : z >= 15 ? 4.6 : z >= 14 ? 3.6 : z >= 12 ? 2.8 : 2.2;
  M.drawNet = () => {
-  M.gNet.clearLayers(); M.netLines = new Map();
-  const dark = document.body.classList.contains('dark');
-  const seen = new Set();
-  const lines = [];
-  for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) if (!seen.has(li)) { seen.add(li); const L_ = D.ln.get(li); if (L_) lines.push(L_); }
-  const order = {vlak: 0, mezi: 1, regio: 2, lod: 3, lan: 3, mhd: 4, trol: 5, tram: 6, metro: 7};
-  lines.sort((a, b) => order[a.k] - order[b.k]);
-  for (const Ln of lines) {
-   if (Ln.k === 'vlak' && MG.app && MG.app.hideTrains) continue;
-   const pats = D.mainPats(Ln).filter(Boolean);
-   const segs = [];
-   for (const p of pats) { if (!p.g && Ln.k === 'vlak' && !p.s) continue; segs.push(D.geo3(p).pts); }
-   if (!segs.length) continue;
-   let col = M.colorNet ? Ln.c : (Ln.k === 'metro' ? Ln.c : NETC[Ln.k]);
-   if (dark && !M.colorNet && (Ln.k === 'mhd' || Ln.k === 'trol' || Ln.k === 'tram')) col = '#E39A70';
-   const w = NETW[Ln.k] || 2;
-   const grp = [];
-   if (Ln.k === 'vlak') {
-    grp.push(L.polyline(segs, {renderer: M.rNet, color: col, weight: w + 1.2, opacity: .75, interactive: false}));
-    grp.push(L.polyline(segs, {renderer: M.rNet, color: '#ffffff', weight: w - 1.4, opacity: .9, dashArray: '6 7', interactive: false}));
-   }
-   const main = L.polyline(segs, {renderer: M.rNet, color: col, weight: Ln.k === 'vlak' ? .1 : w, opacity: Ln.k === 'vlak' ? 0 : (Ln.k === 'regio' || Ln.k === 'mezi' ? .7 : .88), lineCap: 'round', lineJoin: 'round'});
-   main.on('click', (e) => { L.DomEvent.stop(e); MG.net && MG.net.openLine(Ln.i, {fromMap: true}); });
-   main.bindTooltip(() => D.badge(Ln) + ' <span style="font-weight:600">' + MG.h(Ln.ln || '') + '</span>', {sticky: true, className: 'stop-tip', opacity: .97});
-   grp.push(main);
-   grp.forEach(x => x.addTo(M.gNet));
-   M.netLines.set(Ln.i, grp);
+  M.gNet.clearLayers(); M.netLayers = [];
+  const dark = document.body.classList.contains('dark'), z = M.m.getZoom();
+  const copper = dark ? '#E39A70' : '#C1784F';
+  const add = (pts, o) => { const l = L.polyline(pts, Object.assign({renderer: M.rNet, lineCap: 'round', lineJoin: 'round', interactive: true}, o)); l._k = o._k; l.on('click', e => { L.DomEvent.stop(e); M.linesAt(e.latlng); }); l.addTo(M.gNet); M.netLayers.push(l); return l; };
+  for (const oi of D.loaded) {
+   const n = D.okNet && D.okNet.get(oi); if (!n) continue;
+   if (!MG.app.hideTrains) for (const p of n.vlak) { add(p, {color: dark ? '#9aa1ad' : '#4a4f5a', weight: W(z) * .9 + 1.4, opacity: .8, _k: 'vlak0'}); add(p, {color: dark ? '#24221f' : '#ffffff', weight: Math.max(1.2, W(z) * .45), opacity: .95, dashArray: '7 8', interactive: false, _k: 'vlak1'}); }
+   if (!MG.app.hideRegio) for (const p of n.regio) add(p, {color: dark ? '#b98a6c' : '#b98c6e', weight: Math.max(1.6, W(z) * .62), opacity: .75, _k: 'regio'});
+   for (const p of n.mhd) add(p, {color: copper, weight: W(z), opacity: .92, _k: 'mhd'});
   }
+  /* barevná síť: hlavní trasy linek v jejich barvách */
+  if (M.colorNet) for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) { const Ln = D.ln.get(li); if (!Ln || (Ln.k === 'vlak' && MG.app.hideTrains) || ((Ln.k === 'regio' || Ln.k === 'mezi') && MG.app.hideRegio)) continue; for (const p of D.mainPats(Ln).filter(Boolean)) add(D.geo3(p).pts, {color: Ln.c, weight: Math.max(2, W(z) * .6), opacity: .9, _k: 'color'}); }
   M.refreshStops();
+ };
+ M.restyleNet = () => { const z = M.m.getZoom(); for (const l of (M.netLayers || [])) { const k = l._k; const w = k === 'mhd' ? W(z) : k === 'regio' ? Math.max(1.6, W(z) * .62) : k === 'vlak0' ? W(z) * .9 + 1.4 : k === 'vlak1' ? Math.max(1.2, W(z) * .45) : Math.max(2, W(z) * .6); l.setStyle({weight: w}); } };
+ /* klik na síť: které linky tudy jezdí */
+ M.linesAt = (ll) => {
+  const found = new Map(), lim = 30;
+  for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) {
+   const Ln = D.ln.get(li); if (!Ln || found.has(li)) continue;
+   if ((Ln.k === 'vlak' && MG.app.hideTrains) || ((Ln.k === 'regio' || Ln.k === 'mezi') && MG.app.hideRegio)) continue;
+   for (const p of Ln.pats) { const g = D.geo3(p); let hit = false; for (let i = 0; i < g.lat.length; i += 1) { if (Math.abs(g.lat[i] - ll.lat) > .0012) continue; if (MG.dist(g.lat[i], g.lon[i], ll.lat, ll.lng) < lim) { hit = true; break; } } if (hit) { found.set(li, Ln); break; } }
+  }
+  if (!found.size) return;
+  const ls = [...found.values()].sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true}));
+  const h = '<div style="font-family:Outfit,sans-serif;min-width:200px;max-width:270px"><div style="font:800 10px Outfit;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:7px">Tudy jezdí</div><div class="lns">' + ls.slice(0, 40).map(x => '<a href="#" data-ln="' + x.i + '" style="text-decoration:none">' + D.badge(x) + '</a>').join('') + '</div></div>';
+  L.popup({className: 'pop-mg', maxWidth: 290}).setLatLng(ll).setContent(h).openOn(M.m);
+  setTimeout(() => MG.qsa('.pop-mg [data-ln]').forEach(a => a.onclick = (e) => { e.preventDefault(); M.m.closePopup(); MG.net.openLine(+a.dataset.ln); }), 20);
  };
  M.dimNet = (on) => { M.gNet.eachLayer(l => { if (l.setStyle) { if (l._o0 == null) l._o0 = l.options.opacity; l.setStyle({opacity: on ? l._o0 * .28 : l._o0}); } }); };
  /* ---------- zastávky a nástupiště ---------- */
@@ -157,6 +160,7 @@
   else if (from > 0) pts = g.pts.slice(g.x[from]);
   L.polyline(pts, {renderer: M.rSel, color: '#ffffff', weight: 9, opacity: .95, lineCap: 'round', lineJoin: 'round', interactive: false}).addTo(M.gSel);
   L.polyline(pts, {renderer: M.rSel, color: Ln.c, weight: 5.5, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false}).addTo(M.gSel);
+  if (opt.flow) L.polyline(pts, {renderer: M.rFlow, color: '#fff', weight: 2.4, opacity: .9, lineCap: 'butt', className: 'flow', interactive: false}).addTo(M.gSel);
   p.s.forEach((pg, k) => {
    if (k < from) return; const pl = D.pl.get(pg); if (!pl) return;
    const term = k === 0 || k === p.s.length - 1;

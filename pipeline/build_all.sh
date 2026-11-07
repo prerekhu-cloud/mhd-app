@@ -37,6 +37,7 @@ python3 "$P/platforms.py" "$W"
 rm -f "$W/seg_cache.pkl"
 python3 "$P/shapes.py" "$W" "$W/vh/config.json" "$W/src/pid/PID_GTFS.zip"
 python3 "$P/packs.py" "$W" "$W/out"
+python3 "$P/netmerge.py" "$W/out"
 if [ -z "${SKIP_BEDEKR:-}" ]; then python3 "$P/bedekr.py" "$W" "$W/out" || echo "bedekr přeskočen"; fi
 echo "== kopíruji do data/"
 mkdir -p "$ROOT/data/okres"
