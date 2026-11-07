@@ -34,7 +34,7 @@
   MG.qsa('[data-fav]', el).forEach(b => b.onclick = () => onPick(F[+b.dataset.fav]));
   MG.qsa('[data-favadd]', el).forEach(b => b.onclick = () => MG.search.addFavFlow(b.dataset.favadd));
  };
- const cdTxt = (t, nowS) => { const s = Math.round(t * 60 - nowS); if (s <= 30) return 'teď'; if (s >= 3600) return ''; return Math.floor(s / 60) + ':' + MG.pad(s % 60); };
+ const cdTxt = (t, nowS) => { const s = Math.round(t * 60 - nowS); if (s <= 20) return 'teď'; if (s >= 3600) return ''; return Math.floor(s / 60) + ':' + MG.pad(s % 60); };
  P.render = () => {
   const el = $('sh-dep');
   const s = P.st != null ? D.st.get(P.st) : null;
@@ -64,8 +64,9 @@
    const delay = lv && lv.delay > 0 ? lv.delay : 0;
    const k2 = d.p.i + ':' + d.j + ':' + d.day + ':' + d.k;
    const exp = d.t + delay, cd = today ? cdTxt(exp, nowS) : '';
-   html += '<div class="dep" data-k="' + k2 + '">' + D.badge(L_, {size: 'big', text: L_.k === 'vlak' ? D.trainLabel(L_, d.p.n && d.p.n[d.j]) : null}) + '<div class="d-tx"><b>→ ' + MG.h(D.shortName(hs, cty)) + '</b>' + (pl && pl.lab ? '<small>nástupiště ' + MG.h(pl.lab) + (L_.k === 'vlak' ? '' : '') + '</small>' : '') + '</div>' + dlHtml(lv) + '<div class="d-t"><b class="cd" data-exp="' + exp + '">' + (cd || MG.hm2(exp)) + '</b><small>' + MG.hm2(d.t) + (delay >= 1 ? ' → ' + MG.hm2(exp) : '') + '</small></div><i class="fa-solid fa-chevron-' + (P.open === k2 ? 'up' : 'down') + ' chev"></i></div>';
-   if (P.open === k2) html += expandTrip(d, delay);
+   const op = P.open === k2, mins = Math.round((exp * 60 - nowS) / 60);
+   const tb = today && mins <= 10 ? '<b class="cd" data-exp="' + exp + '">' + (cd || MG.hm2(exp)) + '</b><small>' + MG.hm2(exp) + '</small>' : '<b class="tm">' + MG.hm2(exp) + '</b><small class="za">' + (today && mins < 60 ? 'za ' + mins + ' min' : (delay >= 1 ? 'plán ' + MG.hm2(d.t) : '')) + '</small>';
+   html += '<div class="dep-card' + (op ? ' open' : '') + '"><div class="dep" data-k="' + k2 + '">' + D.badge(L_, {size: 'big', text: L_.k === 'vlak' ? D.trainLabel(L_, d.p.n && d.p.n[d.j]) : null}) + '<div class="d-tx"><b><i class="fa-solid fa-arrow-right"></i> ' + MG.h(D.shortName(hs, cty)) + '</b>' + (pl && pl.lab ? '<small>nástupiště ' + MG.h(pl.lab) + '</small>' : '') + '</div>' + dlHtml(lv) + '<div class="d-t">' + tb + '</div><i class="fa-solid fa-chevron-down chev"></i></div>' + (op ? expandTrip(d, delay) : '') + '</div>';
   }
   const upd = MG.live.at && (MG.live.at.odis || MG.live.at.sz) ? new Date(Math.max(MG.live.at.odis || 0, MG.live.at.sz || 0, MG.live.at.worker || 0)) : null;
   html += '<div class="dep-foot"><span>' + (MG.live.on ? '<span class="dot-live"></span> Zpoždění živě' + (upd ? ' · ' + MG.pad(upd.getHours()) + ':' + MG.pad(upd.getMinutes()) : '') : 'Podle jízdního řádu') + '</span><a target="_blank" rel="noopener" href="https://idos.cz/vlakyautobusymhdvse/odjezdy/?f=' + encodeURIComponent(s.name) + '">Ověřit v IDOS <i class="fa-solid fa-arrow-up-right-from-square"></i></a></div></div>';
@@ -82,13 +83,12 @@
  const V_KN = L_ => ({metro: 'Metro', tram: 'Tramvaj', trol: 'Trolejbus', mhd: 'Autobus MHD', regio: 'Regionální autobus', mezi: 'Dálkový autobus', vlak: 'Vlak', lan: 'Lanovka', lod: 'Přívoz'})[L_.k] + (L_.a && L_.a[0] ? ' · ' + D.agency(L_.a[0]) : '');
  function expandTrip(d, delay) {
   const p = d.p, dep = p.dep[d.prof], arr = p.arr[d.prof], st0 = p.T[3 * d.j], city = d.L.city || '';
-  let h = '<div class="dep-x card"><div class="vc-st" style="padding:4px 0">';
-  for (let k = d.k; k < p.s.length && k < d.k + 12; k++) {
-   const pl = D.pl.get(p.s[k]); const t = st0 + (k === d.k ? dep[k] : arr[k]);
-   h += '<div class="tl-s' + (k === d.k ? ' nx' : '') + (k === p.s.length - 1 ? ' end' : '') + '"><i></i><span>' + MG.h(D.shortName(pl ? D.stName(pl.st) : '?', city)) + '</span><b>' + MG.hm2(t + delay) + '</b></div>';
+  let h = '<div class="dep-sub">';
+  for (let k = d.k + 1; k < p.s.length; k++) {
+   const pl = D.pl.get(p.s[k]); const t = st0 + arr[k];
+   h += '<div class="dep-st"><span class="dep-sd"></span><span class="dep-sn">' + MG.h(D.shortName(pl ? D.stName(pl.st) : '?', city)) + (D.isRequest(p, k) ? ' <i class="fa-solid fa-hand" style="font-size:9px;color:var(--faint)"></i>' : '') + '</span><b>' + MG.hm2(t + delay) + '</b></div>';
   }
-  if (p.s.length > d.k + 12) h += '<div class="status">… a dalších ' + (p.s.length - d.k - 12) + ' zastávek do ' + MG.h(D.plName(p.s[p.s.length - 1])) + '</div>';
-  h += '</div><div class="row"><button class="btn sec sm" data-show="' + p.i + ':' + d.j + ':' + d.day + '"><i class="fa-solid fa-map-location-dot"></i>Na mapě</button><button class="btn sec sm" data-line="' + d.L.i + '" data-pat="' + p.i + '"><i class="fa-solid fa-route"></i>Linka</button></div></div>';
+  h += '</div><div class="dep-acts"><button class="chip" data-show="' + p.i + ':' + d.j + ':' + d.day + '"><i class="fa-solid fa-map-location-dot"></i>Na mapě</button><button class="chip" data-line="' + d.L.i + '" data-pat="' + p.i + '"><i class="fa-solid fa-route"></i>Linka</button><button class="chip" data-bell="' + p.i + ':' + d.j + ':' + d.day + '"><i class="fa-solid fa-bell"></i>Budík</button></div>';
   return h;
  }
  function bind(el) {
@@ -107,7 +107,8 @@
   $('dep-d').onchange = e => { P.ymd = e.target.value || null; if (P.when == null) { const n = MG.pragueParts(MG.now()); P.when = n.h * 60 + n.mi; } P.render(); };
   MG.qsa('[data-ln]', el).forEach(b => b.onclick = () => { const v = b.dataset.ln; if (v === 'all') P.lines = null; else { P.lines = P.lines || new Set(); const i = +v; P.lines.has(i) ? P.lines.delete(i) : P.lines.add(i); if (!P.lines.size) P.lines = null; } P.render(); });
   MG.qsa('[data-pl]', el).forEach(b => b.onclick = () => { const v = b.dataset.pl; P.plat = v === 'all' ? null : +v; P.render(); });
-  MG.qsa('.dep', el).forEach(r => r.onclick = () => { P.open = P.open === r.dataset.k ? null : r.dataset.k; P.render(); });
+  MG.qsa('.dep', el).forEach(r => r.onclick = () => { P.open = P.open === r.dataset.k ? null : r.dataset.k; const sc = el.querySelector('.sh-body').scrollTop; P.render(); el.querySelector('.sh-body').scrollTop = sc; });
+  MG.qsa('[data-bell]', el).forEach(b => b.onclick = (e) => { e.stopPropagation(); MG.veh.sel = null; MG.veh.select(b.dataset.bell); setTimeout(() => { MG.veh.pick = true; MG.veh.showAll = true; MG.veh.tick(); }, 300); });
   MG.qsa('[data-show]', el).forEach(b => b.onclick = (e) => { e.stopPropagation(); MG.veh.sel = b.dataset.show; MG.veh.select(b.dataset.show); });
   MG.qsa('[data-line]', el).forEach(b => b.onclick = (e) => { e.stopPropagation(); MG.net.openLine(+b.dataset.line, {pattern: +b.dataset.pat}); });
  }
@@ -143,23 +144,31 @@
   const s = D.st.get(g); if (!s) return;
   const pl = plg != null ? D.pl.get(plg) : null;
   const lat = pl ? pl.lat : s.lat, lon = pl ? pl.lon : s.lon;
-  const deps = D.departures(g, {limit: 5, horizon: 180, platform: pl ? plg : null});
-  const nowM = MG.nowMin();
+  const ok = D.okresy[s.ok], seat = ok ? ok.seat : '';
   const lines = [...s.lines].map(i => D.ln.get(i)).filter(Boolean).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true}));
-  let h = '<div style="min-width:230px;max-width:280px;font-family:Outfit,sans-serif"><div style="font:800 15px/1.2 Outfit,sans-serif;margin-bottom:2px">' + MG.h(s.name) + '</div>';
-  if (pl && pl.lab) h += '<div style="font:700 11px Outfit,sans-serif;color:var(--mut);margin-bottom:6px">nástupiště ' + MG.h(pl.lab) + ' · směr ' + MG.h(D.plDir(plg)) + '</div>';
-  h += '<div class="lns" style="margin:6px 0 8px">' + lines.slice(0, 14).map(x => D.badge(x)).join('') + (lines.length > 14 ? '<span class="ln" style="--lc:var(--hover);--lt:var(--mut)">+' + (lines.length - 14) + '</span>' : '') + '</div>';
-  for (const d of deps) { const lv = P.liveFor(d); const dl = lv && lv.delay > 0 ? lv.delay : 0; h += '<div style="display:flex;align-items:center;gap:7px;padding:3px 0;font:600 12.5px Outfit,sans-serif">' + D.badge(d.L) + '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + MG.h(D.shortName(D.headsign(d.p, d.j), d.L.city || '')) + '</span><b style="font-variant-numeric:tabular-nums">' + (until(d.t + dl, nowM) || MG.hm2(d.t + dl)) + '</b></div>'; }
-  if (!deps.length) h += '<div style="font:600 12px Outfit,sans-serif;color:var(--faint)">V nejbližších 3 hodinách nic nejede.</div>';
-  h += '<div style="display:flex;gap:6px;margin-top:10px"><button class="btn sm" id="pp-dep" style="flex:1"><i class="fa-regular fa-clock"></i>Odjezdy</button><button class="btn sec sm" id="pp-to" style="flex:1"><i class="fa-solid fa-route"></i>Spojení</button><button class="btn sec sm" id="pp-walk" title="Pěšky sem"><i class="fa-solid fa-person-walking"></i></button></div></div>';
+  const grp = {mhd: [], regio: [], vlak: []};
+  for (const L_ of lines) { if (L_.k === 'vlak') grp.vlak.push(L_); else if (L_.k === 'regio' || L_.k === 'mezi') grp.regio.push(L_); else grp.mhd.push(L_); }
+  /* na znamení / bezbariérová */
+  let rq = false; for (const pg of (pl ? [plg] : s.pls)) { const q = D.pl.get(pg); if (!q) continue; for (const [p, k] of q.pats) if (D.isRequest(p, k)) { rq = true; break; } if (rq) break; }
+  const wc = (pl ? [pl] : s.pls.map(x => D.pl.get(x))).some(q => q && q.wc);
+  const city = grp.mhd.length && grp.mhd[0].city ? grp.mhd[0].city : (s.name.split(',')[0]);
+  const type = grp.vlak.length && !grp.mhd.length ? 'Železniční stanice / zastávka' : grp.mhd.length ? 'Zastávka MHD ' + city : 'Zastávka regionálních linek';
+  const sec = (t, ls) => ls.length ? '<div class="stp-sec">' + t + '</div><div class="stp-lns">' + ls.slice(0, 24).map(x => '<a data-ln="' + x.i + '">' + D.badge(x, {text: x.k === 'vlak' ? (x.lab || x.cat || 'Vlak') : null}) + '</a>').join('') + (ls.length > 24 ? '<span class="ln" style="--lc:var(--hover);--lt:var(--mut)">+' + (ls.length - 24) + '</span>' : '') + '</div>' : '';
+  const h = '<div class="stp"><div class="stp-n">' + MG.h(D.shortName(s.name, seat)) + '</div>' +
+   '<div class="stp-chips">' + (rq ? '<span><i class="fa-solid fa-hand"></i>na znamení</span>' : '') + (wc ? '<span><i class="fa-solid fa-wheelchair"></i>bezbariérová</span>' : '') + (pl && pl.lab ? '<span>nástupiště ' + MG.h(pl.lab) + '</span>' : '') + '</div>' +
+   '<div class="stp-sub">' + MG.h(type) + (pl ? ' · směr ' + MG.h(D.shortName(D.plDir(plg), city)) : '') + '</div>' +
+   sec('Linky MHD', grp.mhd) + sec('Regionální linky', grp.regio) + sec('Vlaky', grp.vlak) +
+   '<div class="stp-acts"><button class="wide" id="pp-to" title="Spojení sem"><i class="fa-solid fa-route"></i>Spojení</button><button class="walk" id="pp-walk" title="Pěšky sem"><i class="fa-solid fa-person-walking-arrow-right"></i></button><button id="pp-dep" title="Odjezdy">' + MG.mi('clock') + '</button></div></div>';
   if (MG.mode3d) { MG.m3d.popup(lat, lon, h, g); } else {
-   pop = L.popup({className: 'pop-mg', autoPanPaddingTopLeft: [20, 80], autoPanPaddingBottomRight: [20, 100], maxWidth: 300}).setLatLng([lat, lon]).setContent(h).openOn(MG.map.m);
+   L.popup({className: 'pop-mg stp-pop', autoPanPaddingTopLeft: [20, 80], autoPanPaddingBottomRight: [20, 110], maxWidth: 300, minWidth: 240}).setLatLng([lat, lon]).setContent(h).openOn(MG.map.m);
   }
   setTimeout(() => {
-   const b1 = $('pp-dep'), b2 = $('pp-to');
-   if (b1) b1.onclick = () => { MG.map.m.closePopup(); MG.m3d.closePopup && MG.m3d.closePopup(); P.show(g, s.ok); };
-   if (b2) b2.onclick = () => { MG.map.m.closePopup(); MG.m3d.closePopup && MG.m3d.closePopup(); MG.search.routeTo({name: s.name, lat: s.lat, lon: s.lon, st: g}); };
-   const b3 = $('pp-walk'); if (b3) b3.onclick = () => { MG.m3d.closePopup && MG.m3d.closePopup(); MG.walk.to({name: s.name + (pl && pl.lab ? ' (' + pl.lab + ')' : ''), lat, lon}); };
+   const cl = () => { MG.map.m.closePopup(); MG.m3d.closePopup && MG.m3d.closePopup(); };
+   const b1 = $('pp-dep'), b2 = $('pp-to'), b3 = $('pp-walk');
+   if (b1) b1.onclick = () => { cl(); P.show(g, s.ok); };
+   if (b2) b2.onclick = () => { cl(); MG.search.routeTo({name: s.name, lat: s.lat, lon: s.lon, st: g}); };
+   if (b3) b3.onclick = () => { cl(); MG.walk.to({name: s.name + (pl && pl.lab ? ' (' + pl.lab + ')' : ''), lat, lon}); };
+   MG.qsa('.stp [data-ln]').forEach(a2 => a2.onclick = () => { cl(); MG.net.openLine(+a2.dataset.ln); });
   }, 30);
  };
  MG.on('live', () => { if (MG.ui.cur === 'sh-dep' && P.st != null && !document.activeElement?.closest?.('#sh-dep')) P.render(); });

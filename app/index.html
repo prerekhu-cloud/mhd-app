@@ -72,8 +72,8 @@
     <button class="lay" data-l="sat"><span id="lay-sat"></span><em>Letecká</em></button>
    </div>
    <div class="fx3d">
-    <div class="seg glass" id="fx-time"><button data-v="dawn" title="Svítání"><i class="fa-solid fa-cloud-sun"></i></button><button data-v="day" title="Den"><i class="fa-solid fa-sun"></i></button><button data-v="dusk" title="Soumrak"><i class="fa-solid fa-cloud-moon"></i></button><button data-v="night" title="Noc"><i class="fa-solid fa-moon"></i></button></div>
-    <div class="seg glass" id="fx-wx"><button data-v="none"><i class="fa-solid fa-sun"></i>Jasno</button><button data-v="rain"><i class="fa-solid fa-cloud-rain"></i>Déšť</button><button data-v="snow"><i class="fa-regular fa-snowflake"></i>Sníh</button></div>
+    <div class="seg glass" id="fx-time"><button data-v="dawn" title="Svítání"><i class="fa-solid fa-sun"></i><i class="fa-solid fa-arrow-up" style="font-size:8px;margin-left:-3px"></i></button><button data-v="day" title="Den"><i class="fa-solid fa-sun"></i></button><button data-v="dusk" title="Soumrak"><i class="fa-solid fa-sun"></i><i class="fa-solid fa-arrow-down" style="font-size:8px;margin-left:-3px"></i></button><button data-v="night" title="Noc"><i class="fa-solid fa-moon"></i></button></div>
+    <div class="seg glass" id="fx-wx"><button data-v="none" title="Jasno"><i class="fa-solid fa-sun"></i></button><button data-v="cloud" title="Oblačno"><i class="fa-solid fa-cloud"></i></button><button data-v="rain" title="Déšť"><i class="fa-solid fa-cloud-showers-heavy"></i></button><button data-v="snow" title="Sníh"><i class="fa-regular fa-snowflake"></i></button></div>
    </div>
   </div>
   <div class="hud hud-bl">
@@ -90,6 +90,9 @@
     <button class="hbtn round acc" id="btn-center" title="Vycentrovat"><i class="fa-solid fa-location-crosshairs"></i><span>Vycentrovat</span></button>
    </div>
   </div>
+  <div id="m3d-chip" class="glass"><i class="fa-solid fa-tower-broadcast"></i><b>ŽIVĚ</b><span>živé polohy + jízdní řád</span></div>
+  <div id="joy" class="glass" title="Otáčet kamerou (dvojklik = sever)"><i class="fa-solid fa-rotate"></i><span id="joy-k"></span></div>
+  <button id="ride-x" class="hbtn" title="Ukončit jízdu"><i class="fa-solid fa-xmark"></i></button>
   <div id="ride-hud" class="glass"></div>
   <div id="legend" class="glass" hidden></div>
   <div class="loadbar glass" id="loadbar" hidden><span class="spin"></span><span id="loadbar-t">Načítám…</span></div>
@@ -111,7 +114,7 @@
 <section class="sheet" id="sh-okres" aria-hidden="true"></section>
 <section class="sheet" id="sh-misc" aria-hidden="true"></section>
 <section id="vcard" aria-hidden="true"></section>
-<section id="bedekr" aria-hidden="true"></section>
+<section class="sheet" id="bedekr" aria-hidden="true"></section>
 <div id="toast"></div>
 <div id="tip"></div>
 

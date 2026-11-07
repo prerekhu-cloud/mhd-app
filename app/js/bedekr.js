@@ -6,7 +6,7 @@
  const TYPEN = {'hrad': 'Hrad / pevnost', 'zámek': 'Zámek / palác', 'církevní': 'Církevní památka', 'muzeum': 'Muzeum / galerie', 'příroda': 'Příroda', 'rozhledna': 'Rozhledna / věž', 'zahrada': 'Zahrada / zoo / park', 'město': 'Město a jeho památky', 'památka': 'Kulturní památka'};
  const img = (f, w) => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(f) + '?width=' + (w || 640);
  B.open = async () => {
-  const el = $('bedekr'); el.classList.add('open'); el.setAttribute('aria-hidden', 'false');
+  const el = $('bedekr'); MG.ui.hideMore && MG.ui.hideMore(); MG.ui.open('bedekr', {tall: true});
   if (!B.data) {
    el.innerHTML = '<div class="bd-top">' + head() + '</div><div class="bd-body"><div class="empty"><span class="spin" style="display:inline-block"></span><br>Načítám bedekr…</div></div>';
    bindHead();
@@ -15,9 +15,9 @@
   }
   B.det = null; render();
  };
- B.close = () => { const el = $('bedekr'); el.classList.remove('open'); el.setAttribute('aria-hidden', 'true'); };
+ B.close = () => MG.ui.close('bedekr');
  function head() {
-  return '<div class="bd-head"><div class="sh-ic"><i class="fa-solid fa-book-open"></i></div><div class="sh-tt"><div class="sh-eb">mhd<b>GO</b> · bedekr</div><div class="sh-title">Bedekr Česka</div><div class="sh-sub">Památky, příroda a zajímavá místa – a jak se k nim dostat</div></div><button class="xbtn" id="bd-x"><i class="fa-solid fa-xmark"></i></button></div>' +
+  return '<div class="sh-grab"></div><div class="bd-head"><div class="sh-ic">' + MG.mi('museum') + '</div><div class="sh-tt"><div class="sh-eb brand-eb">mhd<b>GO</b></div><div class="sh-title">Bedekr Česka</div><div class="sh-sub">Průvodce po památkách a zajímavostech' + (B.okres != null ? ' okresu ' + MG.h(D.okresy[B.okres].name) : B.kraj != null ? ' – ' + MG.h(D.kraje[B.kraj].name) : ' celé republiky') + '</div></div><button class="xbtn" id="bd-x"><i class="fa-solid fa-xmark"></i></button></div>' +
    '<div class="kraj-tabs"><button class="chip' + (B.kraj == null ? ' on' : '') + '" data-k="-1"><i class="fa-solid fa-earth-europe"></i>Celá ČR</button>' + D.kraje.map((k, i) => '<button class="chip' + (B.kraj === i ? ' on' : '') + '" data-k="' + i + '">' + MG.h(k.short) + '</button>').join('') + '</div>' +
    (B.kraj != null ? '<div class="kraj-tabs"><button class="chip' + (B.okres == null ? ' on' : '') + '" data-o="-1">Celý kraj</button>' + D.okresy.map((o, i) => o.kraj !== B.kraj ? '' : '<button class="chip' + (B.okres === i ? ' on' : '') + '" data-o="' + i + '">' + MG.h(o.name) + '</button>').join('') + '</div>' : '');
  }
@@ -35,21 +35,21 @@
   else if (B.kraj != null) { list = list.filter(p => D.okresy[p.ok] && D.okresy[p.ok].kraj === B.kraj); title = D.kraje[B.kraj].name; sub = 'To nejlepší v kraji · vyber okres pro další místa'; list = list.slice(0, 40); }
   else { const per = new Map(); list = list.filter(p => { const k = D.okresy[p.ok] ? D.okresy[p.ok].kraj : -1; const n = per.get(k) || 0; if (n >= 5) return false; per.set(k, n + 1); return true; }).slice(0, 48); }
   const hero = list[0];
-  let h = '<div class="bd-top">' + head() + '</div><div class="bd-body">';
-  if (hero) h += '<div class="bd-hero" data-q="' + hero.q + '"><img src="' + img(hero.img, 1100) + '" alt="" loading="lazy"><div><h2>' + MG.h(title) + '</h2><p>' + MG.h(sub) + '</p></div></div>';
+  let h = '<div class="bd-top">' + head() + '</div><div class="bd-body sh-body">';
+  h += '<div class="bd-sec"><b>' + MG.h(title) + '</b><small>' + MG.h(sub) + '</small></div>';
   h += '<div class="bd-grid">' + list.map(card).join('') + '</div>';
   if (!list.length) h += '<div class="empty"><i class="fa-regular fa-image"></i>Pro tento výběr zatím nemáme místa.</div>';
   h += '<div class="bd-credit">Data: Wikidata a Wikipedie (CC BY-SA), fotografie: Wikimedia Commons – autoři a licence jsou uvedeni na stránce každé fotografie.</div></div>';
   el.innerHTML = h; bindHead();
-  MG.qsa('#bedekr .bd-card,#bedekr .bd-hero').forEach(c => c.onclick = () => { B.det = B.data.find(p => p.q === c.dataset.q); render(); $('bedekr').querySelector('.bd-body').scrollTop = 0; });
+  MG.qsa('#bedekr .bd-card').forEach(c => c.onclick = () => { B.det = B.data.find(p => p.q === c.dataset.q); render(); $('bedekr').querySelector('.bd-body').scrollTop = 0; });
  }
  function card(p) {
   const ok = D.okresy[p.ok];
-  return '<div class="bd-card" data-q="' + p.q + '"><div class="bd-ph" style="background-image:url(\'' + img(p.img, 480).replace(/'/g, '%27') + '\')"><div class="bd-badges">' + (p.fl.includes('U') ? '<span class="bd-badge u">UNESCO</span>' : '') + (p.fl.includes('N') ? '<span class="bd-badge n">NKP</span>' : '') + '</div></div><div class="bd-ci"><b>' + MG.h(p.name) + '</b><small>' + MG.h(p.desc || TYPEN[p.type] || '') + '</small><em><i class="fa-solid ' + (TYPEI[p.type] || 'fa-monument') + '"></i>' + MG.h(TYPEN[p.type] || p.type) + (ok ? ' · ' + MG.h(ok.name) : '') + '</em></div></div>';
+  return '<div class="bd-card" data-q="' + p.q + '"><div class="bd-ph" style="background-image:url(\'' + img(p.img, 640).replace(/'/g, '%27') + '\')"><span class="bd-type">' + MG.h(TYPEN[p.type] || 'Památka') + '</span><div class="bd-badges">' + (p.fl.includes('U') ? '<span class="bd-badge u">UNESCO</span>' : '') + (p.fl.includes('N') ? '<span class="bd-badge n">NKP</span>' : '') + '</div></div><div class="bd-ci"><b>' + MG.h(p.name) + '</b><small>' + MG.h(p.desc ? p.desc.charAt(0).toUpperCase() + p.desc.slice(1) : '') + (ok ? ' · okres ' + MG.h(ok.name) : '') + '</small><span class="bd-more">Zobrazit více <i class="fa-solid fa-arrow-right"></i></span></div></div>';
  }
  async function detail(p) {
   const el = $('bedekr'), ok = D.okresy[p.ok], kr = ok ? D.kraje[ok.kraj] : null;
-  let h = '<div class="bd-top">' + head() + '</div><div class="bd-body"><div class="bd-det"><button class="chip" id="bd-back"><i class="fa-solid fa-arrow-left"></i>Zpět</button><h1>' + MG.h(p.name) + '</h1>' +
+  let h = '<div class="bd-top">' + head() + '</div><div class="bd-body sh-body"><div class="bd-det"><button class="chip" id="bd-back"><i class="fa-solid fa-arrow-left"></i>Zpět</button><h1>' + MG.h(p.name) + '</h1>' +
    '<div class="bd-dhero"><img src="' + img(p.img, 1400) + '" alt="' + MG.h(p.name) + '"></div>' +
    '<div class="row" style="flex-wrap:wrap;margin-bottom:12px"><button class="btn sm" id="bd-go"><i class="fa-solid fa-route"></i>Jak se tam dostanu</button><button class="btn sec sm" id="bd-map"><i class="fa-solid fa-map-location-dot"></i>Na mapě</button><button class="btn sec sm" id="bd-dep"><i class="fa-regular fa-clock"></i>Nejbližší zastávka</button>' + (p.art ? '<a class="btn sec sm" target="_blank" rel="noopener" href="https://cs.wikipedia.org/wiki/' + encodeURIComponent(p.art) + '"><i class="fa-brands fa-wikipedia-w"></i>Wikipedie</a>' : '') + '</div>' +
    '<div class="bd-text" id="bd-text">' + MG.h(p.desc ? p.desc.charAt(0).toUpperCase() + p.desc.slice(1) + '.' : '') + (p.art ? ' <span class="spin" style="display:inline-block;vertical-align:-2px"></span>' : '') + '</div>' +
