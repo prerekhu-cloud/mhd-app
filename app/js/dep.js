@@ -8,8 +8,8 @@
   const m = MG.veh.liveMap.get(key); if (m) return m;
   if (!LV.on) return null;
   if (d.L.k === 'vlak') { const n = d.p.n && d.p.n[d.j]; return n ? LV.trains.get(String(n)) || null : null; }
-  const sp = d.p.c && d.p.c[d.j]; if (!sp || !d.L.cis) return null;
-  for (const v of LV.allBus()) if (v.spoj === sp && d.L.cis.includes(v.cis)) return v;
+  const sp = d.p.c && d.p.c[d.j]; if (!sp) return null;
+  for (const v of LV.allBus()) if (v.spoj === sp && ((d.L.cis && d.L.cis.includes(v.cis)) || (v.src === 'PID' && d.L.sys === 'PID' && String(v.line) === String(d.L.n)))) return v;
   return null;
  };
  const dlHtml = (lv) => { if (!lv || lv.delay == null) return ''; const d = lv.delay; return d <= .5 ? '<span class="dl">včas</span>' : '<span class="dl ' + (d <= 3 ? 'mid' : 'bad') + '">+' + Math.round(d) + ' min</span>'; };
@@ -32,6 +32,8 @@
   const allLines = [...s.lines].map(i => D.ln.get(i)).filter(Boolean).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true}));
   html += '<div class="chips"><button class="chip' + (!P.lines ? ' on' : '') + '" data-ln="all">Vše</button>' + allLines.map(L_ => '<button class="chip' + (P.lines && P.lines.has(L_.i) ? ' on' : '') + '" data-ln="' + L_.i + '" style="padding:0 6px">' + D.badge(L_) + '</button>').join('') + '</div>';
   if (s.pls.length > 1) html += '<div class="chips"><button class="chip' + (P.plat == null ? ' on' : '') + '" data-pl="all">Všechna nástupiště</button>' + s.pls.filter(g => D.pl.get(g) && D.pl.get(g).pats.length).map(g => { const pl = D.pl.get(g); return '<button class="chip' + (P.plat === g ? ' on' : '') + '" data-pl="' + g + '">' + (pl.lab ? MG.h(pl.lab) + ' · ' : '') + '→ ' + MG.h(D.shortName(D.plDir(g), '').split(',').pop().trim()) + '</button>'; }).join('') + '</div>';
+  const als = MG.alerts ? MG.alerts.forStation(P.st) : [];
+  if (als.length) html += '<details class="alert-box"><summary><i class="fa-solid fa-triangle-exclamation"></i>' + als.length + ' ' + (als.length === 1 ? 'mimořádnost' : als.length < 5 ? 'mimořádnosti' : 'mimořádností') + ' na linkách této zastávky</summary>' + als.map(MG.alerts.card).join('') + '</details>';
   const deps = D.departures(P.st, {ymd, from: from - 1, horizon: P.when == null ? 300 : 480, limit: 70, lines: P.lines, platform: P.plat});
   if (!deps.length) html += '<div class="empty"><i class="fa-regular fa-calendar-xmark"></i>V tuto dobu odsud nic nejede.</div>';
   const nowM = nowP.h * 60 + nowP.mi + nowP.s / 60, today = ymd === nowP.ymd;
@@ -94,6 +96,18 @@
   for (const s of idx) { const d = MG.dist(me.lat, me.lon, s.lat, s.lon); if (d < bd) { bd = d; best = s; } }
   if (best) P.show(best.g, best.ok);
  };
+ P.nearestWalk = async () => {
+  const me = MG.app.me || (await MG.app.locate(false));
+  if (!me) { MG.toast('Poloha není k dispozici'); return; }
+  const idx = await D.loadIdx(); let best = null, bd = 1e12;
+  for (const s of idx) { const d = MG.dist(me.lat, me.lon, s.lat, s.lon); if (d < bd) { bd = d; best = s; } }
+  if (!best) return;
+  await ensureStation(best.g, best.ok);
+  const s = D.st.get(best.g);
+  /* nejbližší nástupiště zastávky */
+  let pl = null, pd = 1e12; if (s) for (const g of s.pls) { const q = D.pl.get(g); if (!q || !q.pats.length) continue; const d = MG.dist(me.lat, me.lon, q.lat, q.lon); if (d < pd) { pd = d; pl = q; } }
+  MG.walk.to({name: best.name + (pl && pl.lab ? ' (' + pl.lab + ')' : ''), lat: pl ? pl.lat : best.lat, lon: pl ? pl.lon : best.lon});
+ };
  /* ---------- okno zastávky na mapě ---------- */
  let pop = null;
  P.stopPopup = (g, plg) => {
@@ -108,7 +122,7 @@
   h += '<div class="lns" style="margin:6px 0 8px">' + lines.slice(0, 14).map(x => D.badge(x)).join('') + (lines.length > 14 ? '<span class="ln" style="--lc:var(--hover);--lt:var(--mut)">+' + (lines.length - 14) + '</span>' : '') + '</div>';
   for (const d of deps) { const lv = P.liveFor(d); const dl = lv && lv.delay > 0 ? lv.delay : 0; h += '<div style="display:flex;align-items:center;gap:7px;padding:3px 0;font:600 12.5px Outfit,sans-serif">' + D.badge(d.L) + '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + MG.h(D.shortName(D.headsign(d.p, d.j), d.L.city || '')) + '</span><b style="font-variant-numeric:tabular-nums">' + (until(d.t + dl, nowM) || MG.hm2(d.t + dl)) + '</b></div>'; }
   if (!deps.length) h += '<div style="font:600 12px Outfit,sans-serif;color:var(--faint)">V nejbližších 3 hodinách nic nejede.</div>';
-  h += '<div style="display:flex;gap:6px;margin-top:10px"><button class="btn sm" id="pp-dep" style="flex:1"><i class="fa-regular fa-clock"></i>Odjezdy</button><button class="btn sec sm" id="pp-to" style="flex:1"><i class="fa-solid fa-route"></i>Trasa sem</button></div></div>';
+  h += '<div style="display:flex;gap:6px;margin-top:10px"><button class="btn sm" id="pp-dep" style="flex:1"><i class="fa-regular fa-clock"></i>Odjezdy</button><button class="btn sec sm" id="pp-to" style="flex:1"><i class="fa-solid fa-route"></i>Spojení</button><button class="btn sec sm" id="pp-walk" title="Pěšky sem"><i class="fa-solid fa-person-walking"></i></button></div></div>';
   if (MG.mode3d) { MG.m3d.popup(lat, lon, h, g); } else {
    pop = L.popup({className: 'pop-mg', autoPanPaddingTopLeft: [20, 80], autoPanPaddingBottomRight: [20, 100], maxWidth: 300}).setLatLng([lat, lon]).setContent(h).openOn(MG.map.m);
   }
@@ -116,6 +130,7 @@
    const b1 = $('pp-dep'), b2 = $('pp-to');
    if (b1) b1.onclick = () => { MG.map.m.closePopup(); MG.m3d.closePopup && MG.m3d.closePopup(); P.show(g, s.ok); };
    if (b2) b2.onclick = () => { MG.map.m.closePopup(); MG.m3d.closePopup && MG.m3d.closePopup(); MG.search.routeTo({name: s.name, lat: s.lat, lon: s.lon, st: g}); };
+   const b3 = $('pp-walk'); if (b3) b3.onclick = () => { MG.m3d.closePopup && MG.m3d.closePopup(); MG.walk.to({name: s.name + (pl && pl.lab ? ' (' + pl.lab + ')' : ''), lat, lon}); };
   }, 30);
  };
  MG.on('live', () => { if (MG.ui.cur === 'sh-dep' && P.st != null && !document.activeElement?.closest?.('#sh-dep')) P.render(); });

@@ -270,7 +270,7 @@ def pattern_obj(pi_):
                 plist.append([dd])
         tr += [t[1], k, svc_index(t[3])]
         if L['kind'] == 'vlak': nums.append(t[4] or '')
-        rel = t[7]; cn = rel.get('CISJR') or (rel.get('SCC', '').split(':')[-1]) or rel.get('DPO') or ''
+        rel = t[7]; cn = (rel['PID'].split('_')[1] if 'PID' in rel and rel['PID'].count('_') >= 2 else '') or rel.get('CISJR') or (rel.get('SCC', '').split(':')[-1]) or rel.get('DPO') or ''
         cs.append(int(cn) if str(cn).isdigit() else 0)
         if t[5] != hdef: hs[j] = t[5]
         wc.append('1' if t[6] == '1' else '0')

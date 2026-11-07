@@ -1,0 +1,16 @@
+{
+ "name": "mhdGO – doprava v celé ČR",
+ "short_name": "mhdGO",
+ "description": "MHD, regionální autobusy a vlaky celé České republiky: živé polohy, odjezdy, spojení, 3D mapa a bedekr.",
+ "lang": "cs",
+ "start_url": "./mhdgo.html",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#f4ebe2",
+ "theme_color": "#f4ebe2",
+ "icons": [
+  {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+  {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+ ]
+}

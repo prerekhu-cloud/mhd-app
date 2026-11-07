@@ -69,7 +69,7 @@
   const items = [
    ['fav', 'fa-solid fa-star', 'Moje místa'], ['bedekr', 'fa-solid fa-book-open', 'Bedekr'], ['garage', 'fa-solid fa-warehouse', 'Garáž', 1],
    ['help', 'fa-solid fa-circle-question', 'Návod'], ['dark', dark ? 'fa-solid fa-sun' : 'fa-solid fa-moon', dark ? 'Světlý režim' : 'Tmavý režim'], ['trains', 'fa-solid fa-train', 'Vlaky', 0, !MG.veh.hideTrains],
-   ['live', 'fa-solid fa-tower-broadcast', 'Živé polohy', 0, MG.live.on], ['color', 'fa-solid fa-palette', 'Barevná síť', 0, MG.map.colorNet], ['set', 'fa-solid fa-gear', 'Nastavení'], ['cz', 'fa-solid fa-earth-europe', 'Celá ČR'], ['info', 'fa-solid fa-circle-info', 'O aplikaci']
+   ['live', 'fa-solid fa-tower-broadcast', 'Živé polohy', 0, MG.live.on], ['color', 'fa-solid fa-palette', 'Barevná síť', 0, MG.map.colorNet], ['alerts', 'fa-solid fa-triangle-exclamation', 'Mimořádnosti'], ['walk', 'fa-solid fa-person-walking', 'K zastávce'], ['install', 'fa-solid fa-mobile-screen', 'Na plochu'], ['set', 'fa-solid fa-gear', 'Nastavení'], ['cz', 'fa-solid fa-earth-europe', 'Celá ČR'], ['info', 'fa-solid fa-circle-info', 'O aplikaci']
   ];
   el.innerHTML = U.head({icon: 'fa-solid fa-ellipsis', eb: 'mhd<b>GO</b>', title: 'Další funkce', sub: 'Nastavení, bedekr, garáž a informace'}) +
    '<div class="sh-body"><div class="more-grid">' + items.map(([k, ic, t, d3, on]) => '<button data-m="' + k + '" class="' + (on ? 'on' : '') + '"><i class="' + ic + '"></i>' + t + (d3 ? '<sup class="b3d">3D</sup>' : '') + '</button>').join('') + '</div></div>';
@@ -85,6 +85,9 @@
    if (k === 'color') { MG.map.colorNet = !MG.map.colorNet; MG.store.set('colornet', MG.map.colorNet); MG.map.drawNet(); MG.toast(MG.map.colorNet ? 'Síť v barvách linek' : 'Síť v barvě mhdGO'); return renderMore(); }
    if (k === 'info') return U.info();
    if (k === 'set') return U.settings();
+   if (k === 'alerts') return MG.alerts.show();
+   if (k === 'install') return MG.pwa.install();
+   if (k === 'walk') { U.close('sh-more'); return MG.dep.nearestWalk(); }
    if (k === 'cz') { U.close('sh-more'); return MG.app.showCZ(); }
   });
  }
@@ -150,7 +153,8 @@
    '<h3>Data</h3><ul><li>Jízdní řády: <b>CIS JŘ</b> (Celostátní informační systém o jízdních řádech, GTFS projektu Spojenka MFF UK), platnost od ' + MG.h(c.d0 || '') + ' na ' + (c.nd || 0) + ' dní. Data sestavena ' + MG.h(c.built || '') + '.</li>' +
    '<li>Trasy linek: <b>PID</b> (data.pid.cz), ostatní dopočítány po silnicích a kolejích z <b>OpenStreetMap</b> (Valhalla).</li>' +
    '<li>Nástupiště: CIS JŘ, PID, IDS JMK, IDOL, ODIS a zastávkové sloupky z OpenStreetMap.</li>' +
-   '<li>Živé polohy: <b>Správa železnic</b> (vlaky celé ČR), <b>ODIS</b> (Moravskoslezský kraj); další systémy přes vlastní worker.</li>' +
+   '<li>Živé polohy: <b>Správa železnic</b> (vlaky celé ČR), <b>ODIS</b> (Moravskoslezský kraj), přes worker mhdGO také <b>PID</b> (Praha a Středočeský kraj).</li>' +
+   '<li>Mimořádnosti a výluky: <b>IDS JMK</b> (data.brno.cz), přes worker <b>PID</b>. Pěší trasy: Valhalla (OpenStreetMap).</li>' +
    '<li>Bedekr: <b>Wikidata</b>, <b>Wikipedie</b> a fotografie z <b>Wikimedia Commons</b> (autoři uvedeni u fotografií na Commons).</li>' +
    '<li>Mapy: © Mapbox © OpenStreetMap, počasí Open-Meteo, geokódování Photon (komoot).</li></ul>' +
    '<h3>Upozornění</h3><p><small>Polohy vozidel bez živých dat jsou vypočteny z jízdního řádu a nemusí odpovídat skutečnosti. Pro závazné informace použij oficiální jízdní řády dopravců a IDOS. Vzhled 3D modelů vozidel je orientační.</small></p></div>', true);

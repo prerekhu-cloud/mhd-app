@@ -22,7 +22,7 @@ const MG = window.MG = window.MG || {};
   WORKER: saved.worker || '',
   SZ: 'https://mapy.spravazeleznic.cz/serverside/request2.php?module=Layers\\OsVlaky&&action=load',
   PHOTON: 'https://photon.komoot.io/api/',
-  VERSION: '1.0'
+  VERSION: '1.1'
  };
  MG.$ = id => document.getElementById(id);
  MG.qs = (s, r) => (r || document).querySelector(s);

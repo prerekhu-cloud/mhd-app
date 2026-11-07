@@ -25,6 +25,12 @@ Jízdní řády si stahuje po okresech z adresáře [`data/`](data) tohoto repoz
   denní doba, déšť a sníh, **Jízda vozidlem** (kamera za vozidlem) a **Garáž** s modely vozidel okresu.
 - **Bedekr** – nejlepší památky a zajímavosti Česka; lišta krajů → to nejlepší v kraji → lišta okresů → místa v okrese
   (včetně méně známých). Fotografie z Wikimedia Commons, text z Wikipedie, galerie, „Jak se tam dostanu“.
+- **Budík před výstupem** – v kartě vozidla (Budík → klepni na zastávku) nebo u každé jízdy ve vyhledaném spojení;
+  upozorní zvukem, vibrací a oznámením na příští zastávku a při výstupu.
+- **Pěší navigace k zastávce** (okno zastávky → chodec, Více → K zastávce, nebo „Pěšky k nástupu“ ve spojení) s pokyny v češtině.
+- **Mimořádnosti a výluky** – IDS JMK přímo, PID přes worker; ⚠ u linek v Síti, v odjezdech, na mapě a v seznamu (Více → Mimořádnosti).
+- **Offline a instalace na plochu** – otevřené okresy se ukládají (až 8) a fungují i bez připojení; manifest a service worker
+  (`manifest.webmanifest`, `sw.js`) pro instalaci, když je aplikace na webu (např. GitHub Pages).
 - Měřítko, hodiny, kompas, legenda, počasí, tmavý režim, Moje místa; funguje na mobilu na výšku i na šířku i na počítači.
 
 ## Data
@@ -60,8 +66,9 @@ Token se dá zadat:
 ## Živé polohy pro další systémy (worker)
 
 [`worker/mhdgo-worker.js`](worker/mhdgo-worker.js) je Cloudflare Worker, který sjednocuje polohy:
-ODIS (celý Moravskoslezský kraj, záloha přes stávající proxy OpavaGO), PID přes Golemio (`GOLEMIO_TOKEN`),
-IDS JMK (`IDSJMK_URL`), vlaky SŽ a další portály CHAPS (`MPVNET_PORTALS`).
+ODIS (celý Moravskoslezský kraj, záloha přes stávající proxy OpavaGO), **PID** z veřejné mapy mapa.pid.cz
+(přesné párování podle čísla spoje; volitelně Golemio přes `GOLEMIO_TOKEN`), **mimořádnosti a výluky PID** (RSS pid.cz),
+IDS JMK (`IDSJMK_URL` – jen s oficiálním přístupem, veřejná mapa IDS JMK je chráněná klíčem), vlaky SŽ a další portály CHAPS (`MPVNET_PORTALS`).
 
 ```bash
 cd worker

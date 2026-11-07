@@ -3,7 +3,7 @@
 import os, json, re, sys
 H = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(H)
 JS = ['util.js', 'krovak.js', 'data.js', 'map2d.js', 'live.js', 'vehicles.js', 'ui.js', 'net.js', 'dep.js', 'raptor.js', 'search.js',
-      'models.js', 'map3d.js', 'garage.js', 'bedekr.js', 'app.js']
+      'models.js', 'map3d.js', 'garage.js', 'bedekr.js', 'extras.js', 'app.js']
 rd = lambda p: open(os.path.join(H, p), encoding='utf-8').read()
 def decode(s):
     out = []; i = la = lo = 0

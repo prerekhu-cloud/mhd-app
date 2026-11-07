@@ -12,7 +12,8 @@
  *
  * Zdroje (každý lze vypnout proměnnou prostředí "0"):
  *  - ODIS (Moravskoslezský kraj)            ODIS=1            mpvnet.cz/odis/map/mapData (záloha ODIS_PROXY)
- *  - PID (Praha a Středočeský kraj)          GOLEMIO_TOKEN=... api.golemio.cz (zdarma po registraci na api.golemio.cz)
+ *  - PID (Praha a Středočeský kraj)          PID=1             mapa.pid.cz (veřejná mapa PID); nebo GOLEMIO_TOKEN=... api.golemio.cz
+ *  - mimořádnosti a výluky PID              ALERTS=1          pid.cz RSS (výstup alerts[])
  *  - IDS JMK (Brno a Jihomoravský kraj)     IDSJMK_URL=...    např. https://mapa.idsjmk.cz/api/vehicles.json
  *  - Správa železnic (všechny vlaky v ČR)   SZ=1
  *  - další portály CHAPS mpvnet             MPVNET_PORTALS="odis,..."  (stejný formát jako ODIS)
@@ -39,6 +40,7 @@ export default {
    ctx.waitUntil(cache.put(ckey, new Response(JSON.stringify(all), {headers: {'Cache-Control': 'max-age=8', 'Content-Type': 'application/json'}})));
   }
   const inB = v => v.lat >= bbox.s && v.lat <= bbox.n && v.lon >= bbox.w && v.lon <= bbox.e;
+  if (url.searchParams.get('alerts')) return new Response(JSON.stringify({updated: all.updated, alerts: all.alerts || []}), {headers: {...cors(), 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store'}});
   const out = {updated: all.updated, vehicles: all.vehicles.filter(inB), trains: url.searchParams.get('trains') === '0' ? [] : all.trains.filter(inB), stats: all.stats, errors: all.errors};
   return new Response(JSON.stringify(out), {headers: {...cors(), 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store'}});
  }
@@ -49,15 +51,17 @@ function parseBbox(s) { if (!s) return null; const a = s.split(',').map(Number);
 const on = (env, k, def) => { const v = env[k]; return v == null ? def : !(v === '0' || v === 'false'); };
 
 async function collect(env) {
- const stats = {}, errors = {}, vehicles = [], trains = [];
+ const stats = {}, errors = {}, vehicles = [], trains = [], alerts = [];
  const jobs = [];
  const portals = String(env.MPVNET_PORTALS || 'odis').split(',').map(s => s.trim()).filter(Boolean);
  if (on(env, 'ODIS', true)) for (const p of portals) jobs.push(run('mpvnet:' + p, () => mpvnet(p, BBOX[p] || CZ, env), r => { vehicles.push(...r.vehicles); trains.push(...r.trains); return r.vehicles.length; }));
  if (env.GOLEMIO_TOKEN) jobs.push(run('pid', () => golemio(env.GOLEMIO_TOKEN), r => { vehicles.push(...r); return r.length; }));
+ else if (on(env, 'PID', true)) jobs.push(run('pid', () => pidmap(), r => { vehicles.push(...r); return r.length; }));
+ if (on(env, 'ALERTS', true)) jobs.push(run('alerts', () => pidAlerts(), r => { alerts.push(...r); return r.length; }));
  if (env.IDSJMK_URL) jobs.push(run('idsjmk', () => idsjmk(env.IDSJMK_URL), r => { vehicles.push(...r); return r.length; }));
  if (on(env, 'SZ', true)) jobs.push(run('sz', () => sz(), r => { const have = new Set(trains.map(t => t.num)); for (const t of r) if (!have.has(t.num)) trains.push(t); return r.length; }));
  await Promise.all(jobs);
- return {updated: Date.now(), vehicles, trains, stats, errors};
+ return {updated: Date.now(), vehicles, trains, alerts, stats, errors};
  async function run(name, f, put) {
   try { const r = await withTimeout(f(), 9000); stats[name] = put(r); }
   catch (e) { errors[name] = String(e && e.message || e); }
@@ -114,6 +118,38 @@ async function golemio(token) {
  }
  return out;
 }
+
+/* ---------- PID – veřejná mapa mapa.pid.cz ---------- */
+async function pidmap() {
+ const r = await fetch('https://mapa.pid.cz/getData.php', {headers: {'Accept': 'application/json'}});
+ if (!r.ok) throw new Error('HTTP ' + r.status);
+ const j = await r.json();
+ const out = [];
+ for (const t of (j.trips || [])) {
+  if (!isFinite(t.lat) || !isFinite(t.lon) || t.inactive || t.routeType === 2) continue;
+  const parts = String(t.tripId || '').split('_');
+  out.push({src: 'PID', line: String(t.route || ''), spoj: +parts[1] || 0, pidTrip: t.tripId || '', lat: t.lat, lon: t.lon,
+   delay: isFinite(t.delay) ? t.delay / 60 : null, bearing: t.bearing, plate: t.vehicle != null ? String(t.vehicle) : '', low: t.wheelchair === 1, state: t.statePosition || ''});
+ }
+ return out;
+}
+/* ---------- PID – mimořádnosti a výluky (RSS) ---------- */
+async function pidAlerts() {
+ const out = [];
+ for (const [u, type] of [['https://pid.cz/feed/rss-mimoradnosti/', 'mimořádnost'], ['https://pid.cz/feed/rss-vyluky/', 'výluka']]) {
+  const r = await fetch(u); if (!r.ok) continue;
+  const x = await r.text();
+  for (const it of x.split('<item>').slice(1)) {
+   const g = (tag) => { const m = new RegExp('<' + tag + '>([\\s\\S]*?)</' + tag + '>').exec(it); return m ? m[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : ''; };
+   const lines = [...it.matchAll(/<line>([^<]*)<\/line>/g)].map(m => m[1].trim()).filter(Boolean);
+   const from = +g('dateFrom'), to = +g('dateTo');
+   out.push({src: 'PID', type, title: unent(g('title')), text: unent(g('description').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')).slice(0, 1200), url: g('link'), lines,
+    from: from ? from * 1000 : null, to: to ? to * 1000 : null});
+  }
+ }
+ return out;
+}
+function unent(s) { return String(s || '').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' '); }
 
 /* ---------- IDS JMK ---------- */
 async function idsjmk(u) {

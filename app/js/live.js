@@ -67,16 +67,17 @@
  LV.matchBus = (insts) => {
   const res = new Map();
   const bus = LV.allBus(); if (!bus.length) return {res, extra: []};
-  const byCis = new Map(), byShort = new Map();
+  const byCis = new Map(), byShort = new Map(), byPid = new Map();
   for (const it of insts) {
    const L_ = it.L; if (!L_ || L_.k === 'vlak') continue;
    for (const c of (L_.cis || [])) { const k = c + ':' + it.spoj; if (it.spoj) byCis.set(k, it); }
+   if (L_.sys === 'PID' && it.spoj) byPid.set(L_.n + ':' + it.spoj, it);
    const ks = (L_.n || '') + '|' + (L_.city || L_.sys || '');
    (byShort.get(L_.n) || byShort.set(L_.n, []).get(L_.n)).push(it);
   }
   const used = new Set(), extra = [];
   for (const v of bus) {
-   let it = v.cis && v.spoj ? byCis.get(v.cis + ':' + v.spoj) : null;
+   let it = v.cis && v.spoj ? byCis.get(v.cis + ':' + v.spoj) : (v.src === 'PID' && v.spoj ? byPid.get(v.line + ':' + v.spoj) : null);
    if (!it) {
     const cands = byShort.get(String(v.line)) || [];
     const hf = fold(v.head).split(' ').pop();

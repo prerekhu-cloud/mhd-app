@@ -145,19 +145,21 @@
   for (const L_ of D.ln.values()) if (L_.n === String(v.line) && (L_.k === 'mhd' || L_.k === 'trol' || L_.k === 'tram')) return L_;
   return {k: 'mhd', n: String(v.line || '?'), c: '#8a8079', tc: '#fff'};
  }
- V.findSel = () => {
-  if (!V.sel) return null;
-  const [pi, j, d] = V.sel.split(':').map(Number);
+ V.findSel = () => V.findKey(V.sel);
+ V.findKey = (key) => {
+  if (!key) return null;
+  if (V.byKey.has(key)) return V.byKey.get(key);
+  const [pi, j, d] = key.split(':').map(Number);
   const p = D.pt.get(pi); if (!p) return null;
   const {day, m} = V.clock();
   const st = p.T[3 * j], prof = p.T[3 * j + 1];
-  const it = {key: V.sel, p, j, day: d, prof, start: st, m: m + (day - d) * 1440, L: D.ln.get(p.l), spoj: p.c ? p.c[j] : 0, num: p.n ? p.n[j] : '', head: D.headsign(p, j)};
+  const it = {key, p, j, day: d, prof, start: st, m: m + (day - d) * 1440, L: D.ln.get(p.l), spoj: p.c ? p.c[j] : 0, num: p.n ? p.n[j] : '', head: D.headsign(p, j)};
   return V.place(it);
  };
  /* ---------- karta vozidla ---------- */
  const card = MG.$('vcard');
  V.select = (key, opt) => {
-  V.sel = key; V.selExtra = null; V.showAll = false;
+  V.sel = key; V.selExtra = null; V.showAll = false; V.pick = false;
   const it = V.byKey.get(key) || V.findSel(); if (!it) return;
   MG.ui && MG.ui.closeSheets();
   MG.map.showPattern(it.p, {fromD: it.pos.d, kind: 'veh'}); lastFull = Date.now();
@@ -196,7 +198,8 @@
    const exp = sched + delay;
    const past = k < next;
    const tm = delay >= 1 && !past ? '<s>' + MG.hm2(sched) + '</s> <b>' + MG.hm2(exp) + '</b>' : '<b>' + MG.hm2(sched) + '</b>';
-   rows.push('<div class="tl-s' + (k === next ? ' nx' : '') + (past ? ' past' : '') + (k === n - 1 ? ' end' : '') + '" data-st="' + (pl ? pl.st : '') + '" data-pl="' + p.s[k] + '"><i></i><span>' + MG.h(nm) + (D.isRequest(p, k) ? ' <em class="rq" title="na znamení">✕</em>' : '') + '</span>' + (pl && pl.lab ? '<em class="pl">' + MG.h(pl.lab) + '</em>' : '') + tm + '</div>');
+   const al = MG.alarm && MG.alarm.cur && MG.alarm.cur.key === it.key && MG.alarm.cur.k === k;
+   rows.push('<div class="tl-s' + (k === next ? ' nx' : '') + (past ? ' past' : '') + (k === n - 1 ? ' end' : '') + (V.pick && !past ? ' pick' : '') + '" data-k="' + k + '" data-st="' + (pl ? pl.st : '') + '" data-pl="' + p.s[k] + '"><i></i><span>' + (al ? '<em class="bell"><i class="fa-solid fa-bell"></i></em> ' : '') + MG.h(nm) + (D.isRequest(p, k) ? ' <em class="rq" title="na znamení">✕</em>' : '') + '</span>' + (pl && pl.lab ? '<em class="pl">' + MG.h(pl.lab) + '</em>' : '') + tm + '</div>');
   }
   const more = n > 4 ? '<button class="btn sec sm" id="vc-all" style="margin:2px 14px 6px;width:calc(100% - 28px)">' + (V.showAll ? 'Jen příští zastávky' : 'Celý spoj (' + n + ' zastávek)') + '</button>' : '';
   const lv = it.live;
@@ -211,14 +214,16 @@
   const src = lv ? '<span class="dot-live"></span>Živá poloha · ' + MG.h(lv.src || '') + (age < 600 ? ' · před ' + age + ' s' : '') : '<span class="dot-tt"></span>Poloha podle jízdního řádu – živá data pro tento spoj nejsou k dispozici';
   card.innerHTML = '<div class="vc-hd" style="--c:' + L_.c + '"><div class="vc-ln">' + (L_.k === 'vlak' ? '<i class="fa-solid fa-train"></i>' : '') + MG.h(V.label(it)) + '</div><div class="vc-hs"><small>' + KN[L_.k] + ' · směr</small><b>' + MG.h(D.shortName(it.head, city)) + '</b></div>' + delayChip(it) + '<button class="vc-x" id="vc-x" title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>' +
    '<div class="vc-body"><div class="vc-st">' + rows.join('') + '</div>' + more + '<div class="vc-mt">' + meta.join('') + '</div>' +
-   '<div class="vc-acts"><button class="btn sec" id="vc-line"><i class="fa-solid fa-route"></i>Linka</button><button class="btn sec" id="vc-3d"><i class="fa-solid fa-cube"></i>Ve 3D</button><button class="btn sec" id="vc-fol"><i class="fa-solid fa-location-crosshairs"></i>Sledovat</button></div></div>' +
+   (V.pick ? '<div class="pick-hint"><i class="fa-solid fa-bell"></i>Klepni na zastávku, kde vystupuješ – budík tě upozorní předem</div>' : '') +
+   '<div class="vc-acts"><button class="btn sec" id="vc-line"><i class="fa-solid fa-route"></i>Linka</button><button class="btn sec' + (V.pick ? ' on' : '') + '" id="vc-bell"><i class="fa-solid fa-bell"></i>Budík</button><button class="btn sec" id="vc-3d"><i class="fa-solid fa-cube"></i>3D</button><button class="btn sec" id="vc-fol"><i class="fa-solid fa-location-crosshairs"></i>Sledovat</button></div></div>' +
    '<div class="vc-src">' + src + '</div>';
   MG.$('vc-x').onclick = V.close;
   MG.$('vc-line').onclick = () => { const li = L_.i; V.close(); MG.net.openLine(li, {pattern: p.i}); };
   MG.$('vc-3d').onclick = () => { MG.m3d.open({follow: it.key}); };
   MG.$('vc-fol').onclick = () => { V.follow = !V.follow; MG.toast(V.follow ? 'Mapa sleduje vozidlo' : 'Sledování vypnuto'); };
   const all = MG.$('vc-all'); if (all) all.onclick = () => { V.showAll = !V.showAll; renderCard(it); };
-  MG.qsa('.tl-s', card).forEach(r => r.onclick = () => { const st = +r.dataset.st; if (st || st === 0) MG.dep.stopPopup(st, +r.dataset.pl); });
+  MG.$('vc-bell').onclick = () => { if (MG.alarm.cur && MG.alarm.cur.key === it.key && !V.pick) { MG.alarm.clear(); MG.toast('Budík zrušen'); renderCard(it); return; } V.pick = !V.pick; V.showAll = V.pick || V.showAll; renderCard(it); };
+  MG.qsa('.tl-s', card).forEach(r => r.onclick = () => { if (V.pick && r.classList.contains('pick')) { V.pick = false; MG.alarm.set(it.key, +r.dataset.k); renderCard(it); return; } const st = +r.dataset.st; if (st || st === 0) MG.dep.stopPopup(st, +r.dataset.pl); });
   if (V.follow && !MG.mode3d) MG.map.m.panTo([it.lat, it.lon], {animate: true, duration: .8});
  }
  function renderExtra(v, L_) {

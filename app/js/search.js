@@ -167,6 +167,8 @@
   });
   box.innerHTML = h;
   MG.qsa('.conn[data-c]', box).forEach(x => x.onclick = () => { S.sel = +x.dataset.c; renderResults(); showConn(S.sel); });
+  MG.qsa('[data-alarm]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const [key, k] = b.dataset.alarm.split('|'); MG.alarm.set(key, +k); });
+  MG.qsa('[data-walkto]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const [ll, nm] = b.dataset.walkto.split('|'); const [la, lo] = ll.split(',').map(Number); MG.walk.to({name: nm, lat: la, lon: lo}); });
  }
  const fmtDur = m => { m = Math.round(m); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + MG.pad(m % 60) + ' min'; };
  function detail(c) {
@@ -177,7 +179,7 @@
   for (const l of c.legs) {
    if (l.walk) { if (l.from >= 0 && l.dur > 0) h += '<div class="leg"><div class="lg-ic"><i class="fa-solid fa-person-walking"></i></div><div class="lg-tx"><b>Přestup pěšky ' + l.dur + ' min</b><small>' + MG.h(nm(l.from)) + ' → ' + MG.h(nm(l.to)) + ' · ' + MG.fmtDist(l.dist) + '</small></div></div>'; continue; }
    const L_ = D.ln.get(l.p.l), t = legTimes(l), pb = D.pl.get(l.p.s[l.bi]), pa = D.pl.get(l.p.s[l.ai]);
-   h += '<div class="leg"><div class="lg-ic">' + D.badge(L_, {text: L_.k === 'vlak' ? D.trainLabel(L_, l.p.n && l.p.n[l.j]) : null}) + '</div><div class="lg-tx"><b>' + MG.hm2(t.dep) + ' ' + MG.h(D.stName(pb.st)) + '</b>' + (pb.lab ? ' <span class="pl" style="font:800 10px Outfit;padding:2px 5px;border-radius:5px;background:var(--hover)">' + MG.h(pb.lab) + '</span>' : '') + '<small>směr ' + MG.h(D.headsign(l.p, l.j)) + ' · ' + (l.ai - l.bi) + ' zast.</small><b>' + MG.hm2(t.arr) + ' ' + MG.h(D.stName(pa.st)) + '</b></div></div>';
+   h += '<div class="leg"><div class="lg-ic">' + D.badge(L_, {text: L_.k === 'vlak' ? D.trainLabel(L_, l.p.n && l.p.n[l.j]) : null}) + '</div><div class="lg-tx"><b>' + MG.hm2(t.dep) + ' ' + MG.h(D.stName(pb.st)) + '</b>' + (pb.lab ? ' <span class="pl" style="font:800 10px Outfit;padding:2px 5px;border-radius:5px;background:var(--hover)">' + MG.h(pb.lab) + '</span>' : '') + '<small>směr ' + MG.h(D.headsign(l.p, l.j)) + ' · ' + (l.ai - l.bi) + ' zast.</small><b>' + MG.hm2(t.arr) + ' ' + MG.h(D.stName(pa.st)) + '</b><div class="leg-acts"><button class="chip" data-alarm="' + l.p.i + ':' + l.j + ':' + l.day + '|' + l.ai + '"><i class="fa-solid fa-bell"></i>Budík na výstup</button><button class="chip" data-walkto="' + pb.lat + ',' + pb.lon + '|' + MG.h(D.stName(pb.st)) + '"><i class="fa-solid fa-person-walking"></i>Pěšky k nástupu</button></div></div></div>';
   }
   if (c.egress > 0) h += '<div class="leg"><div class="lg-ic"><i class="fa-solid fa-person-walking"></i></div><div class="lg-tx"><b>Pěšky ' + c.egress + ' min</b><small>→ ' + MG.h(S.to.name) + '</small></div></div>';
   h += '<div class="row" style="margin-top:6px"><a class="btn sec sm" target="_blank" rel="noopener" href="https://idos.cz/vlakyautobusymhdvse/spojeni/?f=' + encodeURIComponent(S.from.st != null ? D.stName(S.from.st) : S.from.name) + '&t=' + encodeURIComponent(S.to.st != null ? D.stName(S.to.st) : S.to.name) + '"><i class="fa-solid fa-arrow-up-right-from-square"></i>Ověřit v IDOS</a></div></div>';
