@@ -1,0 +1,51 @@
+name: Aktualizace dat mhdGO
+
+# Každé pondělí ráno stáhne aktuální jízdní řády CIS JŘ, PID GTFS a OSM,
+# přepočítá balíčky okresů a uloží je do data/ v této větvi.
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      bedekr:
+        description: "Znovu stáhnout bedekr z Wikidat (pomalé)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mhdgo-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Závislosti
+        run: pip install osmium shapely numpy scipy pandas pyvalhalla
+      - name: Mezipaměť OSM
+        uses: actions/cache@v4
+        with:
+          path: work/src/osm
+          key: osm-cz-${{ github.run_id }}
+          restore-keys: osm-cz-
+      - name: Sestavení dat
+        env:
+          SKIP_BEDEKR: ${{ github.event.inputs.bedekr == 'true' && '' || '1' }}
+          OSM_REFRESH: "1"
+        run: pipeline/build_all.sh work
+      - name: Uložení
+        run: |
+          git config user.name "mhdGO bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data mhdgo.html index.html
+          if git diff --cached --quiet; then echo "beze změn"; exit 0; fi
+          git commit -m "Data: aktualizace jízdních řádů $(date +%Y-%m-%d)"
+          git push

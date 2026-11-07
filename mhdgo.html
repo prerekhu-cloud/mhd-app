@@ -1618,7 +1618,10 @@ MG.jtsk = function(ex, ny, H){
   if (!lines.length) html += '<div class="empty"><i class="fa-solid fa-bus"></i>' + (D.loaded.has(oi) ? 'V okrese nejsou žádné linky.' : 'Načítám síť okresu…') + '</div>';
   for (const k of D.kindOrder) {
    const g = groups.get(k); if (!g) continue;
-   g.sort(k === 'mhd' || k === 'trol' || k === 'tram' ? (a, b) => (a.city || '').localeCompare(b.city || '', 'cs') || cmpLine(a, b) : cmpLine);
+   const cc = new Map(); for (const x of g) cc.set(x.city || '', (cc.get(x.city || '') || 0) + 1);
+   const seat = ok ? ok.seat : '';
+   const cRank = c => (c === seat ? -1e6 : 0) - (cc.get(c || '') || 0);
+   g.sort(k === 'mhd' || k === 'trol' || k === 'tram' ? (a, b) => cRank(a.city) - cRank(b.city) || (a.city || '').localeCompare(b.city || '', 'cs') || cmpLine(a, b) : cmpLine);
    html += '<div class="sec-t"><i class="fa-solid ' + D.KIND[k][0] + '"></i>' + D.KIND[k][1] + ' <b>· ' + g.length + ' ' + (g.length === 1 ? 'linka' : g.length < 5 ? 'linky' : 'linek') + '</b></div>';
    let city = null;
    for (const L_ of g) {
