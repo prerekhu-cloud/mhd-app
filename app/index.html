@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4ebe2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="mhdGO">
+<meta name="description" content="mhdGO – MHD, regionální autobusy a vlaky celé České republiky: živé polohy, odjezdy, vyhledávání spojení, 3D mapa a bedekr.">
+<title>mhdGO – doprava v celé ČR</title>
+<link rel="icon" type="image/png" sizes="96x96" href="data:image/png;base64,@ICON96@">
+<link rel="apple-touch-icon" href="data:image/png;base64,@ICON512@">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css">
+<style>
+/*@SPLASHCSS@*/
+</style>
+<style>
+/*@CSS@*/
+</style>
+</head>
+<body>
+<div id="splash" role="status" aria-live="polite" aria-label="Načítám mhdGO">
+ <div class="sp-glow"></div>
+ <svg class="sp-cz" viewBox="@CZVIEW@" aria-hidden="true"><path pathLength="1" d="@CZPATH@"/></svg>
+ <div class="sp-box">
+  <div class="sp-logo">@LOGO@<svg class="sp-draw" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="#fff" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"><path id="sp-s" pathLength="1" d="M36.3 25.6H28.9a3.2 3.2 0 0 0 0 6.4h6.2a3.2 3.2 0 0 1 0 6.4H27.7"/><circle class="n1" cx="38.9" cy="25.6" r="2.6"/><circle class="n2" cx="25.1" cy="38.4" r="2.6"/></g><circle class="sp-bus" r="1.9" fill="#ffd8bd"><animateMotion dur="1.6s" begin="0.9s" repeatCount="indefinite" path="M36.3 25.6H28.9a3.2 3.2 0 0 0 0 6.4h6.2a3.2 3.2 0 0 1 0 6.4H27.7"/></circle></svg></div>
+  <div class="sp-name"><span>mhd</span><b>GO</b></div>
+  <div class="sp-sub">Doprava v celé České republice</div>
+  <div class="sp-bar"><i></i></div>
+  <div class="sp-stage" id="sp-stage">Spouštím…</div>
+ </div>
+</div>
+
+<div id="app">
+ <header id="hdr" class="glass">
+  <div class="brand" id="brand" title="O aplikaci mhdGO"><div class="brand-ic">@LOGO@</div><div class="brand-tx">mhd<b>GO</b></div></div>
+  <button id="okres-chip" type="button" title="Vybrat okres"><i class="fa-solid fa-location-dot"></i><span id="okres-name">Načítám…</span><i class="fa-solid fa-chevron-down chev"></i></button>
+  <div class="hdr-sp"></div>
+  <div class="mode-sw" role="tablist" aria-label="Režim mapy">
+   <button id="m-2d" class="on" title="2D mapa"><i class="fa-regular fa-map"></i></button>
+   <button id="m-3d" title="3D mapa"><i class="fa-solid fa-cube"></i></button>
+  </div>
+ </header>
+ <main id="mapwrap">
+  <div id="map"></div>
+  <div id="map3d"></div>
+  <div class="hud hud-tl">
+   <div class="zoomgrp"><button class="hbtn" id="z-in" title="Přiblížit">+</button><button class="hbtn" id="z-out" title="Oddálit">−</button></div>
+  </div>
+  <div class="hud hud-tr">
+   <div class="layers" id="layers">
+    <button class="lay on" data-l="basic"><span id="lay-basic"></span><em>Základní</em></button>
+    <button class="lay" data-l="light"><span id="lay-light"></span><em>Světlá</em></button>
+    <button class="lay" data-l="sat"><span id="lay-sat"></span><em>Letecká</em></button>
+   </div>
+   <div class="fx3d">
+    <div class="seg glass" id="fx-time"><button data-v="dawn" title="Svítání"><i class="fa-solid fa-cloud-sun"></i></button><button data-v="day" title="Den"><i class="fa-solid fa-sun"></i></button><button data-v="dusk" title="Soumrak"><i class="fa-solid fa-cloud-moon"></i></button><button data-v="night" title="Noc"><i class="fa-solid fa-moon"></i></button></div>
+    <div class="seg glass" id="fx-wx"><button data-v="none"><i class="fa-solid fa-sun"></i>Jasno</button><button data-v="rain"><i class="fa-solid fa-cloud-rain"></i>Déšť</button><button data-v="snow"><i class="fa-regular fa-snowflake"></i>Sníh</button></div>
+   </div>
+  </div>
+  <div class="hud hud-bl">
+   <div class="hbtn" id="clock">--:--:--</div>
+   <div class="hbtn" id="scale"><span class="sc-tx">1 km</span><span class="sc-bar" style="width:60px"></span></div>
+   <button class="hbtn sq" id="compass" title="Sever nahoru"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i></button>
+   <button class="hbtn sq" id="legend-btn" title="Legenda"><i class="fa-solid fa-list"></i></button>
+   <button class="hbtn" id="live-btn" title="Živé polohy"><i class="fa-solid fa-tower-broadcast"></i><span id="live-n"></span></button>
+   <button class="hbtn" id="weather" title="Počasí" hidden></button>
+  </div>
+  <div class="hud hud-br">
+   <div class="cz-btns">
+    <button class="hbtn round" id="btn-cz" title="Celá Česká republika"><i class="fa-solid fa-earth-europe"></i><span>Celá ČR</span></button>
+    <button class="hbtn round acc" id="btn-center" title="Vycentrovat"><i class="fa-solid fa-location-crosshairs"></i><span>Vycentrovat</span></button>
+   </div>
+  </div>
+  <div id="ride-hud" class="glass"></div>
+  <div class="loadbar glass" id="loadbar" hidden><span class="spin"></span><span id="loadbar-t">Načítám…</span></div>
+ </main>
+</div>
+
+<nav id="tabs" class="glass" aria-label="Hlavní nabídka">
+ <button data-t="search"><i class="fa-solid fa-magnifying-glass"></i><span>Hledat</span></button>
+ <button data-t="dep"><i class="fa-regular fa-clock"></i><span>Odjezdy</span></button>
+ <button data-t="net"><i class="fa-solid fa-bus"></i><span>Síť</span></button>
+ <button data-t="ride"><i class="fa-solid fa-route"></i><span>Jízda</span><sup class="b3d">3D</sup></button>
+ <button data-t="more"><i class="fa-solid fa-ellipsis"></i><span>Více</span></button>
+</nav>
+
+<section class="sheet" id="sh-search" aria-hidden="true"></section>
+<section class="sheet" id="sh-dep" aria-hidden="true"></section>
+<section class="sheet" id="sh-net" aria-hidden="true"></section>
+<section class="sheet" id="sh-more" aria-hidden="true"></section>
+<section class="sheet" id="sh-okres" aria-hidden="true"></section>
+<section class="sheet" id="sh-misc" aria-hidden="true"></section>
+<section id="vcard" aria-hidden="true"></section>
+<section id="bedekr" aria-hidden="true"></section>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/*@JS@*/
+</script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js" defer></script>
+</body>
+</html>

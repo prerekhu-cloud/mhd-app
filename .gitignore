@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+node_modules/
+work/
+dist/
+app/.mapbox-token

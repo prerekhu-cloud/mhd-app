@@ -1,0 +1,32 @@
+#splash{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;background:radial-gradient(120% 80% at 50% 35%,#fbf7f2 0%,#f4ebe2 55%,#ecdfd2 100%);font-family:Outfit,system-ui,sans-serif;transition:opacity .5s ease,visibility .5s;overflow:hidden}
+#splash.out{opacity:0;visibility:hidden;pointer-events:none}
+#splash.out .sp-box{transform:scale(1.07)}
+.sp-glow{position:absolute;width:560px;height:560px;border-radius:50%;background:radial-gradient(circle,rgba(193,120,79,.2),rgba(193,120,79,0) 65%);animation:sppulse 2.4s ease-in-out infinite}
+.sp-cz{position:absolute;width:min(92vw,720px);height:auto;opacity:.5}
+.sp-cz path{fill:rgba(193,120,79,.05);stroke:#C1784F;stroke-width:.9;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-dasharray:1;stroke-dashoffset:1;animation:spdraw 2.2s .1s cubic-bezier(.5,.1,.3,1) forwards}
+.sp-box{position:relative;display:flex;flex-direction:column;align-items:center;transition:transform .5s ease}
+.sp-logo{position:relative;width:108px;height:108px;border-radius:50%;box-shadow:0 14px 40px rgba(147,84,48,.25);animation:spin2 .8s cubic-bezier(.2,1.4,.4,1) both}
+.sp-logo>svg:first-child{width:100%;height:100%;display:block}
+.sp-logo>svg:first-child g{opacity:0}
+.sp-draw{position:absolute;inset:0;width:100%;height:100%}
+.sp-draw path{stroke-dasharray:1;stroke-dashoffset:1;animation:spdraw 1s .4s ease forwards}
+.sp-draw .n1,.sp-draw .n2{transform-box:fill-box;transform-origin:center;transform:scale(0);animation:sppop .35s ease forwards}
+.sp-draw .n1{animation-delay:.35s}.sp-draw .n2{animation-delay:1.3s}
+.sp-bus{opacity:0;animation:spfade .3s .9s forwards}
+.sp-name{margin-top:22px;font-size:40px;font-weight:800;letter-spacing:-.02em;color:#2f2925;display:flex;align-items:baseline}
+.sp-name span{display:inline-block;animation:spup .6s .5s ease both}
+.sp-name b{display:inline-block;color:#C1784F;font-weight:900;margin-left:1px;font-style:italic;letter-spacing:.01em;animation:spgo .7s .75s cubic-bezier(.2,1.5,.4,1) both}
+.sp-sub{margin-top:4px;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#a89283;animation:spup .6s .9s ease both}
+.sp-bar{margin-top:24px;width:170px;height:4px;border-radius:4px;background:rgba(193,120,79,.16);overflow:hidden;animation:spup .6s 1s ease both}
+.sp-bar i{display:block;height:100%;width:40%;border-radius:4px;background:linear-gradient(90deg,#d99a6f,#C1784F);animation:spload 1.15s ease-in-out infinite}
+.sp-stage{margin-top:10px;font-size:11.5px;font-weight:600;color:#b09a8a;min-height:16px;animation:spup .6s 1.1s ease both}
+@keyframes spin2{from{transform:scale(.3) rotate(-90deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes spdraw{to{stroke-dashoffset:0}}
+@keyframes sppop{to{transform:scale(1)}}
+@keyframes spfade{to{opacity:1}}
+@keyframes spup{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+@keyframes spgo{from{transform:translateX(-14px) skewX(-14deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes spload{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+@keyframes sppulse{0%,100%{transform:scale(.9);opacity:.7}50%{transform:scale(1.05);opacity:1}}
+@media (prefers-color-scheme:dark){#splash{background:radial-gradient(120% 80% at 50% 35%,#2a2522 0%,#1d1a18 60%,#151312 100%)}.sp-name{color:#f3ece6}.sp-sub,.sp-stage{color:#a99a8f}}
+@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-iteration-count:1!important}}
