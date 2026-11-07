@@ -7,7 +7,7 @@ ODIS = "1"
 SZ = "1"
 PID = "1"
 ALERTS = "1"
-MPVNET_PORTALS = "odis"
+MPVNET_PORTALS = "odis,jikord,idol"
 ODIS_PROXY = "https://opavago.prerekhu.workers.dev/"
 # IDSJMK_URL = "https://mapa.idsjmk.cz/api/vehicles.json"
 # Token Golemio (PID) ulož jako tajemství:  wrangler secret put GOLEMIO_TOKEN

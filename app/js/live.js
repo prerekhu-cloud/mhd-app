@@ -53,14 +53,15 @@
  /* ---------- vlastní worker mhdGO ---------- */
  async function fetchWorker() {
   if (!MG.cfg.WORKER) { LV.st.worker = ''; return; }
+  if (LV.wFail >= 3 && Date.now() - LV.wLast < 120000) return; /* nedostupný worker zkoušíme jen občas */
   try {
    const c = MG.map.m.getBounds();
    const u = MG.cfg.WORKER + (MG.cfg.WORKER.includes('?') ? '&' : '?') + 'bbox=' + [c.getWest(), c.getSouth(), c.getEast(), c.getNorth()].map(x => x.toFixed(3)).join(',');
    const j = await getJSON(u, 12000);
    LV.busWorker = (j.vehicles || []).filter(v => isFinite(v.lat) && isFinite(v.lon)).map(v => Object.assign({src: v.src || 'mhdGO'}, v));
    for (const t of (j.trains || [])) if (t.num && !LV.trains.has(String(t.num))) LV.trains.set(String(t.num), Object.assign({train: true, src: t.src || 'mhdGO'}, t));
-   LV.at.worker = Date.now(); LV.st.worker = 'ok';
-  } catch (e) { LV.st.worker = 'err'; LV.err.worker = String(e.message || e); }
+   LV.at.worker = Date.now(); LV.st.worker = 'ok'; LV.wFail = 0;
+  } catch (e) { LV.st.worker = 'err'; LV.err.worker = String(e.message || e); LV.wFail = (LV.wFail || 0) + 1; LV.wLast = Date.now(); LV.busWorker = []; }
  }
  LV.allBus = () => (LV.busOdis || []).concat(LV.busWorker || []);
  /* ---------- párování živých vozů se spoji jízdního řádu ---------- */
@@ -103,7 +104,7 @@
   const now = Date.now();
   const jobs = [];
   if (now - tSZ > 20000) { tSZ = now; jobs.push(fetchSZ()); }
-  if (now - tB > 10000) { tB = now; jobs.push(fetchOdis(), fetchWorker()); }
+  if (now - tB > 10000) { tB = now; const wOk = LV.st.worker === 'ok' && Date.now() - LV.at.worker < 60000; jobs.push(fetchWorker()); if (!wOk) jobs.push(fetchOdis()); else { LV.busOdis = []; LV.st.odis = ''; } }
   if (jobs.length) { await Promise.all(jobs); MG.emit('live'); updBtn(); }
  };
  function updBtn() {
@@ -114,7 +115,7 @@
   const err = LV.st.sz === 'err' && (LV.st.odis === 'err' || !LV.st.odis);
   b.classList.add(ok ? 'ok' : err ? 'warn' : 'off');
   MG.$('live-n').textContent = LV.liveCount ? String(LV.liveCount) : '';
-  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + ', ODIS ' + (LV.st.odis || '–') + (MG.cfg.WORKER ? ', worker ' + (LV.st.worker || '–') : '');
+  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO (ODIS, JIKORD, IDOL, PID)' : ', ODIS ' + (LV.st.odis || '–'));
  }
  LV.updBtn = updBtn;
  LV.toggle = (on) => { LV.on = on; MG.store.set('live', on); if (on) { tSZ = tB = 0; LV.tick(); } else { LV.trains = new Map(); LV.busOdis = []; LV.busWorker = []; MG.emit('live'); } updBtn(); };

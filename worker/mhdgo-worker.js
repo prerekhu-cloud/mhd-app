@@ -11,18 +11,21 @@
  * delay = zpoždění v minutách (záporné = napřed)
  *
  * Zdroje (každý lze vypnout proměnnou prostředí "0"):
- *  - ODIS (Moravskoslezský kraj)            ODIS=1            mpvnet.cz/odis/map/mapData (záloha ODIS_PROXY)
+ *  - ODIS (Moravskoslezský kraj), JIKORD (Jihočeský kraj), IDOL (Liberecký kraj)
+ *                                           MPVNET_PORTALS="odis,jikord,idol"  mpvnet.cz/<portál>/map/mapData (záloha ODIS_PROXY)
  *  - PID (Praha a Středočeský kraj)          PID=1             mapa.pid.cz (veřejná mapa PID); nebo GOLEMIO_TOKEN=... api.golemio.cz
  *  - mimořádnosti a výluky PID              ALERTS=1          pid.cz RSS (výstup alerts[])
  *  - IDS JMK (Brno a Jihomoravský kraj)     IDSJMK_URL=...    např. https://mapa.idsjmk.cz/api/vehicles.json
  *  - Správa železnic (všechny vlaky v ČR)   SZ=1
- *  - další portály CHAPS mpvnet             MPVNET_PORTALS="odis,..."  (stejný formát jako ODIS)
  *
  * Nasazení: wrangler deploy (viz wrangler.toml), tajný token: wrangler secret put GOLEMIO_TOKEN
  * Adresu workeru vlož v mhdGO: Více → Nastavení → Živé polohy a worker.
  */
 const CZ = {w: 12.0, s: 48.5, e: 18.95, n: 51.1};
-const BBOX = {odis: {w: 17.1, s: 49.35, e: 18.9, n: 50.35}};
+/* rozsahy veřejných map poloh CHAPS (mpvnet.cz/<portál>/map) */
+const BBOX = {odis: {w: 17.1, s: 49.35, e: 18.9, n: 50.35}, jikord: {w: 13.35, s: 48.5, e: 15.65, n: 49.7}, idol: {w: 14.35, s: 50.4, e: 15.6, n: 51.08}, pid: {w: 13.4, s: 49.5, e: 15.6, n: 50.62}};
+/* paměť v rámci instance workeru (Cache API na *.workers.dev nefunguje) */
+let MEM = null, MEM_AT = 0, PENDING = null;
 
 export default {
  async fetch(req, env, ctx) {
@@ -30,14 +33,11 @@ export default {
   if (req.method !== 'GET') return new Response('Method not allowed', {status: 405, headers: cors()});
   const url = new URL(req.url);
   const bbox = parseBbox(url.searchParams.get('bbox')) || CZ;
-  const cache = caches.default;
-  const ckey = new Request(url.origin + '/__all', {method: 'GET'});
   let all = null;
-  const hit = await cache.match(ckey);
-  if (hit) all = await hit.json();
-  if (!all) {
-   all = await collect(env);
-   ctx.waitUntil(cache.put(ckey, new Response(JSON.stringify(all), {headers: {'Cache-Control': 'max-age=8', 'Content-Type': 'application/json'}})));
+  if (MEM && Date.now() - MEM_AT < 8000) all = MEM;
+  else {
+   if (!PENDING) PENDING = collect(env).then(r => { MEM = r; MEM_AT = Date.now(); PENDING = null; return r; }).catch(e => { PENDING = null; throw e; });
+   all = await PENDING;
   }
   const inB = v => v.lat >= bbox.s && v.lat <= bbox.n && v.lon >= bbox.w && v.lon <= bbox.e;
   if (url.searchParams.get('alerts')) return new Response(JSON.stringify({updated: all.updated, alerts: all.alerts || []}), {headers: {...cors(), 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store'}});
@@ -53,7 +53,7 @@ const on = (env, k, def) => { const v = env[k]; return v == null ? def : !(v ===
 async function collect(env) {
  const stats = {}, errors = {}, vehicles = [], trains = [], alerts = [];
  const jobs = [];
- const portals = String(env.MPVNET_PORTALS || 'odis').split(',').map(s => s.trim()).filter(Boolean);
+ const portals = String(env.MPVNET_PORTALS || 'odis,jikord,idol').split(',').map(s => s.trim()).filter(Boolean);
  if (on(env, 'ODIS', true)) for (const p of portals) jobs.push(run('mpvnet:' + p, () => mpvnet(p, BBOX[p] || CZ, env), r => { vehicles.push(...r.vehicles); trains.push(...r.trains); return r.vehicles.length; }));
  if (env.GOLEMIO_TOKEN) jobs.push(run('pid', () => golemio(env.GOLEMIO_TOKEN), r => { vehicles.push(...r); return r.length; }));
  else if (on(env, 'PID', true)) jobs.push(run('pid', () => pidmap(), r => { vehicles.push(...r); return r.length; }));
@@ -73,7 +73,7 @@ function withTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => se
 async function mpvnet(portal, b, env) {
  let j = null;
  try {
-  const r = await fetch('https://mpvnet.cz/' + portal + '/map/mapData', {method: 'POST', headers: {'Content-Type': 'application/json; charset=utf-8'},
+  const r = await fetch('https://mpvnet.cz/' + portal + '/map/mapData', {method: 'POST', headers: {'Content-Type': 'application/json; charset=utf-8', 'Accept': 'application/json'},
    body: JSON.stringify({w: b.w, s: b.s, e: b.e, n: b.n, zoom: 13, showStops: false, mapFilterId: null})});
   if (!r.ok) throw new Error('HTTP ' + r.status);
   j = await r.json();

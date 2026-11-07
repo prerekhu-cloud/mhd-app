@@ -19,7 +19,8 @@ const MG = window.MG = window.MG || {};
   MAPBOX: saved.mapbox || '@MAPBOX@',
   DATA: bases,
   ODIS: saved.odis ?? 'https://opavago.prerekhu.workers.dev/',
-  WORKER: saved.worker || '',
+  /* worker mhdGO pro živé polohy celé ČR (worker/mhdgo-worker.js nasazený jako „mhdgo-live“) */
+  WORKER: saved.worker != null && saved.worker !== '' ? saved.worker : 'https://mhdgo-live.prerekhu.workers.dev/',
   SZ: 'https://mapy.spravazeleznic.cz/serverside/request2.php?module=Layers\\OsVlaky&&action=load',
   PHOTON: 'https://photon.komoot.io/api/',
   VERSION: '1.3'
