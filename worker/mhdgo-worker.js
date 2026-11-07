@@ -18,7 +18,8 @@
  *  - IDS JMK (Brno a Jihomoravský kraj)     IDSJMK_URL=...    např. https://mapa.idsjmk.cz/api/vehicles.json
  *  - Správa železnic (všechny vlaky v ČR)   SZ=1
  *
- * Nasazení: wrangler deploy (viz wrangler.toml), tajný token: wrangler secret put GOLEMIO_TOKEN
+ * Nasazení: Cloudflare → Workers & Pages → Create → Worker „mhdgo-live“ → Edit code → vložit tento soubor → Deploy
+ *           (nebo „npx wrangler deploy“ ve složce worker/). Bez proměnných běží vše výchozí.
  * Adresu workeru vlož v mhdGO: Více → Nastavení → Živé polohy a worker.
  */
 const CZ = {w: 12.0, s: 48.5, e: 18.95, n: 51.1};
@@ -79,7 +80,7 @@ async function mpvnet(portal, b, env) {
   j = await r.json();
  } catch (e) {
   /* záloha: stávající proxy OpavaGO (pokrývá okolí Opavy) */
-  const px = env && env.ODIS_PROXY; if (portal !== 'odis' || !px) throw e;
+  const px = env && env.ODIS_PROXY != null ? env.ODIS_PROXY : 'https://opavago.prerekhu.workers.dev/'; if (portal !== 'odis' || !px) throw e;
   const r2 = await fetch(px, {headers: {'Accept': 'application/json'}}); if (!r2.ok) throw e;
   j = await r2.json();
  }
