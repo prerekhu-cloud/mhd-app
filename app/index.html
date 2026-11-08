@@ -47,7 +47,6 @@
    <button class="rb" data-a="info" title="O aplikaci"><i class="ri">i</i><em>Info</em></button>
    <button class="rb" data-a="dark" title="Tmavý režim"><i class="fa-solid fa-moon"></i><em>Tmavý</em></button>
    <button class="rb" data-a="net" title="Dopravní síť – všechny linky a jejich trasy"><i class="fa-solid fa-route"></i><em>Síť</em></button>
-   <button class="rb" data-a="more" title="Další funkce a nastavení"><i class="fa-solid fa-ellipsis"></i><em>Více</em></button>
    <span class="hb-sep"></span>
    <button class="rb tg" data-a="regio" title="Regionální linky"><i class="fa-solid fa-bus-simple"></i><em>Regio</em></button>
    <button class="rb tg" data-a="vlak" title="Vlaky"><i class="fa-solid fa-train"></i><em>Vlak</em></button>
@@ -93,6 +92,7 @@
   <div id="m3d-chip" class="glass"><i class="fa-solid fa-tower-broadcast"></i><b>ŽIVĚ</b><span>živé polohy + jízdní řád</span></div>
   <div id="joy" class="glass" title="Otáčet kamerou (dvojklik = sever)"><i class="fa-solid fa-rotate"></i><span id="joy-k"></span></div>
   <button id="ride-x" class="hbtn" title="Ukončit jízdu"><i class="fa-solid fa-xmark"></i></button>
+  <button id="ride-ff" class="hbtn" title="2× zrychlit jízdu"><i class="fa-solid fa-forward"></i></button>
   <div id="ride-hud" class="glass"></div>
   <div id="legend" class="glass" hidden></div>
   <div class="loadbar glass" id="loadbar" hidden><span class="spin"></span><span id="loadbar-t">Načítám…</span></div>
@@ -104,7 +104,12 @@
  <button data-t="dep"><i class="fa-regular fa-clock"></i><span>Odjezdy</span></button>
  <button data-t="net"><i class="fa-solid fa-bus"></i><span>Síť</span></button>
  <button data-t="ride"><i class="fa-solid fa-route"></i><span>Jízda</span><sup class="b3d">3D</sup></button>
- <button data-t="more"><i class="fa-solid fa-ellipsis"></i><span>Více</span></button>
+ <button data-t="bedekr" class="tb-x"><i class="fa-solid fa-landmark"></i><span>Bedekr</span></button>
+ <button data-t="info" class="tb-x"><i class="ri">i</i><span>Info</span></button>
+ <button data-t="dark" class="tb-x"><i class="fa-solid fa-moon"></i><span>Tmavý</span></button>
+ <button data-t="regio" class="tb-x tg"><i class="fa-solid fa-bus-simple"></i><span>Regio</span></button>
+ <button data-t="vlak" class="tb-x tg"><i class="fa-solid fa-train"></i><span>Vlak</span></button>
+ <button data-t="more" class="tb-more"><i class="fa-solid fa-ellipsis"></i><span>Více</span></button>
 </nav>
 
 <section class="sheet" id="sh-search" aria-hidden="true"></section>

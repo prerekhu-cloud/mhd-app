@@ -23,7 +23,7 @@ const MG = window.MG = window.MG || {};
   WORKER: saved.worker != null && saved.worker !== '' ? saved.worker : 'https://mhdgo-live.prerekhu.workers.dev/',
   SZ: 'https://mapy.spravazeleznic.cz/serverside/request2.php?module=Layers\\OsVlaky&&action=load',
   PHOTON: 'https://photon.komoot.io/api/',
-  VERSION: '1.3'
+  VERSION: '1.4'
  };
  MG.$ = id => document.getElementById(id);
  MG.isWide = () => matchMedia('(min-width:900px) and (min-height:521px), (orientation:landscape) and (max-height:520px)').matches;

@@ -14,22 +14,25 @@ Jízdní řády si stahuje po okresech z adresáře [`data/`](data) tohoto repoz
   (bez polohy na celou ČR). Ve 3D Vycentrovat vrací pohled na centrum tvé obce (bez polohy na centrum náhodného okresního města).
 - **Dopravní síť okresu** – linky podle druhu (metro, tramvaje, trolejbusy, MHD, regionální, meziregionální, vlaky), rozbalení linky
   ukáže trasu po silnicích/kolejích se zastávkami, **Otočit směr**, varianty tras, přestupy a odkaz na oficiální jízdní řád.
-- **Zastávky a nástupiště** – každá zastávka má všechna svá nástupiště (zobrazí se po přiblížení, s písmenem a směrem).
+- **Zastávky a nástupiště** – každá zastávka má svá skutečná nástupiště (zobrazí se po přiblížení, s označením a směrem); žádná se nevymýšlejí.
 - **Vozidla** – všechny spoje jezdí na mapě podle jízdního řádu; kde jsou živá data, ukazuje se skutečná poloha a zpoždění
   (✓ včas, +N min). Karta vozidla: linka, směr, zpoždění, 4 příští zastávky s časy a trasa do cílové zastávky.
 - **Odjezdy** z libovolné zastávky v ČR (i na jiný den a čas), filtr linek a nástupišť, živá zpoždění.
-- **Hledání** zastávek v celé ČR, adres a míst (Photon) a **vyhledání spojení** (RAPTOR) s přestupy, pěšími přesuny a vlaky mezi okresy.
+- **Hledání** jako v OpavaGO: našeptávač (Moje místa, linky, zastávky celé ČR s linkami, adresy), „Hledané místo“ a karty nejbližších zastávek;
+  **vyhledání spojení** (RAPTOR) s přestupy, pěšími přesuny a vlaky mezi okresy – řádky spojů (odjezd–příjezd, linky, doba), dřívější/další spoje a detail s časovou osou.
 - **Barvy linek** – MHD v každém městě má vlastní barvy (stejný princip jako OpavaGO – Opava má přesně původní barvy),
   regionální a meziregionální linky mají podobnou barvu s odstínem podle okresu, každý vlak má vlastní barvu.
 - **3D mapa** (Mapbox Standard s 3D budovami) s procedurálními 3D modely vozidel v barvách dopravců
   (autobus 12 m, kloubový, midibus, trolejbusy, regionální a dálkové autobusy, tramvaje, metro, osobní vlaky, rychlíky, dálkové vlaky),
-  denní doba, déšť a sníh a **Jízda vozidlem** (kamera za vozidlem).
+  denní doba, déšť a sníh a **Jízda vozidlem** jako v OpavaGO: vozidlo plynule jede po trase spoje (rychlost podle jízdního řádu, zastavuje na zastávkách),
+  kamera je za ním, trasa je vyznačená pásem šíře vozovky, panel s příští zastávkou a časy, tlačítko 2× rychleji. Spustíš ji v záložce Jízda
+  (výběr linky) nebo v bublině vozidla tlačítkem Jízda 3D.
 - **Bedekr** – nejlepší památky a zajímavosti Česka; lišta krajů → to nejlepší v kraji → lišta okresů → místa v okrese
   (včetně méně známých). Fotografie z Wikimedia Commons, text z Wikipedie, galerie, „Jak se tam dostanu“.
 - **Budík před výstupem** – v kartě vozidla (Budík → klepni na zastávku) nebo u každé jízdy ve vyhledaném spojení;
   upozorní zvukem, vibrací a oznámením na příští zastávku a při výstupu.
-- **Pěší navigace k zastávce** (okno zastávky → chodec, Více → K zastávce, nebo „Pěšky k nástupu“ ve spojení) s pokyny v češtině.
-- **Mimořádnosti a výluky** – IDS JMK přímo, PID přes worker; ⚠ u linek v Síti, v odjezdech, na mapě a v seznamu (Více → Mimořádnosti).
+- **Pěší navigace k zastávce** (okno zastávky → chodec, karta nejbližší zastávky v Hledání, nebo „navigovat“ ve spojení) s pokyny v češtině.
+- **Mimořádnosti a výluky** – IDS JMK přímo, PID přes worker; ⚠ u linek v Síti, v odjezdech, na mapě a v seznamu (Info → Mimořádnosti, na telefonu Více → Mimořádnosti).
 - **Offline a instalace na plochu** – otevřené okresy se ukládají (až 8) a fungují i bez připojení; manifest a service worker
   (`manifest.webmanifest`, `sw.js`) pro instalaci, když je aplikace na webu (např. GitHub Pages).
 - Měřítko, hodiny, kompas, legenda, počasí, tmavý režim, Moje místa; funguje na mobilu na výšku i na šířku i na počítači.
@@ -39,8 +42,8 @@ Jízdní řády si stahuje po okresech z adresáře [`data/`](data) tohoto repoz
 | Co | Zdroj |
 |----|-------|
 | Jízdní řády všech linek a vlaků | CIS JŘ – GTFS projektu Spojenka (MFF UK), `spojenka.d3s.mff.cuni.cz` |
-| Nástupiště | CIS JŘ (PID, IDS JMK, IDOL, ODIS, PMDP), chybějící dopočítána ze sloupků OpenStreetMap podle směru jízdy |
-| Trasy linek | PID GTFS (shapes), ostatní dopočítány po silnicích (Valhalla nad OSM) a po kolejích (vlastní graf z OSM) |
+| Nástupiště | CIS JŘ (PID, IDS JMK, IDOL, ODIS, PMDP); kde CIS JŘ udává jedno místo pro oba směry, rozdělí se jen podle skutečných zastávkových sloupků v OpenStreetMap |
+| Trasy linek | PID GTFS (shapes), ostatní dopočítány po silnicích (Valhalla nad OSM – celá trasa najednou, zastávky přichycené k hlavní silnici, bez odboček a kliček) a po kolejích (vlastní graf z OSM) |
 | Hranice krajů, okresů a obcí, středy obcí | OpenStreetMap |
 | Bedekr | Wikidata, Wikipedie, Wikimedia Commons |
 | Živé polohy | Správa železnic (vlaky celé ČR, přímo z prohlížeče), ODIS (přes worker), volitelně vlastní worker |
@@ -90,8 +93,8 @@ Pipeline (Python 3.12+, `pip install osmium shapely numpy scipy pandas pyvalhall
 1. `osm_extract.py`, `osm_admin.py` – hranice, středy obcí, zastávkové sloupky, koleje z OSM
 2. `gtfs_load.py` – načtení CIS JŘ, vzory tras, jízdní profily, kalendáře
 3. `regions.py` – kraje, okresy, obce, přiřazení zastávek
-4. `platforms.py` – rozdělení zastávek na nástupiště podle směru a umístění podle OSM
-5. `shapes.py` – geometrie tras (PID, koleje, Valhalla)
+4. `platforms.py` – rozdělení zastávek na nástupiště podle směru jen tam, kde jsou skutečné sloupky v OSM
+5. `shapes.py` – geometrie tras (PID, koleje, Valhalla: celá trasa vzoru, přichycení zastávek na hlavní silnici, odstranění háčků; ladění na výřezu: `SHAPES_TEST=s,w,n,e`)
 6. `packs.py` – výstupní balíčky (barvy linek, klasifikace MHD/regio/meziregio/vlak)
    a `netmerge.py` – sloučení souběžných tras do jedné čáry (síť jako v OpavaGO)
 7. `bedekr.py` – památky z Wikidat

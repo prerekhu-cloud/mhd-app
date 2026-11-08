@@ -167,7 +167,7 @@
   if (keys.length > 8) for (const k of keys.slice(0, keys.length - 8)) await c.delete(k);
  }
  /* ---------------- instalace (PWA) ---------------- */
- MG.pwa = {prompt: null};
+ MG.pwa = {prompt: null, can: () => !(matchMedia('(display-mode: standalone)').matches || navigator.standalone)};
  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); MG.pwa.prompt = e; });
  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !/claude\.ai|claudeusercontent/.test(location.host)) {
   fetch('sw.js', {method: 'HEAD'}).then(r => { if (r.ok) navigator.serviceWorker.register('sw.js').catch(() => {}); }).catch(() => {});

@@ -117,7 +117,7 @@
  D.badge = (L, opt) => {
   opt = opt || {}; const cls = 'ln' + (opt.size ? ' ' + opt.size : '') + (L.k === 'vlak' ? ' train' : '');
   let t = opt.text || D.lineText(L); const ic = L.k === 'vlak' ? '<i class="fa-solid fa-train"></i>' : (L.k === 'lan' ? '<i class="fa-solid fa-cable-car"></i>' : L.k === 'lod' ? '<i class="fa-solid fa-ferry"></i>' : '');
-  return '<span class="' + cls + '" style="--lc:' + L.c + ';--lt:' + L.tc + '">' + ic + MG.h(t) + '</span>';
+  return '<span class="' + cls + '" style="--lc:' + L.c + ';--lt:' + L.tc + '"' + (opt.attr ? ' ' + opt.attr : '') + '>' + ic + MG.h(t) + '</span>';
  };
  D.mainPats = (L) => {
   const by = [null, null];
@@ -126,6 +126,8 @@
  };
  D.agency = (a) => String(a || '').replace(/,?\s*(akciová společnost|a\.\s?s\.|s\.\s?r\.\s?o\.|spol\. s r\.\s?o\.|z\.\s?s\.|o\.\s?p\.\s?s\.)\s*$/i, '').replace(/^Dopravní podnik hl\. m\. Prahy/, 'DPP').trim();
  D.stName = (g) => { const s = D.st.get(g); return s ? s.name : '?'; };
+ /* linky zastávky seřazené, bez duplicit (stejné číslo a barva z více systémů) */
+ D.stLines = (g) => { const st = D.st.get(g); if (!st) return []; const seen = new Set(), out = []; for (const L_ of [...st.lines].map(i => D.ln.get(i)).filter(Boolean).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true}))) { const k = D.lineText(L_) + '|' + L_.c; if (seen.has(k)) continue; seen.add(k); out.push(L_); } return out; };
  D.plName = (g) => { const p = D.pl.get(g); return p ? D.stName(p.st) : '?'; };
  D.shortName = (name, city) => { if (!name) return ''; if (city && name.startsWith(city + ', ')) return name.slice(city.length + 2); return name; };
  D.headsign = (p, j) => (p.hs && p.hs[j]) || p.h || D.plName(p.s[p.s.length - 1]);

@@ -3,7 +3,7 @@
 CIS JŘ má u mnoha zastávek jediné „nástupiště“ se souřadnicí zastávky, ačkoli autobusy v každém směru
 stojí na jiné straně silnice. Nástupiště proto rozdělíme podle směru jízdy (shluky azimutů spojů)
 a umístíme je na odpovídající zastávkové sloupky z OpenStreetMap (strana silnice vpravo ve směru jízdy).
-Kde OSM sloupky chybí, nástupiště odsadíme o několik metrů vpravo od osy.
+Kde OSM sloupky chybí, zůstává jediné nástupiště z CIS JŘ (žádná vymyšlená nástupiště).
 Použití: python3 platforms.py <work_dir>"""
 import sys, os, pickle, math, re, time, collections, unicodedata
 import numpy as np
@@ -212,12 +212,10 @@ for si, s in enumerate(S):
             c = cands[asg[gi]]; pos.append((OSM[c][1], OSM[c][2], 'osm', OSM[c][3].get('local_ref', '')))
         stats['osm'] += 1
     else:
+        # bez sloupků v OSM: žádná vymyšlená nástupiště – zůstává původní poloha z CIS JŘ
         for p, v, us in groups:
-            x, y = sxy
-            if v is not None:
-                x += v[1] * 9; y += -v[0] * 9   # 9 m vpravo
-            la, lo = ll(x, y); pos.append((la, lo, 'synth', ''))
-        stats['synth'] += 1
+            pos.append((P[p]['lat'], P[p]['lon'], 'cis', ''))
+        stats['cis_only'] += 1
     # sloučit skupiny na stejné pozici
     placed = {}
     for gi, (p, v, us) in enumerate(groups):
@@ -236,13 +234,12 @@ for j, p in enumerate(new_pl): by_st[p['st']].append(j)
 for si, js in by_st.items():
     codes = collections.Counter(new_pl[j]['code'] for j in js)
     if len(js) > 1:
-        letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        k = 0
-        for j in sorted(js, key=lambda j: (new_pl[j]['code'], new_pl[j]['lat'])):
+        # označení jen podle skutečnosti (OSM local_ref, kód stanoviště v CIS JŘ) – nic nevymýšlíme
+        for j in js:
             p = new_pl[j]
             if p.get('lref'): p['label'] = p['lref']
-            elif codes[p['code']] > 1 or not p['code']: p['label'] = letters[k % 26]; k += 1
-            else: p['label'] = p['code']
+            elif p['code'] and codes[p['code']] == 1: p['label'] = p['code']
+            else: p['label'] = ''
     else:
         new_pl[js[0]]['label'] = ''
 # přepis vzorů

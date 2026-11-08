@@ -29,11 +29,13 @@
   MG.map.drawOkresy(oi); MG.map.drawNet();
   MG.emit('okres', oi);
   MG.veh.tick();
-  if (MG.ui.cur === 'sh-net') MG.net.render();
+  if (MG.ui.cur === 'sh-net' && MG.net.open == null) MG.net.render();
  };
  /* automatické načtení okresu pod středem mapy */
  const autoLoad = MG.debounce(() => {
   if (!D.geo || MG.mode3d) return;
+  /* při prohlížení linky, spojení nebo vozidla okres neměnit (panel by se překreslil) */
+  if (MG.map.selKind || MG.veh.sel || (MG.ui.cur && MG.ui.cur !== 'sh-dep')) return;
   const m = MG.map.m; if (m.getZoom() < 11) return;
   const c = m.getCenter(), oi = D.okresAt(c.lat, c.lng);
   if (oi >= 0 && oi !== A.cur) A.selectOkres(oi, {keepView: true});

@@ -4,6 +4,7 @@
  const N = MG.net = {open: null, dir: 0, pat: null, q: ''};
  const numKey = s => { const m = /^(\D*)(\d+)(.*)$/.exec(s || ''); return m ? [m[1], +m[2], m[3]] : [s || '', 1e9, '']; };
  const cmpLine = (a, b) => { const x = numKey(D.lineText(a)), y = numKey(D.lineText(b)); return x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : x[1] - y[1] || (x[2] < y[2] ? -1 : 1); };
+ function termOf(L_, p) { const city = L_.city || ''; return D.shortName(D.plName(p.s[0]), city) + ' → ' + D.shortName(D.plName(p.s[p.s.length - 1]), city); }
  function terminals(L_) {
   const [a, b] = D.mainPats(L_); const p = a || b; if (!p) return L_.ln || '';
   const city = L_.city || '';
@@ -20,22 +21,26 @@
    if (q && !MG.fold(D.lineText(L_) + ' ' + (L_.ln || '') + ' ' + (L_.city || '')).includes(q)) continue;
    (groups.get(L_.k) || groups.set(L_.k, []).get(L_.k)).push(L_);
   }
+  if (N.open != null && !(N.pat && N.pat.l === N.open)) { const L0 = D.ln.get(N.open); if (L0) { const mp = D.mainPats(L0); N.pat = mp[N.dir] || mp[0] || mp[1] || null; } }
   let html = U_head(ok, lines.length);
   html += '<div class="sh-body"><div class="field" style="margin:0 2px 8px"><i class="fa-solid fa-magnifying-glass"></i><input id="net-q" placeholder="Číslo nebo název linky…" value="' + MG.h(N.q) + '" autocomplete="off"></div>';
   if (!lines.length) html += '<div class="empty"><i class="fa-solid fa-bus"></i>' + (D.loaded.has(oi) ? 'V okrese nejsou žádné linky.' : 'Načítám síť okresu…') + '</div>';
-  for (const k of D.kindOrder) {
-   const g = groups.get(k); if (!g) continue;
-   const cc = new Map(); for (const x of g) cc.set(x.city || '', (cc.get(x.city || '') || 0) + 1);
-   const seat = ok ? ok.seat : '';
-   const cRank = c => (c === seat ? -1e6 : 0) - (cc.get(c || '') || 0);
-   g.sort(k === 'mhd' || k === 'trol' || k === 'tram' ? (a, b) => cRank(a.city) - cRank(b.city) || (a.city || '').localeCompare(b.city || '', 'cs') || cmpLine(a, b) : cmpLine);
-   html += '<div class="sec-t">' + D.KIND[k][1] + ' • ' + g.length + ' ' + (g.length === 1 ? 'linka' : g.length < 5 ? 'linky' : 'linek') + '</div>';
-   let city = null;
-   for (const L_ of g) {
-    if ((k === 'mhd' || k === 'trol' || k === 'tram') && L_.city !== city && new Set(g.map(x => x.city)).size > 1) { city = L_.city; html += '<div class="sec-t" style="margin-top:8px;letter-spacing:.06em">MHD ' + MG.h(city) + '</div>'; }
-    html += '<div class="ln-row' + (N.open === L_.i ? ' open' : '') + '" data-l="' + L_.i + '"><div class="ln-h">' + thumb(L_) + D.badge(L_, {size: 'big'}) + (MG.alerts && MG.alerts.forLine(L_.i).length ? '<i class="fa-solid fa-triangle-exclamation" style="color:#c98a14" title="mimořádnost"></i>' : '') + '<div class="tx">' + MG.h(terminals(L_)) + (L_.k === 'vlak' || L_.k === 'regio' || L_.k === 'mezi' ? '<small>' + MG.h(L_.ln || '') + '</small>' : '') + '</div><i class="fa-solid fa-chevron-down chev"></i></div>' + (N.open === L_.i ? expand(L_) : '') + '</div>';
-   }
+  /* pořadí jako v OpavaGO: nejdřív MHD okresního města (trolejbusy, autobusy…), pak MHD dalších měst, regionální, dálkové, vlaky */
+  const seat = ok ? ok.seat : '';
+  const CITYK = ['metro', 'tram', 'trol', 'mhd'];
+  const row = L_ => { const isOpen = N.open === L_.i, mp = isOpen ? D.mainPats(L_) : null;
+   return '<div class="ln-row' + (isOpen ? ' open' : '') + '" data-l="' + L_.i + '"><div class="ln-h">' + thumb(L_) + D.badge(L_, {size: 'big'}) + (MG.alerts && MG.alerts.forLine(L_.i).length ? '<i class="fa-solid fa-triangle-exclamation" style="color:#c98a14" title="mimořádnost"></i>' : '') + '<div class="tx">' + MG.h(isOpen && N.pat ? termOf(L_, N.pat) : terminals(L_)) + (L_.k === 'vlak' || L_.k === 'regio' || L_.k === 'mezi' || (CITYK.includes(L_.k) && L_.city && L_.city !== seat) ? '<small>' + MG.h(CITYK.includes(L_.k) ? 'MHD ' + (L_.city || '') : (L_.ln || '')) + '</small>' : '') + '</div>' + (isOpen && mp[0] && mp[1] ? '<button class="dir-btn" data-flip title="Otočit směr"><i class="fa-solid fa-right-left"></i>Otočit směr</button>' : '') + '<i class="fa-solid fa-chevron-down chev"></i></div>' + (isOpen ? expand(L_) : '') + '</div>'; };
+  const cnt = n => n + ' ' + (n === 1 ? 'linka' : n < 5 ? 'linky' : 'linek');
+  const sec = (title, ls) => { if (!ls.length) return; ls.sort(cmpLine); html += '<div class="sec-t">' + title + ' • ' + cnt(ls.length) + '</div>' + ls.map(row).join(''); };
+  const all = [...groups.values()].flat();
+  const mine = all.filter(L_ => CITYK.includes(L_.k) && (!L_.city || L_.city === seat));
+  for (const k of CITYK) sec(D.KIND[k][1].replace(' MHD', ''), mine.filter(L_ => L_.k === k));
+  const other = all.filter(L_ => CITYK.includes(L_.k) && L_.city && L_.city !== seat);
+  if (other.length) {
+   const byCity = new Map(); for (const L_ of other) (byCity.get(L_.city) || byCity.set(L_.city, []).get(L_.city)).push(L_);
+   for (const [city, ls] of [...byCity].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'cs'))) sec('MHD ' + city, ls);
   }
+  for (const k of ['regio', 'mezi', 'vlak', 'lan', 'lod']) sec(D.KIND[k][1], all.filter(L_ => L_.k === k));
   html += '<div class="status" style="text-align:center;margin-top:10px">Jízdní řády CIS JŘ · platnost od ' + MG.h(D.core.d0) + '</div></div>';
   el.innerHTML = html;
   bind(el);
@@ -55,21 +60,18 @@
   if (!p) return '';
   N.pat = p;
   const u = D.ttUrl(L_), city = L_.city || '';
+  const ag = L_.a && L_.a[0] ? D.agency(L_.a[0]) : '';
   let h = '<div class="ln-x">';
-  if (u) h += '<a class="jr-link" href="' + MG.h(u.href) + '" target="_blank" rel="noopener"><i class="fa-regular fa-calendar-days"></i><span><em>Jízdní řád ' + (L_.k === 'vlak' ? 'vlaku' : 'linky') + ' <b>' + MG.h(D.lineText(L_)) + '</b></em><small>' + MG.h(u.src) + '</small></span><i class="fa-solid fa-arrow-up-right-from-square"></i></a>';
+  if (u) h += '<a class="jr-link" href="' + MG.h(u.href) + '" target="_blank" rel="noopener"><i class="fa-regular fa-calendar-days"></i><span><em>Jízdní řád ' + (L_.k === 'vlak' ? 'vlaku' : 'linky') + ' <b>' + MG.h(D.lineText(L_)) + '</b></em><small>' + MG.h([ag, u.src].filter(Boolean).join(' · ')) + '</small></span><i class="fa-solid fa-arrow-up-right-from-square"></i></a>';
   const als = MG.alerts ? MG.alerts.forLine(L_.i) : [];
   if (als.length) h += '<details class="alert-box" open><summary><i class="fa-solid fa-triangle-exclamation"></i>Mimořádnosti na lince (' + als.length + ')</summary>' + als.map(MG.alerts.card).join('') + '</details>';
-  const variants = L_.pats.filter(x => (x.d ? 1 : 0) === (p.d ? 1 : 0)).sort((a, b) => b.nt - a.nt);
-  h += '<div class="row" style="justify-content:space-between;margin:4px 0 6px"><div style="font:700 12px Outfit,sans-serif;color:var(--mut)">' + (L_.a && L_.a[0] ? MG.h(D.agency(L_.a[0])) : '') + '</div>' + (pats[0] && pats[1] ? '<button class="dir-btn" data-flip><i class="fa-solid fa-right-left"></i>Otočit směr</button>' : '') + '</div>';
-  if (variants.length > 1) h += '<div class="chips" style="margin-bottom:4px">' + variants.slice(0, 8).map((v, i) => '<button class="chip' + (v === p ? ' on' : '') + '" data-var="' + v.i + '">' + (i === 0 ? 'Hlavní trasa' : 'Varianta ' + i) + ' · ' + v.nt + '×</button>').join('') + '</div>';
-  const dep = p.dep[0];
   h += '<div class="st-list" style="--lc:' + L_.c + '">';
   p.s.forEach((pg, k) => {
    const pl = D.pl.get(pg); if (!pl) return; const s = D.st.get(pl.st);
    const others = s ? [...s.lines].filter(x => x !== L_.i).map(x => D.ln.get(x)).filter(Boolean).filter(x => x.k !== 'vlak' || L_.k === 'vlak' || true) : [];
    others.sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || cmpLine(a, b));
    const chips = others.slice(0, 5).map(x => D.badge(x)).join('') + (others.length > 5 ? '<span class="ln" style="--lc:transparent;--lt:var(--faint);box-shadow:none">+' + (others.length - 5) + '</span>' : '');
-   h += '<div class="st-r' + (k === 0 || k === p.s.length - 1 ? ' term' : '') + '" data-st="' + pl.st + '" data-pl="' + pg + '"><i></i><span>' + MG.h(D.shortName(s ? s.name : '?', city)) + (D.isRequest(p, k) ? '<em class="rq" title="zastávka na znamení"> ✕</em>' : '') + '</span><em class="t">' + (k ? '+' + dep[k] : '') + '</em><div class="lns">' + chips + '</div></div>';
+   h += '<div class="st-r' + (k === 0 || k === p.s.length - 1 ? ' term' : '') + '" data-st="' + pl.st + '" data-pl="' + pg + '"><i></i><span>' + MG.h(D.shortName(s ? s.name : '?', city)) + '</span>' + (D.isRequest(p, k) ? '<span class="req-ic" title="Zastávka na znamení"><i class="fa-solid fa-thumbs-up"></i></span>' : '') + '<div class="lns">' + chips + '</div></div>';
   });
   h += '</div></div>';
   return h;
@@ -85,7 +87,6 @@
   });
   const flip = MG.qs('[data-flip]', el);
   if (flip) flip.onclick = (e) => { e.stopPropagation(); N.dir = N.pat && N.pat.d ? 0 : 1; N.pat = null; N.render(); show(true); };
-  MG.qsa('[data-var]', el).forEach(b => b.onclick = (e) => { e.stopPropagation(); N.pat = D.pt.get(+b.dataset.var); N.render(); show(true); });
   MG.qsa('.st-r', el).forEach(r => r.onclick = () => { const pl = D.pl.get(+r.dataset.pl); if (pl) MG.map.m.flyTo([pl.lat, pl.lon], Math.max(MG.map.m.getZoom(), 16), {duration: .6}); MG.dep.stopPopup(+r.dataset.st, +r.dataset.pl); });
  }
  function show(fit) { if (!N.pat) return; MG.veh.close && MG.veh.sel && MG.veh.close(); MG.map.showPattern(N.pat, {kind: 'line'}); if (fit) MG.map.fitPad(L.latLngBounds(D.geo3(N.pat).pts)); }

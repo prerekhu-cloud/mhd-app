@@ -60,7 +60,7 @@
    const j = await getJSON(u, 12000);
    LV.busWorker = (j.vehicles || []).filter(v => isFinite(v.lat) && isFinite(v.lon)).map(v => Object.assign({src: v.src || 'mhdGO'}, v));
    for (const t of (j.trains || [])) if (t.num && !LV.trains.has(String(t.num))) LV.trains.set(String(t.num), Object.assign({train: true, src: t.src || 'mhdGO'}, t));
-   LV.at.worker = Date.now(); LV.st.worker = 'ok'; LV.wFail = 0;
+   LV.wStats = j.stats || {}; LV.at.worker = Date.now(); LV.st.worker = 'ok'; LV.wFail = 0;
   } catch (e) { LV.st.worker = 'err'; LV.err.worker = String(e.message || e); LV.wFail = (LV.wFail || 0) + 1; LV.wLast = Date.now(); LV.busWorker = []; }
  }
  LV.allBus = () => (LV.busOdis || []).concat(LV.busWorker || []);
@@ -104,7 +104,7 @@
   const now = Date.now();
   const jobs = [];
   if (now - tSZ > 20000) { tSZ = now; jobs.push(fetchSZ()); }
-  if (now - tB > 10000) { tB = now; const wOk = LV.st.worker === 'ok' && Date.now() - LV.at.worker < 60000; jobs.push(fetchWorker()); if (!wOk) jobs.push(fetchOdis()); else { LV.busOdis = []; LV.st.odis = ''; } }
+  if (now - tB > 10000) { tB = now; const wOdis = LV.st.worker === 'ok' && Date.now() - LV.at.worker < 60000 && (LV.wStats || {})['mpvnet:odis'] > 0; jobs.push(fetchWorker()); if (!wOdis) jobs.push(fetchOdis()); else { LV.busOdis = []; LV.st.odis = ''; } }
   if (jobs.length) { await Promise.all(jobs); MG.emit('live'); updBtn(); }
  };
  function updBtn() {
@@ -115,7 +115,7 @@
   const err = LV.st.sz === 'err' && (LV.st.odis === 'err' || !LV.st.odis);
   b.classList.add(ok ? 'ok' : err ? 'warn' : 'off');
   MG.$('live-n').textContent = LV.liveCount ? String(LV.liveCount) : '';
-  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO (ODIS, JIKORD, IDOL, PID)' : ', ODIS ' + (LV.st.odis || '–'));
+  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO ' + Object.keys(LV.wStats || {}).filter(k => k !== 'alerts').join(', ').replace(/mpvnet:/g, '').toUpperCase() : '') + (LV.st.odis ? ', ODIS ' + LV.st.odis : '');
  }
  LV.updBtn = updBtn;
  LV.toggle = (on) => { LV.on = on; MG.store.set('live', on); if (on) { tSZ = tB = 0; LV.tick(); } else { LV.trains = new Map(); LV.busOdis = []; LV.busWorker = []; MG.emit('live'); } updBtn(); };

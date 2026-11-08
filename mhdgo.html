@@ -875,6 +875,141 @@ body.riding #joy{bottom:auto;top:160px}
 .rd-pick .ln.off{background:var(--hover)!important;color:var(--mut)!important;box-shadow:none}
 @media (orientation:landscape) and (max-height:520px){#ride-hud{left:auto;right:8px;width:min(360px,46vw);top:8px;bottom:8px;max-height:none}#ride-x{right:calc(min(360px,46vw) + 24px)}#joy{right:calc(min(360px,46vw) + 20px)}}
 @media (min-width:900px) and (min-height:521px){#ride-hud{left:auto;right:12px;top:12px;bottom:12px;width:380px;max-height:none}#ride-x{right:410px;top:12px}body.riding #joy{right:408px;top:auto;bottom:24px}}
+/* v1.4 – síť jako OpavaGO */
+.req-ic{flex:0 0 auto;width:21px;height:21px;border-radius:50%;display:inline-grid;place-items:center;background:#f3e4d9;color:#b0643d;font-size:9.5px;margin-left:-2px}
+body.dark .req-ic{background:#3a2a20;color:#e4a17c}
+.ln-h .dir-btn{height:28px;padding:0 9px;font-size:10.5px;flex:0 0 auto}
+.ln-row.open .ln-h .chev{transform:rotate(180deg)}
+/* hledání v1.4 – jako OpavaGO (sug41, card41, var41, plan41) */
+.s-wrap{position:relative}
+.s-wrap .s-field{margin-bottom:10px}
+.sug41{position:absolute;left:0;right:0;top:calc(100% - 4px);z-index:60;max-height:min(380px,55vh);overflow:auto;padding:6px;border-radius:16px;background:var(--surf);border:1px solid var(--line);box-shadow:0 18px 40px rgba(40,26,16,.18)}
+.sug41[hidden]{display:none}
+.sug41-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:11px;cursor:pointer;color:var(--tx)}
+.sug41-item:hover,.sug41-item.active{background:var(--hover)}
+.sug41-ico{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--hover);color:var(--mut);font-size:11.5px;flex:0 0 auto}
+.sug41-ico.fav{color:var(--acc);background:var(--acc-soft)}
+.sug41-ico .ln{min-width:26px;height:20px;font-size:10.5px;border-radius:6px;padding:0 4px}
+.sug41-main{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.sug41-main strong{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug41-main small{font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug41-lines{display:flex;gap:3px;flex-wrap:nowrap;overflow:hidden}
+.sug41-lines .ln{height:16px;min-width:22px;font-size:9.5px;border-radius:5px;padding:0 4px;flex:0 0 auto}
+.sug41-empty{padding:10px 12px;font-size:12px;color:var(--mut)}
+.list41-title{margin:16px 2px 8px;font:800 10px Outfit,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+.hl41{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--surf2);border:1px solid var(--line)}
+.hl41>i{color:var(--acc);font-size:15px;width:18px;text-align:center}
+.hl41>span{flex:1;min-width:0}.hl41 b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hl41 small{display:block;color:var(--mut);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl41 .fbtn{width:32px;height:32px;border-radius:10px;border:0;background:var(--hover);color:var(--acc);cursor:pointer}
+.card41{padding:11px 12px;border-radius:16px;background:var(--surf);border:1px solid var(--line);margin-bottom:8px;cursor:pointer;transition:background .15s,transform .15s,box-shadow .15s}
+.card41:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(40,26,16,.08)}
+.card41-top{display:flex;align-items:center;gap:9px}
+.card41-ico{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:var(--acc-soft);color:var(--acc);font:800 11px Outfit,sans-serif;flex:0 0 auto}
+.card41-name{flex:1;min-width:0;font-weight:700;font-size:13.5px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card41-dist{font-size:11.5px;font-weight:700;color:var(--mut);white-space:nowrap}
+.card41-lines{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;padding-left:33px}
+.card41-lines .ln{cursor:pointer;min-width:24px;height:19px;font-size:10.5px;border-radius:6px;padding:0 5px}
+.card41-acts{display:flex;gap:6px;margin-top:9px;padding-left:33px}
+.card41-acts .chip{height:28px;font-size:11px}
+.muted41{font-size:11px;color:var(--faint)}
+.ln.more{background:transparent;color:var(--faint);box-shadow:none;min-width:0;padding:0 2px}
+.pin41{transform:translate(-50%,-100%);color:var(--acc);font-size:32px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.3))}
+.conn-io{position:relative}
+.conn-io .s-wrap .s-field{padding-right:46px}
+.conn-io .s-wrap:first-child .s-field{padding-right:6px;margin-right:44px}
+.conn-io .s-wrap:nth-child(2) .s-field{margin-right:44px;padding-right:6px}
+.swap41{position:absolute;right:0;top:30px;width:38px;height:46px;border-radius:13px;border:1px solid var(--line);background:var(--surf);color:var(--mut);cursor:pointer;display:grid;place-items:center;transform:rotate(90deg)}
+.when41{display:flex;gap:6px;align-items:center;margin:0 0 10px}
+.when41 input{height:36px;border-radius:11px;border:1px solid var(--line);background:var(--surf);color:var(--tx);font:600 12.5px Outfit,sans-serif;padding:0 8px;min-width:0;flex:1}
+.when41 .chip{height:36px}
+.vars41{display:flex;flex-direction:column;gap:5px;margin:12px 0 10px}
+.var41{display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;align-items:center;text-align:left;padding:9px 11px;border-radius:13px;border:1px solid var(--line);background:var(--surf);color:var(--tx);cursor:pointer;font-family:Outfit,sans-serif;transition:background .15s,border-color .15s,box-shadow .15s}
+.var41.active{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-ring)}
+.var41.walk{margin-top:12px}
+.t41-tm{display:flex;align-items:baseline;gap:4px;font:800 15px/1 Outfit,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.t41-tm i{font-style:normal;color:var(--faint);font-weight:500}
+.t41-tm span{font-weight:600;color:var(--mut);font-size:14px}
+.t41-dur{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;white-space:nowrap}
+.t41-dur b{font:800 13px Outfit,sans-serif}.t41-dur small{font-size:10.5px;color:var(--mut)}
+.var41-lines{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;overflow:hidden;min-width:0}
+.var41-lines>i{font-size:8px;color:var(--faint)}
+.var41-lines .ln{flex:0 0 auto}
+.less41-conn,.more41-conn{width:100%;height:32px;margin:0;border-radius:11px;border:1px dashed var(--line2);background:transparent;color:var(--mut);font:700 12px Outfit,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.less41-conn:hover,.more41-conn:hover{color:var(--tx);background:var(--hover)}
+.plan41{padding:14px;border-radius:18px;background:var(--surf);border:1px solid var(--line);margin-top:4px}
+.plan41-head{display:flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px;margin-bottom:12px;flex-wrap:wrap}
+.plan41-head>i{font-size:10px;color:var(--faint)}
+.plan41-head em{flex-basis:100%;font-style:normal;font-weight:600;color:var(--mut);font-size:11.5px}
+.step41{display:grid;grid-template-columns:18px 1fr;gap:10px;position:relative}
+.step41-rail{position:relative}
+.step41-rail:before{content:'';position:absolute;left:7px;top:0;bottom:0;width:4px;border-radius:4px;background:var(--lc,#999)}
+.step41.walk .step41-rail:before,.step41.xfer .step41-rail:before{width:0;border-left:3px dotted var(--faint);background:none;left:7.5px}
+.step41-body{padding:6px 0 10px;font-size:12px;color:var(--mut);min-width:0}
+.step41-body>i{margin-right:4px}
+.step41.ride .step41-body{color:var(--tx)}
+.step41-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.step41-dir{font-size:11.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step41-stop{display:flex;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap}
+.step41-stop strong{font-weight:700}
+.t41{font:800 12.5px Outfit,sans-serif;font-variant-numeric:tabular-nums}
+.pl41{font:800 10px Outfit,sans-serif;padding:2px 5px;border-radius:5px;background:var(--hover);color:var(--mut)}
+.step41-dep,.step41-alight{margin-left:auto;border:0;background:var(--hover);color:var(--mut);border-radius:999px;font:700 10.5px Outfit,sans-serif;padding:4px 9px;cursor:pointer;white-space:nowrap}
+.step41-alight.on{background:var(--acc);color:#fff}
+.step41-mid{margin:6px 0;font-size:11.5px;color:var(--mut)}
+.step41-mid summary{cursor:pointer;list-style:none}
+.step41-mid summary::-webkit-details-marker{display:none}
+.step41-mid summary:before{content:'›';display:inline-block;margin-right:6px;transition:transform .15s}
+.step41-mid[open] summary:before{transform:rotate(90deg)}
+.step41-mid>div{padding:3px 0 0 12px}
+.plan41-note{margin-top:8px;font-size:10.5px;color:var(--faint)}
+.idos41{margin-top:10px;display:flex;align-items:center;justify-content:center;gap:6px;height:36px;border-radius:12px;background:var(--hover);color:var(--tx)!important;font-weight:700;font-size:12px;text-decoration:none}
+.leaflet-div-icon.rt41,.rt41{background:transparent!important;border:0!important}
+.rt41-pin{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#16171b;color:#fff;font:800 11px/1 Outfit,sans-serif;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);box-sizing:border-box}
+.rt41-pin.b{background:#fff;color:#16171b;border-color:#16171b}
+#sh-search .status:empty{display:none}
+.hp-links{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 12px}
+.hp-links button{height:32px;padding:0 11px;border-radius:999px;border:1px solid var(--line);background:var(--surf);color:var(--tx);font:700 11.5px Outfit,sans-serif;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.hp-links button i{color:var(--acc)}
+/* lišta: na telefonu 5 záložek s „Více“, od 600 px (tablet na výšku, telefon na šířku) všechny funkce přímo, bez „Více“ */
+#tabs .tb-x{display:none}
+#tabs .tb-x.tg:not(.on){opacity:.55}
+#tabs .tb-x .ri{font:italic 800 17px Georgia,serif}
+@media (min-width:600px){
+ #tabs{grid-template-columns:repeat(9,1fr)!important}
+ #tabs .tb-x{display:flex}
+ #tabs .tb-more{display:none!important}
+ #more-card{display:none!important}
+}
+@media (min-width:600px) and (orientation:landscape) and (max-height:520px){
+ #tabs{width:min(820px,calc(100vw - 24px))!important}
+ #tabs button span{display:none}
+}
+@media (min-width:600px) and (min-height:521px) and (max-width:899px){
+ #tabs button{font-size:10.5px}
+}
+/* jízda vozidlem v1.4 */
+#ride-ff{position:absolute;z-index:1101;right:12px;top:158px;width:40px;height:40px;padding:0;border-radius:50%;display:none;align-items:center;justify-content:center}
+#ride-ff.on{background:var(--acc);color:#fff;border-color:transparent}
+body.riding #ride-ff{display:inline-flex}
+body.riding #joy{top:210px}
+.rd-h b small{display:block;font:600 10.5px Outfit,sans-serif;color:var(--mut);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-s .rd-tm{font:800 12px Outfit,sans-serif;font-style:normal;font-variant-numeric:tabular-nums;color:var(--mut);align-self:flex-start;margin-top:2px;white-space:nowrap}
+.rd-s.nx .rd-tm{color:var(--lc,#c1784f)}
+.rd-s.past .rd-tm{opacity:.6}
+.rd-s .req-ic{width:18px;height:18px;font-size:8.5px;vertical-align:1px;margin-left:3px}
+.rd-pick .btn{margin:2px 0 6px}
+@media (orientation:landscape) and (max-height:520px){#ride-ff{right:calc(min(360px,46vw) + 24px);top:58px}body.riding #joy{top:auto;bottom:14px}}
+@media (min-width:900px) and (min-height:521px){#ride-ff{right:410px;top:60px}}
+/* telefon: kulatá tlačítka nad spodní lištou, aby nic nepřekrývala */
+@media not all and (min-width:900px) and (min-height:521px){
+ .hud-br{bottom:52px}
+ .hud-bl{max-width:calc(100% - 20px);overflow:hidden}
+}
+@media (orientation:landscape) and (max-height:520px){.hud-br{bottom:10px}.hud-bl{max-width:calc(100% - 70px)}}
+@media (max-width:380px){#weather span,#weather b{display:none}}
+.st-r span.req-ic{flex:0 0 21px;width:21px;max-width:21px;margin-left:-4px}
+.st-r .lns{flex-wrap:wrap;row-gap:2px}
+.req-ic.sm{width:17px;height:17px;font-size:8px;vertical-align:1px;margin-left:2px}
 
 </style>
 </head>
@@ -902,7 +1037,6 @@ body.riding #joy{bottom:auto;top:160px}
    <button class="rb" data-a="info" title="O aplikaci"><i class="ri">i</i><em>Info</em></button>
    <button class="rb" data-a="dark" title="Tmavý režim"><i class="fa-solid fa-moon"></i><em>Tmavý</em></button>
    <button class="rb" data-a="net" title="Dopravní síť – všechny linky a jejich trasy"><i class="fa-solid fa-route"></i><em>Síť</em></button>
-   <button class="rb" data-a="more" title="Další funkce a nastavení"><i class="fa-solid fa-ellipsis"></i><em>Více</em></button>
    <span class="hb-sep"></span>
    <button class="rb tg" data-a="regio" title="Regionální linky"><i class="fa-solid fa-bus-simple"></i><em>Regio</em></button>
    <button class="rb tg" data-a="vlak" title="Vlaky"><i class="fa-solid fa-train"></i><em>Vlak</em></button>
@@ -948,6 +1082,7 @@ body.riding #joy{bottom:auto;top:160px}
   <div id="m3d-chip" class="glass"><i class="fa-solid fa-tower-broadcast"></i><b>ŽIVĚ</b><span>živé polohy + jízdní řád</span></div>
   <div id="joy" class="glass" title="Otáčet kamerou (dvojklik = sever)"><i class="fa-solid fa-rotate"></i><span id="joy-k"></span></div>
   <button id="ride-x" class="hbtn" title="Ukončit jízdu"><i class="fa-solid fa-xmark"></i></button>
+  <button id="ride-ff" class="hbtn" title="2× zrychlit jízdu"><i class="fa-solid fa-forward"></i></button>
   <div id="ride-hud" class="glass"></div>
   <div id="legend" class="glass" hidden></div>
   <div class="loadbar glass" id="loadbar" hidden><span class="spin"></span><span id="loadbar-t">Načítám…</span></div>
@@ -959,7 +1094,12 @@ body.riding #joy{bottom:auto;top:160px}
  <button data-t="dep"><i class="fa-regular fa-clock"></i><span>Odjezdy</span></button>
  <button data-t="net"><i class="fa-solid fa-bus"></i><span>Síť</span></button>
  <button data-t="ride"><i class="fa-solid fa-route"></i><span>Jízda</span><sup class="b3d">3D</sup></button>
- <button data-t="more"><i class="fa-solid fa-ellipsis"></i><span>Více</span></button>
+ <button data-t="bedekr" class="tb-x"><i class="fa-solid fa-landmark"></i><span>Bedekr</span></button>
+ <button data-t="info" class="tb-x"><i class="ri">i</i><span>Info</span></button>
+ <button data-t="dark" class="tb-x"><i class="fa-solid fa-moon"></i><span>Tmavý</span></button>
+ <button data-t="regio" class="tb-x tg"><i class="fa-solid fa-bus-simple"></i><span>Regio</span></button>
+ <button data-t="vlak" class="tb-x tg"><i class="fa-solid fa-train"></i><span>Vlak</span></button>
+ <button data-t="more" class="tb-more"><i class="fa-solid fa-ellipsis"></i><span>Více</span></button>
 </nav>
 
 <section class="sheet" id="sh-search" aria-hidden="true"></section>
@@ -1001,7 +1141,7 @@ const MG = window.MG = window.MG || {};
   WORKER: saved.worker != null && saved.worker !== '' ? saved.worker : 'https://mhdgo-live.prerekhu.workers.dev/',
   SZ: 'https://mapy.spravazeleznic.cz/serverside/request2.php?module=Layers\\OsVlaky&&action=load',
   PHOTON: 'https://photon.komoot.io/api/',
-  VERSION: '1.3'
+  VERSION: '1.4'
  };
  MG.$ = id => document.getElementById(id);
  MG.isWide = () => matchMedia('(min-width:900px) and (min-height:521px), (orientation:landscape) and (max-height:520px)').matches;
@@ -1201,7 +1341,7 @@ MG.jtsk = function(ex, ny, H){
  D.badge = (L, opt) => {
   opt = opt || {}; const cls = 'ln' + (opt.size ? ' ' + opt.size : '') + (L.k === 'vlak' ? ' train' : '');
   let t = opt.text || D.lineText(L); const ic = L.k === 'vlak' ? '<i class="fa-solid fa-train"></i>' : (L.k === 'lan' ? '<i class="fa-solid fa-cable-car"></i>' : L.k === 'lod' ? '<i class="fa-solid fa-ferry"></i>' : '');
-  return '<span class="' + cls + '" style="--lc:' + L.c + ';--lt:' + L.tc + '">' + ic + MG.h(t) + '</span>';
+  return '<span class="' + cls + '" style="--lc:' + L.c + ';--lt:' + L.tc + '"' + (opt.attr ? ' ' + opt.attr : '') + '>' + ic + MG.h(t) + '</span>';
  };
  D.mainPats = (L) => {
   const by = [null, null];
@@ -1210,6 +1350,8 @@ MG.jtsk = function(ex, ny, H){
  };
  D.agency = (a) => String(a || '').replace(/,?\s*(akciová společnost|a\.\s?s\.|s\.\s?r\.\s?o\.|spol\. s r\.\s?o\.|z\.\s?s\.|o\.\s?p\.\s?s\.)\s*$/i, '').replace(/^Dopravní podnik hl\. m\. Prahy/, 'DPP').trim();
  D.stName = (g) => { const s = D.st.get(g); return s ? s.name : '?'; };
+ /* linky zastávky seřazené, bez duplicit (stejné číslo a barva z více systémů) */
+ D.stLines = (g) => { const st = D.st.get(g); if (!st) return []; const seen = new Set(), out = []; for (const L_ of [...st.lines].map(i => D.ln.get(i)).filter(Boolean).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true}))) { const k = D.lineText(L_) + '|' + L_.c; if (seen.has(k)) continue; seen.add(k); out.push(L_); } return out; };
  D.plName = (g) => { const p = D.pl.get(g); return p ? D.stName(p.st) : '?'; };
  D.shortName = (name, city) => { if (!name) return ''; if (city && name.startsWith(city + ', ')) return name.slice(city.length + 2); return name; };
  D.headsign = (p, j) => (p.hs && p.hs[j]) || p.h || D.plName(p.s[p.s.length - 1]);
@@ -1320,7 +1462,8 @@ MG.jtsk = function(ex, ny, H){
   $('lay-basic').style.backgroundImage = 'url(' + thumb('streets-v12') + ')';
   $('lay-light').style.backgroundImage = 'url(' + thumb('light-v11') + ')';
   $('lay-sat').style.backgroundImage = 'url(' + thumb('satellite-streets-v12') + ')';
-  map.on('zoomend', () => M.restyleNet && M.restyleNet());
+  map.on('zoomend', () => { if ((map.getZoom() >= 15.5) !== !!M.netDetail) M.drawNet(); else M.restyleNet && M.restyleNet(); });
+  map.on('moveend', MG.debounce(() => { if (M.netDetail) M.drawNet(); }, 250));
   map.on('zoomend moveend', () => { updScale(); M.refreshStops(); MG.emit('view'); });
   map.on('click', () => MG.emit('mapclick'));
   updScale();
@@ -1371,7 +1514,27 @@ MG.jtsk = function(ex, ny, H){
   const dark = document.body.classList.contains('dark'), z = M.m.getZoom();
   const copper = dark ? '#E39A70' : '#C1784F';
   const add = (pts, o) => { const l = L.polyline(pts, Object.assign({renderer: M.rNet, lineCap: 'round', lineJoin: 'round', interactive: true}, o)); l._k = o._k; l.on('click', e => { L.DomEvent.stop(e); M.linesAt(e.latlng); }); l.addTo(M.gNet); M.netLayers.push(l); return l; };
-  for (const oi of D.loaded) {
+  /* při velkém přiblížení skutečné trasy linek (vedou osou silnic a kolejí, směry se překrývají), jinak sloučená síť */
+  M.netDetail = z >= 15.5;
+  if (M.netDetail) {
+   const b = M.m.getBounds().pad(.35), S = b.getSouth(), Wd = b.getWest(), N = b.getNorth(), E = b.getEast();
+   const seen = new Set(), rail = [], reg = [], city = [];
+   for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) {
+    if (seen.has(li)) continue; seen.add(li); const Ln = D.ln.get(li); if (!Ln) continue;
+    if (Ln.k === 'vlak' ? MG.app.hideTrains : (Ln.k === 'regio' || Ln.k === 'mezi') && MG.app.hideRegio) continue;
+    const pats = Ln.pats.length <= 6 ? Ln.pats : D.mainPats(Ln).filter(Boolean).concat(Ln.pats.filter(p => p.nt >= 4));
+    for (const p of new Set(pats)) {
+     const g = D.geo3(p), pts = [];
+     let inb = false; for (let i = 0; i < g.lat.length; i += 3) if (g.lat[i] > S && g.lat[i] < N && g.lon[i] > Wd && g.lon[i] < E) { inb = true; break; }
+     if (!inb) continue;
+     (Ln.k === 'vlak' ? rail : Ln.k === 'regio' || Ln.k === 'mezi' ? reg : city).push(g.pts);
+    }
+   }
+   if (rail.length) { add(rail, {color: dark ? '#9aa1ad' : '#4a4f5a', weight: W(z) * .9 + 1.4, opacity: .8, _k: 'vlak0'}); add(rail, {color: dark ? '#24221f' : '#ffffff', weight: Math.max(1.2, W(z) * .45), opacity: .95, dashArray: '7 8', interactive: false, _k: 'vlak1'}); }
+   if (reg.length) add(reg, {color: dark ? '#b98a6c' : '#b98c6e', weight: Math.max(1.6, W(z) * .62), opacity: .75, _k: 'regio'});
+   if (city.length) add(city, {color: copper, weight: W(z), opacity: .92, _k: 'mhd'});
+  }
+  else for (const oi of D.loaded) {
    const n = D.okNet && D.okNet.get(oi); if (!n) continue;
    if (!MG.app.hideTrains) for (const p of n.vlak) { add(p, {color: dark ? '#9aa1ad' : '#4a4f5a', weight: W(z) * .9 + 1.4, opacity: .8, _k: 'vlak0'}); add(p, {color: dark ? '#24221f' : '#ffffff', weight: Math.max(1.2, W(z) * .45), opacity: .95, dashArray: '7 8', interactive: false, _k: 'vlak1'}); }
    if (!MG.app.hideRegio) for (const p of n.regio) add(p, {color: dark ? '#b98a6c' : '#b98c6e', weight: Math.max(1.6, W(z) * .62), opacity: .75, _k: 'regio'});
@@ -1455,7 +1618,20 @@ MG.jtsk = function(ex, ny, H){
   if (opt.fit) { const b = L.latLngBounds(pts); M.m.flyToBounds(b, {padding: M.padFit(), duration: .7, maxZoom: 16}); }
  };
  M.padFit = () => { const sheetOpen = document.querySelector('.sheet.open,#vcard.open'); const land = matchMedia('(orientation:landscape) and (max-height:520px), (min-width:900px) and (min-height:521px)').matches; if (!sheetOpen) return [30, 30]; return land ? [30, 30] : [30, 30]; };
- M.fitPad = (b) => { const sh = document.querySelector('.sheet.open,#vcard.open'); const land = matchMedia('(orientation:landscape) and (max-height:520px), (min-width:900px) and (min-height:521px)').matches; let opt = {padding: [30, 30], maxZoom: 16, duration: .7}; if (sh) { const r = sh.getBoundingClientRect(), mr = $('mapwrap').getBoundingClientRect(); if (land) opt = {paddingTopLeft: [Math.max(30, r.right - mr.left + 16), 30], paddingBottomRight: [30, 30], maxZoom: 16, duration: .7}; else opt = {paddingTopLeft: [30, 30], paddingBottomRight: [30, Math.max(30, mr.bottom - r.top + 16)], maxZoom: 16, duration: .7}; } M.m.flyToBounds(b, opt); };
+ M.fitPad = (b) => {
+  /* odsazení jen o tu část panelu, která mapu skutečně zakrývá (telefon: list dole, šířka: panel vedle mapy) */
+  const sh = document.querySelector('.sheet.open,#vcard.open'), mr = $('mapwrap').getBoundingClientRect();
+  let tl = [40, 50], br = [40, 62];
+  if (sh) {
+   const r = sh.getBoundingClientRect();
+   const ox = Math.min(r.right, mr.right) - Math.max(r.left, mr.left), oy = Math.min(r.bottom, mr.bottom) - Math.max(r.top, mr.top);
+   if (ox > 0 && oy > 0) {
+    if (r.width < mr.width * .75) { if (r.left - mr.left > mr.right - r.right) br[0] = mr.right - r.left + 16; else tl[0] = r.right - mr.left + 16; }
+    else br[1] = mr.bottom - r.top + 16;
+   }
+  }
+  M.m.flyToBounds(b, {paddingTopLeft: tl, paddingBottomRight: br, maxZoom: 16, duration: .7});
+ };
  /* ---------- moje poloha ---------- */
  M.setMe = (lat, lon, acc) => {
   if (!M.meMk) {
@@ -1528,7 +1704,7 @@ MG.jtsk = function(ex, ny, H){
    const j = await getJSON(u, 12000);
    LV.busWorker = (j.vehicles || []).filter(v => isFinite(v.lat) && isFinite(v.lon)).map(v => Object.assign({src: v.src || 'mhdGO'}, v));
    for (const t of (j.trains || [])) if (t.num && !LV.trains.has(String(t.num))) LV.trains.set(String(t.num), Object.assign({train: true, src: t.src || 'mhdGO'}, t));
-   LV.at.worker = Date.now(); LV.st.worker = 'ok'; LV.wFail = 0;
+   LV.wStats = j.stats || {}; LV.at.worker = Date.now(); LV.st.worker = 'ok'; LV.wFail = 0;
   } catch (e) { LV.st.worker = 'err'; LV.err.worker = String(e.message || e); LV.wFail = (LV.wFail || 0) + 1; LV.wLast = Date.now(); LV.busWorker = []; }
  }
  LV.allBus = () => (LV.busOdis || []).concat(LV.busWorker || []);
@@ -1572,7 +1748,7 @@ MG.jtsk = function(ex, ny, H){
   const now = Date.now();
   const jobs = [];
   if (now - tSZ > 20000) { tSZ = now; jobs.push(fetchSZ()); }
-  if (now - tB > 10000) { tB = now; const wOk = LV.st.worker === 'ok' && Date.now() - LV.at.worker < 60000; jobs.push(fetchWorker()); if (!wOk) jobs.push(fetchOdis()); else { LV.busOdis = []; LV.st.odis = ''; } }
+  if (now - tB > 10000) { tB = now; const wOdis = LV.st.worker === 'ok' && Date.now() - LV.at.worker < 60000 && (LV.wStats || {})['mpvnet:odis'] > 0; jobs.push(fetchWorker()); if (!wOdis) jobs.push(fetchOdis()); else { LV.busOdis = []; LV.st.odis = ''; } }
   if (jobs.length) { await Promise.all(jobs); MG.emit('live'); updBtn(); }
  };
  function updBtn() {
@@ -1583,7 +1759,7 @@ MG.jtsk = function(ex, ny, H){
   const err = LV.st.sz === 'err' && (LV.st.odis === 'err' || !LV.st.odis);
   b.classList.add(ok ? 'ok' : err ? 'warn' : 'off');
   MG.$('live-n').textContent = LV.liveCount ? String(LV.liveCount) : '';
-  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO (ODIS, JIKORD, IDOL, PID)' : ', ODIS ' + (LV.st.odis || '–'));
+  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO ' + Object.keys(LV.wStats || {}).filter(k => k !== 'alerts').join(', ').replace(/mpvnet:/g, '').toUpperCase() : '') + (LV.st.odis ? ', ODIS ' + LV.st.odis : '');
  }
  LV.updBtn = updBtn;
  LV.toggle = (on) => { LV.on = on; MG.store.set('live', on); if (on) { tSZ = tB = 0; LV.tick(); } else { LV.trains = new Map(); LV.busOdis = []; LV.busWorker = []; MG.emit('live'); } updBtn(); };
@@ -1806,7 +1982,7 @@ MG.jtsk = function(ex, ny, H){
    const exp = sched + delay, past = k < next;
    const tm = '<b>' + MG.hm2(past ? sched : exp) + '</b>' + (delay >= 1 && !past ? '<s>' + MG.hm2(sched) + '</s>' : '');
    const al = al0 === k;
-   rows.push('<div class="tl-s' + (k === next ? ' nx' : '') + (past ? ' past' : '') + (k === n - 1 ? ' end' : '') + (V.pick && !past ? ' pick' : '') + '" data-k="' + k + '" data-st="' + (pl ? pl.st : '') + '" data-pl="' + p.s[k] + '"><i></i><span>' + (al ? '<em class="bell"><i class="fa-solid fa-bell"></i></em> ' : '') + MG.h(nm) + (D.isRequest(p, k) ? ' <em class="rq" title="na znamení">✕</em>' : '') + '</span>' + (pl && pl.lab && V.showAll ? '<em class="pl">' + MG.h(pl.lab) + '</em>' : '') + tm + '</div>');
+   rows.push('<div class="tl-s' + (k === next ? ' nx' : '') + (past ? ' past' : '') + (k === n - 1 ? ' end' : '') + (V.pick && !past ? ' pick' : '') + '" data-k="' + k + '" data-st="' + (pl ? pl.st : '') + '" data-pl="' + p.s[k] + '"><i></i><span>' + (al ? '<em class="bell"><i class="fa-solid fa-bell"></i></em> ' : '') + MG.h(nm) + (D.isRequest(p, k) ? ' <span class="req-ic sm" title="Zastávka na znamení"><i class="fa-solid fa-thumbs-up"></i></span>' : '') + '</span>' + (pl && pl.lab && V.showAll ? '<em class="pl">' + MG.h(pl.lab) + '</em>' : '') + tm + '</div>');
   }
   const lv = it.live;
   const meta = [];
@@ -1821,13 +1997,13 @@ MG.jtsk = function(ex, ny, H){
    '<div class="vc-st">' + (rows.length ? rows.join('') : '<div class="tl-s nx end"><i></i><span>' + MG.h(D.shortName(it.head, city)) + '</span><b>cíl</b></div>') + '</div>' +
    (V.pick ? '<div class="pick-hint"><i class="fa-solid fa-bell"></i>Klepni na zastávku, kde vystupuješ</div>' : '') +
    '<div class="vc-mt">' + meta.join('') + '</div>' +
-   '<div class="lv-acts"><button data-a="bell" class="' + (V.pick || isAl ? 'on' : '') + '"><i class="fa-solid fa-bell"></i>' + (isAl ? 'Budík' : 'Budík') + '</button><button data-a="all"><i class="fa-solid fa-list"></i>' + (V.showAll ? 'Méně' : 'Celý spoj') + '</button><button data-a="line"><i class="fa-solid fa-route"></i>Linka</button><button data-a="3d"><i class="fa-solid fa-cube"></i>3D</button></div>' +
+   '<div class="lv-acts"><button data-a="bell" class="' + (V.pick || isAl ? 'on' : '') + '"><i class="fa-solid fa-bell"></i>' + (isAl ? 'Budík' : 'Budík') + '</button><button data-a="all"><i class="fa-solid fa-list"></i>' + (V.showAll ? 'Méně' : 'Celý spoj') + '</button><button data-a="line"><i class="fa-solid fa-route"></i>Linka</button><button data-a="3d"><i class="fa-solid fa-cubes"></i>Jízda 3D</button></div>' +
    '<div class="vc-src">' + (lv ? '<span class="dot-live"></span>Živě · ' + MG.h(lv.src || '') + ' · <em style="font-style:normal">' + ageTxt(lv) + '</em>' : '<span class="dot-tt"></span>Podle jízdního řádu') + '</div>';
   const A = (k, f) => { const b = popEl.querySelector('[data-a="' + k + '"]'); if (b) b.onclick = (e) => { e.stopPropagation(); f(); }; };
   A('bell', () => { if (isAl && !V.pick) { MG.alarm.clear(); MG.toast('Budík zrušen'); popSig = ''; renderCard(it); return; } V.pick = !V.pick; if (V.pick) V.showAll = true; popSig = ''; renderCard(it); });
   A('all', () => { V.showAll = !V.showAll; V.pick = false; popSig = ''; renderCard(it); });
   A('line', () => { const li = L_.i; V.close(); MG.net.openLine(li, {pattern: p.i}); });
-  A('3d', () => { MG.m3d.open({follow: it.key}); });
+  A('3d', () => { V.close && V.close(); MG.m3d.open({follow: it.key, ride: true, it}); });
   popEl.querySelectorAll('.tl-s').forEach(r => r.onclick = (e) => { e.stopPropagation(); if (V.pick && r.classList.contains('pick')) { V.pick = false; MG.alarm.set(it.key, +r.dataset.k); popSig = ''; renderCard(it); return; } });
   if (pop) pop.update();
  }
@@ -1859,7 +2035,7 @@ MG.jtsk = function(ex, ny, H){
  U.head = (o) => '<div class="sh-grab"></div><div class="sh-head">' + (o.icon ? '<div class="sh-ic"><i class="' + o.icon + '"></i></div>' : '') + '<div class="sh-tt">' + (o.eb ? '<div class="sh-eb">' + o.eb + '</div>' : '') + '<div class="sh-title">' + o.title + '</div>' + (o.sub ? '<div class="sh-sub" id="' + (o.subId || '') + '">' + o.sub + '</div>' : '') + '</div>' + (o.extra || '') + '<button class="xbtn" data-close title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>';
  const TAB_OF = {'sh-search': 'search', 'sh-dep': 'dep', 'sh-net': 'net', 'sh-more': 'more'};
  const syncBtns = () => {
-  MG.qsa('#tabs button').forEach(b => b.classList.toggle('on', ('sh-' + b.dataset.t) === U.cur));
+  MG.qsa('#tabs button:not(.tg)').forEach(b => b.classList.toggle('on', ('sh-' + b.dataset.t) === U.cur || (b.dataset.t === 'bedekr' && U.cur === 'bedekr') || (b.dataset.t === 'info' && U.cur === 'sh-misc')));
   MG.qsa('.hdr-btns .rb:not(.tg)').forEach(b => b.classList.toggle('on', ('sh-' + b.dataset.a) === U.cur));
   document.body.classList.toggle('has-panel', !!U.cur);
   clearTimeout(U._rs); U._rs = setTimeout(() => { try { MG.map.m.invalidateSize({pan: false}); MG.m3d.map && MG.m3d.map.resize(); } catch (_) {} }, 330);
@@ -1875,7 +2051,6 @@ MG.jtsk = function(ex, ny, H){
  U.closeSheets = () => { for (const s of SHEETS) if ($(s).classList.contains('open')) U.close(s); };
  U.isOpen = id => $(id).classList.contains('open');
  function bindSheet(el) {
-  MG.qsa('[data-close]', el).forEach(b => b.onclick = () => U.close(el.id));
   const grab = MG.qs('.sh-grab', el); if (!grab || grab._b) return; grab._b = 1;
   let y0 = null, dy = 0;
   const down = e => { y0 = e.clientY; dy = 0; el.style.transition = 'none'; grab.setPointerCapture(e.pointerId); };
@@ -1884,7 +2059,7 @@ MG.jtsk = function(ex, ny, H){
   grab.addEventListener('pointerdown', down); grab.addEventListener('pointermove', move); grab.addEventListener('pointerup', up); grab.addEventListener('pointercancel', up);
  }
  /* ---------- nápovědy nad tlačítky (jako OpavaGO) ---------- */
- const TIPS = {search: 'Hledat zastávku nebo spojení', dep: 'Odjezdy ze zastávky', net: 'Dopravní síť – linky a trasy', ride: 'Jízda vozidlem ve 3D', more: 'Další funkce a nastavení',
+ const TIPS = {search: 'Hledat zastávku nebo spojení', dep: 'Odjezdy ze zastávky', net: 'Dopravní síť – linky a trasy', ride: 'Jízda vozidlem ve 3D', more: 'Další funkce a nastavení', info: 'Návod a informace', bedekr: 'Bedekr – památky a zajímavosti', dark: 'Tmavý / světlý režim', regio: 'Regionální linky', vlak: 'Vlaky',
   'legend-btn': 'Legenda – co znamenají barvy a značky', 'live-btn': 'Živé polohy a zpoždění vozidel', compass: 'Sever nahoru', 'btn-cz': 'Celá Česká republika', 'btn-center': 'Vycentrovat na tvůj okres', clock: 'Čas', scale: 'Měřítko mapy'};
  U.tip = (el, text) => {
   const t = $('tip'); if (!t || !el || !text) return;
@@ -1901,7 +2076,7 @@ MG.jtsk = function(ex, ny, H){
   if (from) U.tip(from, TIPS[t] || from.title);
   if (t === 'ride') { U.closeSheets(); MG.m3d.open({ride: true}); return; }
   if (t === 'bedekr') return MG.bedekr.open();
-  if (t === 'info') return U.info();
+  if (t === 'info') return U.help();
   if (t === 'dark') { MG.app.setDark(!document.body.classList.contains('dark')); return; }
   if (t === 'regio') return MG.app.toggleRegio();
   if (t === 'vlak') return MG.app.toggleTrains();
@@ -1916,11 +2091,15 @@ MG.jtsk = function(ex, ny, H){
  U.toggleMore = () => { const c = $('more-card'); if (!c.hidden) return U.hideMore(); U.closeSheets(); renderMore(); c.hidden = false; MG.qsa('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === 'more')); MG.qsa('.hdr-btns .rb[data-a=more]').forEach(b => b.classList.add('on')); };
  U.hideMore = () => { const c = $('more-card'); if (!c || c.hidden) return; c.hidden = true; MG.qsa('#tabs button[data-t=more], .hdr-btns .rb[data-a=more]').forEach(b => b.classList.remove('on')); };
  U.initTabs = () => {
+  /* křížek funguje vždy – i po překreslení obsahu panelu */
+  document.addEventListener('click', e => { const b = e.target.closest('[data-close]'); if (!b) return; const sh = b.closest('.sheet'); if (sh) { e.preventDefault(); e.stopPropagation(); U.close(sh.id); } }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('modal') && !$('modal').hidden) return U.closeModal(); if (U.cur) U.close(U.cur); } });
   const mc = document.createElement('div'); mc.id = 'more-card'; mc.hidden = true; document.body.appendChild(mc);
   document.addEventListener('pointerdown', e => { if (!mc.hidden && !mc.contains(e.target) && !e.target.closest('#tabs button[data-t=more], .rb[data-a=more]')) U.hideMore(); }, true);
   /* ikony jako v OpavaGO */
   const setIc = (sel, n) => MG.qsa(sel).forEach(b => { const i = b.querySelector('i'); if (i) i.outerHTML = MG.mi(n); });
   setIc('.rb[data-a=net]', 'net'); setIc('.rb[data-a=bedekr]', 'museum'); setIc('.rb[data-a=regio]', 'r'); setIc('.rb[data-a=vlak]', 'v'); setIc('.rb[data-a=dep]', 'clock'); setIc('#tabs button[data-t=dep]', 'clock');
+  setIc('#tabs button[data-t=bedekr]', 'museum'); setIc('#tabs button[data-t=regio]', 'r'); setIc('#tabs button[data-t=vlak]', 'v');
   MG.qsa('#tabs button').forEach(b => b.onclick = () => U.act(b.dataset.t, b));
   MG.qsa('.hdr-btns .rb').forEach(b => b.onclick = () => U.act(b.dataset.a, b));
   $('okres-chip').onclick = () => { renderOkres(); U.open('sh-okres', {tall: true}); };
@@ -1931,14 +2110,15 @@ MG.jtsk = function(ex, ny, H){
   $('btn-cz').onclick = (e) => { U.tip(e.currentTarget, TIPS['btn-cz']); MG.app.showCZ(); };
   $('btn-center').onclick = (e) => { U.tip(e.currentTarget, MG.mode3d ? 'Centrum tvé obce' : TIPS['btn-center']); MG.app.center(); };
   $('m-2d').onclick = () => MG.m3d.close();
-  $('m-3d').onclick = () => MG.m3d.open({});
+  $('m-3d').onclick = () => { if (MG.m3d.ride) MG.m3d.endRide(); else MG.m3d.open({}); };
   $('m-ride').onclick = () => { U.closeSheets(); MG.m3d.open({ride: true}); };
   U.syncToggles();
  };
  U.syncToggles = () => {
-  const r = MG.qs('.rb[data-a=regio]'), v = MG.qs('.rb[data-a=vlak]');
-  if (r) r.classList.toggle('on', !MG.app.hideRegio); if (v) v.classList.toggle('on', !MG.app.hideTrains);
-  const dk = MG.qs('.rb[data-a=dark]'); if (dk) { const on = document.body.classList.contains('dark'); dk.querySelector('i').className = on ? 'fa-solid fa-sun' : 'fa-solid fa-moon'; dk.querySelector('em').textContent = on ? 'Světlý' : 'Tmavý'; }
+  MG.qsa('.rb[data-a=regio], #tabs [data-t=regio]').forEach(r => r.classList.toggle('on', !MG.app.hideRegio));
+  MG.qsa('.rb[data-a=vlak], #tabs [data-t=vlak]').forEach(v => v.classList.toggle('on', !MG.app.hideTrains));
+  const on = document.body.classList.contains('dark');
+  MG.qsa('.rb[data-a=dark], #tabs [data-t=dark]').forEach(dk => { dk.querySelector('i').className = on ? 'fa-solid fa-sun' : 'fa-solid fa-moon'; const t = dk.querySelector('em, span'); if (t) t.textContent = on ? 'Světlý' : 'Tmavý'; });
  };
  /* ---------- výběr okresu ---------- */
  let okKraj = null;
@@ -1961,14 +2141,13 @@ MG.jtsk = function(ex, ny, H){
  function renderMore() {
   const el = $('more-card'), dark = document.body.classList.contains('dark');
   const I = c => '<i class="' + c + '"></i>';
+  /* jen to, co není v hlavním panelu (Hledat, Odjezdy, Síť, Jízda, 2D/3D, okres, živé polohy, celá ČR) */
   const items = [
-   ['fav', I('fa-solid fa-star'), 'Moje místa'], ['bedekr', I('fa-solid fa-book-open'), 'Bedekr'], ['help', '<i class="ri" style="font:italic 800 17px Georgia,serif">i</i>', 'Návod'],
+   ['fav', I('fa-solid fa-star'), 'Moje místa'], ['bedekr', MG.mi('museum'), 'Bedekr'], ['help', '<i class="ri" style="font:italic 800 17px Georgia,serif">i</i>', 'Návod'],
    ['dark', I('fa-solid fa-' + (dark ? 'sun' : 'moon')), dark ? 'Světlý režim' : 'Tmavý režim'], ['regio', MG.mi('r'), 'Regio linky', 0, !MG.app.hideRegio], ['trains', MG.mi('v'), 'Vlaky', 0, !MG.app.hideTrains],
-   ['live', I('fa-solid fa-tower-broadcast'), 'Živé polohy', 0, MG.live.on], ['live3d', I('fa-solid fa-cube'), 'ŽIVĚ ve 3D', 1, MG.mode3d], ['alerts', I('fa-solid fa-triangle-exclamation'), 'Mimořádnosti'],
-   ['okres', I('fa-solid fa-map-location-dot'), 'Okres'], ['cz', I('fa-solid fa-earth-europe'), 'Celá ČR'], ['walk', I('fa-solid fa-person-walking'), 'K zastávce'],
-   ['color', I('fa-solid fa-palette'), 'Barevná síť', 0, MG.map.colorNet], ['install', I('fa-solid fa-mobile-screen'), 'Na plochu'], ['set', I('fa-solid fa-gear'), 'Nastavení'],
-   ['info', I('fa-solid fa-circle-info'), 'O aplikaci']
+   ['alerts', I('fa-solid fa-triangle-exclamation'), 'Mimořádnosti'], ['walk', I('fa-solid fa-person-walking'), 'K zastávce'], ['set', I('fa-solid fa-gear'), 'Nastavení']
   ];
+  if (MG.pwa && MG.pwa.can && MG.pwa.can()) items.push(['install', I('fa-solid fa-mobile-screen'), 'Na plochu']);
   el.innerHTML = '<div class="more-grid">' + items.map(([k, ic, t, d3, on]) => '<button data-m="' + k + '" class="' + (on ? 'on' : '') + '">' + ic + '<span>' + t + (d3 ? '<sup class="b3d" style="position:static;margin-left:4px">3D</sup>' : '') + '</span></button>').join('') + '</div>';
   MG.qsa('.more-grid button', el).forEach(b => b.onclick = () => {
    const k = b.dataset.m;
@@ -2010,7 +2189,7 @@ MG.jtsk = function(ex, ny, H){
    '<div class="lg-r"><span class="lg-s"><span style="width:13px;height:13px;border-radius:50%;border:2.5px solid #24201c;background:#fff;display:inline-block"></span></span>Zastávka · <span class="plat" style="transform:none;display:inline-grid;width:16px;height:16px;font-size:8.5px">A</span> nástupiště</div>' +
    '<div class="lg-r"><span class="lg-s"><span class="veh" style="transform:none;--c:#2344c7"><span class="veh-l" style="min-width:24px;height:18px;font-size:10px">202</span><span class="veh-d" style="min-width:16px;height:16px;font-size:9px">✓</span></span></span>Vozidlo – živě, včas / +min zpoždění</div>' +
    '<div class="lg-r"><span class="lg-s"><span class="veh" style="transform:none;--c:#3923c7"><span class="veh-l" style="min-width:24px;height:18px;font-size:10px">203</span></span></span>Vozidlo podle jízdního řádu</div>' +
-   '<div class="lg-n">Regionální linky a vlaky zapneš v nabídce Více (na počítači tlačítky Regio a Vlak). Každé město má vlastní barvy linek, každý vlak vlastní barvu. Měřítko a čas jsou vlevo dole, sever ukazuje směrovka. Podklad © OpenStreetMap, Mapbox.</div>';
+   '<div class="lg-n">Regionální linky a vlaky zapneš tlačítky Regio a Vlak (na telefonu v nabídce Více). Každé město má vlastní barvy linek, každý vlak vlastní barvu. Měřítko a čas jsou vlevo dole, sever ukazuje směrovka. Podklad © OpenStreetMap, Mapbox.</div>';
   el.hidden = false; btn.classList.add('on');
   el.querySelector('button').onclick = () => { el.hidden = true; btn.classList.remove('on'); };
  };
@@ -2066,10 +2245,12 @@ MG.jtsk = function(ex, ny, H){
    ['fa-solid fa-triangle-exclamation', 'Mimořádnosti a výluky', 'Aktuální výluky a mimořádnosti (IDS JMK, PID) se ukazují u linek, v odjezdech a na mapě.']
   ];
   const el = misc({icon: 'fa-solid fa-circle-question', eb: 'Návod', title: 'Jak používat mhd<b style="color:var(--acc);font-style:italic">GO</b>'},
+   '<div class="hp-links"><button data-hl="info"><i class="fa-solid fa-circle-info"></i>O aplikaci</button><button data-hl="fav"><i class="fa-solid fa-star"></i>Moje místa</button><button data-hl="alerts"><i class="fa-solid fa-triangle-exclamation"></i>Mimořádnosti</button><button data-hl="walk"><i class="fa-solid fa-person-walking"></i>K zastávce</button><button data-hl="set"><i class="fa-solid fa-gear"></i>Nastavení</button>' + (MG.pwa.can() ? '<button data-hl="install"><i class="fa-solid fa-mobile-screen"></i>Na plochu</button>' : '') + '</div>' +
    IT.map((x, i) => '<div class="hp-it' + (i === 0 ? ' open' : '') + '"><div class="hp-h"><span class="hp-i"><i class="' + x[0] + '"></i></span><span>' + x[1] + '</span><i class="fa-solid fa-chevron-down chev"></i></div><div class="hp-b">' + x[2] + (x[3] || '') + '</div></div>').join(''), true);
   const ic = el.querySelector('.sh-ic'); if (ic) { ic.innerHTML = MG.qs('#hdr .brand-ic').innerHTML; ic.style.background = 'none'; ic.style.boxShadow = 'none'; ic.style.padding = '0'; }
   MG.qsa('.hp-h', el).forEach(h => h.onclick = () => { const it = h.parentNode, o = it.classList.contains('open'); MG.qsa('.hp-it', el).forEach(x => x.classList.remove('open')); if (!o) it.classList.add('open'); });
   MG.qsa('[data-h]', el).forEach(b => b.onclick = () => { U.close('sh-misc'); if (b.dataset.h === '3d') MG.m3d.open({}); else MG.m3d.close(); });
+  MG.qsa('[data-hl]', el).forEach(b => b.onclick = () => { const k = b.dataset.hl; if (k === 'info') return U.info(); if (k === 'fav') return U.favs(); if (k === 'alerts') return MG.alerts.show(); if (k === 'walk') return MG.dep.nearestWalk(); if (k === 'set') return U.settings(); if (k === 'install') return MG.pwa.install(); });
  };
  /* ---------- o aplikaci ---------- */
  U.info = () => {
@@ -2096,6 +2277,7 @@ MG.jtsk = function(ex, ny, H){
  const N = MG.net = {open: null, dir: 0, pat: null, q: ''};
  const numKey = s => { const m = /^(\D*)(\d+)(.*)$/.exec(s || ''); return m ? [m[1], +m[2], m[3]] : [s || '', 1e9, '']; };
  const cmpLine = (a, b) => { const x = numKey(D.lineText(a)), y = numKey(D.lineText(b)); return x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : x[1] - y[1] || (x[2] < y[2] ? -1 : 1); };
+ function termOf(L_, p) { const city = L_.city || ''; return D.shortName(D.plName(p.s[0]), city) + ' → ' + D.shortName(D.plName(p.s[p.s.length - 1]), city); }
  function terminals(L_) {
   const [a, b] = D.mainPats(L_); const p = a || b; if (!p) return L_.ln || '';
   const city = L_.city || '';
@@ -2112,22 +2294,26 @@ MG.jtsk = function(ex, ny, H){
    if (q && !MG.fold(D.lineText(L_) + ' ' + (L_.ln || '') + ' ' + (L_.city || '')).includes(q)) continue;
    (groups.get(L_.k) || groups.set(L_.k, []).get(L_.k)).push(L_);
   }
+  if (N.open != null && !(N.pat && N.pat.l === N.open)) { const L0 = D.ln.get(N.open); if (L0) { const mp = D.mainPats(L0); N.pat = mp[N.dir] || mp[0] || mp[1] || null; } }
   let html = U_head(ok, lines.length);
   html += '<div class="sh-body"><div class="field" style="margin:0 2px 8px"><i class="fa-solid fa-magnifying-glass"></i><input id="net-q" placeholder="Číslo nebo název linky…" value="' + MG.h(N.q) + '" autocomplete="off"></div>';
   if (!lines.length) html += '<div class="empty"><i class="fa-solid fa-bus"></i>' + (D.loaded.has(oi) ? 'V okrese nejsou žádné linky.' : 'Načítám síť okresu…') + '</div>';
-  for (const k of D.kindOrder) {
-   const g = groups.get(k); if (!g) continue;
-   const cc = new Map(); for (const x of g) cc.set(x.city || '', (cc.get(x.city || '') || 0) + 1);
-   const seat = ok ? ok.seat : '';
-   const cRank = c => (c === seat ? -1e6 : 0) - (cc.get(c || '') || 0);
-   g.sort(k === 'mhd' || k === 'trol' || k === 'tram' ? (a, b) => cRank(a.city) - cRank(b.city) || (a.city || '').localeCompare(b.city || '', 'cs') || cmpLine(a, b) : cmpLine);
-   html += '<div class="sec-t">' + D.KIND[k][1] + ' • ' + g.length + ' ' + (g.length === 1 ? 'linka' : g.length < 5 ? 'linky' : 'linek') + '</div>';
-   let city = null;
-   for (const L_ of g) {
-    if ((k === 'mhd' || k === 'trol' || k === 'tram') && L_.city !== city && new Set(g.map(x => x.city)).size > 1) { city = L_.city; html += '<div class="sec-t" style="margin-top:8px;letter-spacing:.06em">MHD ' + MG.h(city) + '</div>'; }
-    html += '<div class="ln-row' + (N.open === L_.i ? ' open' : '') + '" data-l="' + L_.i + '"><div class="ln-h">' + thumb(L_) + D.badge(L_, {size: 'big'}) + (MG.alerts && MG.alerts.forLine(L_.i).length ? '<i class="fa-solid fa-triangle-exclamation" style="color:#c98a14" title="mimořádnost"></i>' : '') + '<div class="tx">' + MG.h(terminals(L_)) + (L_.k === 'vlak' || L_.k === 'regio' || L_.k === 'mezi' ? '<small>' + MG.h(L_.ln || '') + '</small>' : '') + '</div><i class="fa-solid fa-chevron-down chev"></i></div>' + (N.open === L_.i ? expand(L_) : '') + '</div>';
-   }
+  /* pořadí jako v OpavaGO: nejdřív MHD okresního města (trolejbusy, autobusy…), pak MHD dalších měst, regionální, dálkové, vlaky */
+  const seat = ok ? ok.seat : '';
+  const CITYK = ['metro', 'tram', 'trol', 'mhd'];
+  const row = L_ => { const isOpen = N.open === L_.i, mp = isOpen ? D.mainPats(L_) : null;
+   return '<div class="ln-row' + (isOpen ? ' open' : '') + '" data-l="' + L_.i + '"><div class="ln-h">' + thumb(L_) + D.badge(L_, {size: 'big'}) + (MG.alerts && MG.alerts.forLine(L_.i).length ? '<i class="fa-solid fa-triangle-exclamation" style="color:#c98a14" title="mimořádnost"></i>' : '') + '<div class="tx">' + MG.h(isOpen && N.pat ? termOf(L_, N.pat) : terminals(L_)) + (L_.k === 'vlak' || L_.k === 'regio' || L_.k === 'mezi' || (CITYK.includes(L_.k) && L_.city && L_.city !== seat) ? '<small>' + MG.h(CITYK.includes(L_.k) ? 'MHD ' + (L_.city || '') : (L_.ln || '')) + '</small>' : '') + '</div>' + (isOpen && mp[0] && mp[1] ? '<button class="dir-btn" data-flip title="Otočit směr"><i class="fa-solid fa-right-left"></i>Otočit směr</button>' : '') + '<i class="fa-solid fa-chevron-down chev"></i></div>' + (isOpen ? expand(L_) : '') + '</div>'; };
+  const cnt = n => n + ' ' + (n === 1 ? 'linka' : n < 5 ? 'linky' : 'linek');
+  const sec = (title, ls) => { if (!ls.length) return; ls.sort(cmpLine); html += '<div class="sec-t">' + title + ' • ' + cnt(ls.length) + '</div>' + ls.map(row).join(''); };
+  const all = [...groups.values()].flat();
+  const mine = all.filter(L_ => CITYK.includes(L_.k) && (!L_.city || L_.city === seat));
+  for (const k of CITYK) sec(D.KIND[k][1].replace(' MHD', ''), mine.filter(L_ => L_.k === k));
+  const other = all.filter(L_ => CITYK.includes(L_.k) && L_.city && L_.city !== seat);
+  if (other.length) {
+   const byCity = new Map(); for (const L_ of other) (byCity.get(L_.city) || byCity.set(L_.city, []).get(L_.city)).push(L_);
+   for (const [city, ls] of [...byCity].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'cs'))) sec('MHD ' + city, ls);
   }
+  for (const k of ['regio', 'mezi', 'vlak', 'lan', 'lod']) sec(D.KIND[k][1], all.filter(L_ => L_.k === k));
   html += '<div class="status" style="text-align:center;margin-top:10px">Jízdní řády CIS JŘ · platnost od ' + MG.h(D.core.d0) + '</div></div>';
   el.innerHTML = html;
   bind(el);
@@ -2147,21 +2333,18 @@ MG.jtsk = function(ex, ny, H){
   if (!p) return '';
   N.pat = p;
   const u = D.ttUrl(L_), city = L_.city || '';
+  const ag = L_.a && L_.a[0] ? D.agency(L_.a[0]) : '';
   let h = '<div class="ln-x">';
-  if (u) h += '<a class="jr-link" href="' + MG.h(u.href) + '" target="_blank" rel="noopener"><i class="fa-regular fa-calendar-days"></i><span><em>Jízdní řád ' + (L_.k === 'vlak' ? 'vlaku' : 'linky') + ' <b>' + MG.h(D.lineText(L_)) + '</b></em><small>' + MG.h(u.src) + '</small></span><i class="fa-solid fa-arrow-up-right-from-square"></i></a>';
+  if (u) h += '<a class="jr-link" href="' + MG.h(u.href) + '" target="_blank" rel="noopener"><i class="fa-regular fa-calendar-days"></i><span><em>Jízdní řád ' + (L_.k === 'vlak' ? 'vlaku' : 'linky') + ' <b>' + MG.h(D.lineText(L_)) + '</b></em><small>' + MG.h([ag, u.src].filter(Boolean).join(' · ')) + '</small></span><i class="fa-solid fa-arrow-up-right-from-square"></i></a>';
   const als = MG.alerts ? MG.alerts.forLine(L_.i) : [];
   if (als.length) h += '<details class="alert-box" open><summary><i class="fa-solid fa-triangle-exclamation"></i>Mimořádnosti na lince (' + als.length + ')</summary>' + als.map(MG.alerts.card).join('') + '</details>';
-  const variants = L_.pats.filter(x => (x.d ? 1 : 0) === (p.d ? 1 : 0)).sort((a, b) => b.nt - a.nt);
-  h += '<div class="row" style="justify-content:space-between;margin:4px 0 6px"><div style="font:700 12px Outfit,sans-serif;color:var(--mut)">' + (L_.a && L_.a[0] ? MG.h(D.agency(L_.a[0])) : '') + '</div>' + (pats[0] && pats[1] ? '<button class="dir-btn" data-flip><i class="fa-solid fa-right-left"></i>Otočit směr</button>' : '') + '</div>';
-  if (variants.length > 1) h += '<div class="chips" style="margin-bottom:4px">' + variants.slice(0, 8).map((v, i) => '<button class="chip' + (v === p ? ' on' : '') + '" data-var="' + v.i + '">' + (i === 0 ? 'Hlavní trasa' : 'Varianta ' + i) + ' · ' + v.nt + '×</button>').join('') + '</div>';
-  const dep = p.dep[0];
   h += '<div class="st-list" style="--lc:' + L_.c + '">';
   p.s.forEach((pg, k) => {
    const pl = D.pl.get(pg); if (!pl) return; const s = D.st.get(pl.st);
    const others = s ? [...s.lines].filter(x => x !== L_.i).map(x => D.ln.get(x)).filter(Boolean).filter(x => x.k !== 'vlak' || L_.k === 'vlak' || true) : [];
    others.sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || cmpLine(a, b));
    const chips = others.slice(0, 5).map(x => D.badge(x)).join('') + (others.length > 5 ? '<span class="ln" style="--lc:transparent;--lt:var(--faint);box-shadow:none">+' + (others.length - 5) + '</span>' : '');
-   h += '<div class="st-r' + (k === 0 || k === p.s.length - 1 ? ' term' : '') + '" data-st="' + pl.st + '" data-pl="' + pg + '"><i></i><span>' + MG.h(D.shortName(s ? s.name : '?', city)) + (D.isRequest(p, k) ? '<em class="rq" title="zastávka na znamení"> ✕</em>' : '') + '</span><em class="t">' + (k ? '+' + dep[k] : '') + '</em><div class="lns">' + chips + '</div></div>';
+   h += '<div class="st-r' + (k === 0 || k === p.s.length - 1 ? ' term' : '') + '" data-st="' + pl.st + '" data-pl="' + pg + '"><i></i><span>' + MG.h(D.shortName(s ? s.name : '?', city)) + '</span>' + (D.isRequest(p, k) ? '<span class="req-ic" title="Zastávka na znamení"><i class="fa-solid fa-thumbs-up"></i></span>' : '') + '<div class="lns">' + chips + '</div></div>';
   });
   h += '</div></div>';
   return h;
@@ -2177,7 +2360,6 @@ MG.jtsk = function(ex, ny, H){
   });
   const flip = MG.qs('[data-flip]', el);
   if (flip) flip.onclick = (e) => { e.stopPropagation(); N.dir = N.pat && N.pat.d ? 0 : 1; N.pat = null; N.render(); show(true); };
-  MG.qsa('[data-var]', el).forEach(b => b.onclick = (e) => { e.stopPropagation(); N.pat = D.pt.get(+b.dataset.var); N.render(); show(true); });
   MG.qsa('.st-r', el).forEach(r => r.onclick = () => { const pl = D.pl.get(+r.dataset.pl); if (pl) MG.map.m.flyTo([pl.lat, pl.lon], Math.max(MG.map.m.getZoom(), 16), {duration: .6}); MG.dep.stopPopup(+r.dataset.st, +r.dataset.pl); });
  }
  function show(fit) { if (!N.pat) return; MG.veh.close && MG.veh.sel && MG.veh.close(); MG.map.showPattern(N.pat, {kind: 'line'}); if (fit) MG.map.fitPad(L.latLngBounds(D.geo3(N.pat).pts)); }
@@ -2242,7 +2424,7 @@ MG.jtsk = function(ex, ny, H){
   html += '<div class="dep-ctl" style="margin-top:0"><button class="chip' + (P.when == null && !P.ymd ? ' on' : '') + '" id="dep-now">Nyní</button><input type="time" id="dep-t" value="' + MG.hm2(from) + '"><input type="date" id="dep-d" value="' + ymd + '" min="' + D.core.d0 + '" max="' + MG.ymdAdd(D.core.d0, D.core.nd - 1) + '"></div>';
   const wx = MG.app.wx;
   html += '<div class="wx-line">' + (wx ? '<i class="fa-solid ' + wx.ic + '"></i>' + wx.t + ' °C <small>' + MG.h(wx.txt.charAt(0).toUpperCase() + wx.txt.slice(1)) + (wx.rain ? ' · ' + MG.h(wx.rain) : '') + '</small>' : '<i class="fa-solid fa-cloud"></i><small>počasí nedostupné</small>') + '</div>';
-  if (!s) { html += '<div class="empty"><i class="fa-regular fa-clock"></i>Napiš název zastávky nebo klepni na zastávku na mapě.</div></div>'; el.innerHTML = html; bind(el); return; }
+  if (!s) { html += '<div id="dep-nearby"><div class="empty"><i class="fa-regular fa-clock"></i>Napiš název zastávky nebo klepni na zastávku na mapě.</div></div></div>'; el.innerHTML = html; bind(el); P.bindFav(el, f => { if (f.st != null) P.show(f.st, D.okresAt(f.lat, f.lon)); else P.nearestTo(f); }); nearby(); return; }
   const allLines = [...s.lines].map(i => D.ln.get(i)).filter(Boolean).filter(L_ => !(MG.app.hideTrains && L_.k === 'vlak')).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true}));
   html += '<div class="chips"><button class="dep-lc all' + (!P.lines ? ' on' : '') + '" data-ln="all">Vše</button>' + allLines.map(L_ => '<button class="dep-lc' + (P.lines && P.lines.has(L_.i) ? ' on' : '') + '" data-ln="' + L_.i + '" style="--lc:' + L_.c + ';--lt:' + L_.tc + '">' + MG.h(D.lineText(L_)) + '</button>').join('') + '</div>';
   if (s.pls.length > 1) html += '<div class="chips"><button class="chip' + (P.plat == null ? ' on' : '') + '" data-pl="all">Všechna nástupiště</button>' + s.pls.filter(g => D.pl.get(g) && D.pl.get(g).pats.length).map(g => { const pl = D.pl.get(g); return '<button class="chip' + (P.plat === g ? ' on' : '') + '" data-pl="' + g + '">' + (pl.lab ? MG.h(pl.lab) + ' · ' : '') + '→ ' + MG.h(D.shortName(D.plDir(g), '').split(',').pop().trim()) + '</button>'; }).join('') + '</div>';
@@ -2268,6 +2450,17 @@ MG.jtsk = function(ex, ny, H){
   el.innerHTML = html; bind(el);
   P.bindFav(el, f => { if (f.st != null) P.show(f.st, D.okresAt(f.lat, f.lon)); else P.nearestTo(f); });
  };
+ /* bez vybrané zastávky: zastávky v okolí (jako běžné dopravní aplikace) */
+ async function nearby() {
+  const box = $('dep-nearby'); if (!box) return;
+  const me = MG.app.me, c = me ? {lat: me.lat, lon: me.lon} : (() => { const m = MG.map.m.getCenter(); return {lat: m.lat, lon: m.lng}; })();
+  const idx = await D.loadIdx();
+  const near = idx.map(x => [MG.dist(c.lat, c.lon, x.lat, x.lon), x]).sort((a, b) => a[0] - b[0]).slice(0, 5);
+  if (!$('dep-nearby') || P.st != null) return;
+  const chips = g => { const ls = D.stLines(g); return ls.slice(0, 12).map(x => D.badge(x)).join('') + (ls.length > 12 ? '<span class="ln more">+' + (ls.length - 12) + '</span>' : ''); };
+  box.innerHTML = '<div class="list41-title">' + (me ? 'Zastávky v okolí' : 'Zastávky u středu mapy') + '</div>' + near.map(([d, x], i) => '<div class="card41" data-g="' + x.g + '" data-ok="' + x.ok + '"><div class="card41-top"><span class="card41-ico"><i class="fa-solid ' + (x.m & 1 ? 'fa-train' : x.m & 2 ? 'fa-train-tram' : 'fa-bus-simple') + '"></i></span><span class="card41-name">' + MG.h(x.name) + '</span><span class="card41-dist">' + MG.fmtDist(d) + (me ? ' · ' + Math.max(1, Math.round(d * 1.25 / 75)) + ' min' : '') + '</span></div><div class="card41-lines">' + (chips(x.g) || '<span class="muted41">odjezdy po klepnutí</span>') + '</div></div>').join('');
+  MG.qsa('.card41', box).forEach(c2 => c2.onclick = () => P.show(+c2.dataset.g, +c2.dataset.ok));
+ }
  /* běžící odpočet m:ss (jako OpavaGO) */
  setInterval(() => {
   if (MG.ui.cur !== 'sh-dep' || P.when != null || P.ymd) return;
@@ -2340,7 +2533,7 @@ MG.jtsk = function(ex, ny, H){
   const pl = plg != null ? D.pl.get(plg) : null;
   const lat = pl ? pl.lat : s.lat, lon = pl ? pl.lon : s.lon;
   const ok = D.okresy[s.ok], seat = ok ? ok.seat : '';
-  const lines = [...s.lines].map(i => D.ln.get(i)).filter(Boolean).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true}));
+  const lines = D.stLines(g);
   const grp = {mhd: [], regio: [], vlak: []};
   for (const L_ of lines) { if (L_.k === 'vlak') grp.vlak.push(L_); else if (L_.k === 'regio' || L_.k === 'mezi') grp.regio.push(L_); else grp.mhd.push(L_); }
   /* na znamení / bezbariérová */
@@ -2538,10 +2731,12 @@ MG.jtsk = function(ex, ny, H){
 })();
 
 /* ---- search.js ---- */
-/* ===== mhdGO – hledání zastávek, míst a spojení ===== */
+/* ===== mhdGO – hledání zastávek, míst a spojení (jako OpavaGO) =====
+ Zastávky: našeptávač (Moje místa, linky, zastávky celé ČR, adresy) → „Hledané místo“ a karty nejbližších zastávek s linkami.
+ Spojení: odkud/kam s našeptávačem, čas → řádky spojů (odjezd–příjezd, linky, doba) a detail s časovou osou. */
 (function(){
  const D = MG.D, $ = MG.$;
- const S = MG.search = {tab: 'stops', from: null, to: null, res: null, sel: 0, ymd: null, t: null};
+ const S = MG.search = {tab: 'stops', from: null, to: null, res: null, sel: 0, ymd: null, t: null, q: null, near: null};
  /* ---------- zastávky v celé ČR ---------- */
  S.findStops = async (q, n) => {
   const idx = await D.loadIdx(); const f = MG.fold(q); if (!f) return [];
@@ -2550,10 +2745,11 @@ MG.jtsk = function(ex, ny, H){
   const out = [];
   for (const s of idx) {
    let sc = 0;
-   if (s.f.startsWith(f)) sc = 6; else if (s.f.includes(' ' + f)) sc = 4; else if (words.every(w => s.f.includes(w))) sc = 2; else continue;
-   if (s.ok === cur) sc += 2;
-   if (s.m & 1) sc += .6; if (s.m & 6) sc += .4;
-   out.push([sc - MG.dist(c.lat, c.lng, s.lat, s.lon) / 200000, s]);
+   const last = s.f.split(' ').slice(-words.length).join(' ');
+   if (s.f === f || last === f) sc = 7; else if (s.f.startsWith(f)) sc = 6; else if (s.f.includes(' ' + f)) sc = 4; else if (words.every(w => s.f.includes(w))) sc = 2; else continue;
+   if (s.ok === cur) sc += 2.5;
+   if (s.m & 1) sc += .5; if (s.m & 6) sc += .4;
+   out.push([sc - MG.dist(c.lat, c.lng, s.lat, s.lon) / 150000, s]);
   }
   out.sort((a, b) => b[0] - a[0]);
   return out.slice(0, n || 10).map(x => x[1]);
@@ -2561,183 +2757,261 @@ MG.jtsk = function(ex, ny, H){
  S.geocode = async (q) => {
   try {
    const c = MG.map.m.getCenter();
-   const r = await fetch(MG.cfg.PHOTON + '?q=' + encodeURIComponent(q) + '&limit=6&lat=' + c.lat.toFixed(4) + '&lon=' + c.lng.toFixed(4) + '&bbox=12.09,48.55,18.86,51.06');
+   const r = await fetch(MG.cfg.PHOTON + '?q=' + encodeURIComponent(q) + '&limit=6&lang=de&lat=' + c.lat.toFixed(4) + '&lon=' + c.lng.toFixed(4) + '&bbox=12.09,48.55,18.86,51.06');
    const j = await r.json();
-   return (j.features || []).map(f => { const p = f.properties || {}; const name = [p.name, p.street && (p.street + (p.housenumber ? ' ' + p.housenumber : ''))].filter(Boolean)[0] || p.city || ''; return {name, sub: [p.street && p.name ? p.street + (p.housenumber ? ' ' + p.housenumber : '') : '', p.city || p.town || p.village || '', p.county || ''].filter(Boolean).join(', '), lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], addr: true}; });
+   return (j.features || []).map(f => { const p = f.properties || {}; const street = p.street ? p.street + (p.housenumber ? ' ' + p.housenumber : '') : ''; const name = p.name || street || p.city || ''; return {name, sub: [p.name && street ? street : '', p.district || '', p.city || p.town || p.village || ''].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i && x !== name).join(', '), lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], addr: true}; }).filter(a => a.name);
   } catch (_) { return []; }
  };
- const sugIcon = r => r.me ? 'fa-location-crosshairs' : r.fav ? 'fa-star' : r.addr ? 'fa-map-pin' : (r.m & 1 ? 'fa-train' : r.m & 4 ? 'fa-train-subway' : r.m & 2 ? 'fa-train-tram' : 'fa-location-dot');
- async function suggestions(q) {
+ const stIcon = m => m & 1 ? 'fa-train' : m & 4 ? 'fa-train-subway' : m & 2 ? 'fa-train-tram' : 'fa-bus-simple';
+ function lineChips(g, max) {
+  const ls = D.stLines(g); if (!ls.length) return '';
+  max = max || 10;
+  return ls.slice(0, max).map(x => D.badge(x, {attr: 'data-line="' + x.i + '"'})).join('') + (ls.length > max ? '<span class="ln more">+' + (ls.length - max) + '</span>' : '');
+ }
+ /* ---------- našeptávač (sug41) ---------- */
+ async function suggestions(q, opt) {
   const out = [];
-  if (!q) {
-   if (MG.app.me) out.push({me: true, name: 'Moje poloha', sub: 'aktuální poloha', lat: MG.app.me.lat, lon: MG.app.me.lon});
-   for (const f of (MG.store.get('favs', []) || [])) out.push({fav: true, name: f.label, sub: f.name, lat: f.lat, lon: f.lon, st: f.st});
+  const F = MG.store.get('favs', []) || [];
+  const f = MG.fold(q);
+  if (!f) {
+   if (opt && opt.me && MG.app.me) out.push({me: true, name: 'Moje poloha', sub: 'aktuální poloha', lat: MG.app.me.lat, lon: MG.app.me.lon});
+   for (const x of F) out.push({fav: true, icon: x.icon, name: x.label, sub: x.name, lat: x.lat, lon: x.lon, st: x.st});
    return out;
   }
-  const st = await S.findStops(q, 6);
-  for (const s of st) out.push({name: s.name, sub: D.okresy[s.ok] ? 'zastávka · okres ' + D.okresy[s.ok].name : 'zastávka', lat: s.lat, lon: s.lon, st: s.g, ok: s.ok, m: s.m});
-  if (q.length >= 3) { const g = await S.geocode(q); for (const a of g.slice(0, 4)) out.push(a); }
+  for (const x of F) if (MG.fold(x.label + ' ' + x.name).includes(f)) out.push({fav: true, icon: x.icon, name: x.label, sub: x.name, lat: x.lat, lon: x.lon, st: x.st});
+  if (!(opt && opt.noLines)) {
+   const lines = [];
+   for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) { const L_ = D.ln.get(li); if (L_ && MG.fold(D.lineText(L_)) === f && !lines.includes(L_)) lines.push(L_); }
+   for (const L_ of lines.slice(0, 4)) out.push({line: L_.i, name: (L_.k === 'vlak' ? 'Vlak ' : L_.city ? 'Linka MHD ' + L_.city + ' ' : 'Linka ') + D.lineText(L_), sub: L_.ln || ''});
+  }
+  for (const s of await S.findStops(q, 7)) out.push({name: s.name, sub: D.okresy[s.ok] ? 'okres ' + D.okresy[s.ok].name : '', lat: s.lat, lon: s.lon, st: s.g, ok: s.ok, m: s.m});
   return out;
  }
- function sugBox(input, list, onPick) {
-  let items = [];
-  const show = MG.debounce(async () => {
-   items = await suggestions(input.value.trim());
-   list.innerHTML = items.map((r, i) => '<div class="sg" data-i="' + i + '"><i class="fa-solid ' + sugIcon(r) + '"></i><div class="tx"><b>' + MG.h(r.name) + '</b><small>' + MG.h(r.sub || '') + '</small></div></div>').join('');
-   MG.qsa('.sg', list).forEach(x => x.onmousedown = x.ontouchstart = (e) => { e.preventDefault(); const r = items[+x.dataset.i]; list.innerHTML = ''; onPick(r); });
-  }, 180);
-  input.oninput = show; input.onfocus = show;
-  input.onblur = () => setTimeout(() => { list.innerHTML = ''; }, 200);
-  input.onkeydown = e => { if (e.key === 'Enter' && items[0]) { list.innerHTML = ''; onPick(items[0]); input.blur(); } };
+ function sugHTML(r, i) {
+  const ic = r.me ? 'fa-location-crosshairs' : r.fav ? (r.icon || 'fa-star') : r.line != null ? 'fa-route' : r.addr ? 'fa-location-dot' : stIcon(r.m);
+  const chips = r.st != null && !r.fav ? lineChips(r.st, 8) : '';
+  const lb = r.line != null ? D.badge(D.ln.get(r.line)) : '';
+  return '<div class="sug41-item" data-i="' + i + '"><span class="sug41-ico' + (r.fav ? ' fav' : '') + '">' + (lb || '<i class="fa-solid ' + ic + '"></i>') + '</span><span class="sug41-main"><strong>' + MG.h(r.name) + '</strong>' + (chips ? '<span class="sug41-lines">' + chips + '</span>' : '<small>' + MG.h(r.sub || (r.addr ? 'adresa' : '')) + '</small>') + '</span></div>';
+ }
+ /* napojí našeptávač na pole; onPick(položka) */
+ function attachSug(input, box, onPick, opt) {
+  let items = [], hi = -1, seq = 0;
+  const close = () => { box.hidden = true; box.innerHTML = ''; hi = -1; };
+  const paint = () => {
+   if (!items.length) { box.innerHTML = input.value.trim().length > 1 ? '<div class="sug41-empty">Nic nenalezeno</div>' : ''; box.hidden = !box.innerHTML; return; }
+   box.innerHTML = items.map(sugHTML).join(''); box.hidden = false;
+   MG.qsa('.sug41-item', box).forEach(x => { x.onpointerdown = e => e.preventDefault(); x.onclick = () => { const r = items[+x.dataset.i]; close(); onPick(r); }; });
+  };
+  const run = MG.debounce(async () => {
+   const q = input.value.trim(), my = ++seq;
+   items = await suggestions(q, opt); if (my !== seq) return;
+   hi = -1; paint();
+   if (q.length >= 3) { const g = await S.geocode(q); if (my !== seq || document.activeElement !== input) return; items = items.concat(g.slice(0, 5)); paint(); }
+  }, 160);
+  input.addEventListener('input', () => { input._pick = null; run(); });
+  input.addEventListener('focus', () => { const sh = input.closest('.sheet'); if (sh && !MG.isWide()) sh.classList.add('tall'); run(); });
+  input.addEventListener('blur', () => setTimeout(close, 160));
+  input.addEventListener('keydown', e => {
+   const n = items.length;
+   if (e.key === 'ArrowDown' && n) { e.preventDefault(); hi = (hi + 1) % n; }
+   else if (e.key === 'ArrowUp' && n) { e.preventDefault(); hi = (hi - 1 + n) % n; }
+   else if (e.key === 'Escape') { close(); return; }
+   else if (e.key === 'Enter') { e.preventDefault(); const r = items[hi >= 0 ? hi : 0]; if (r) { close(); onPick(r); input.blur(); } else if (opt && opt.onEnter) opt.onEnter(); return; }
+   else return;
+   MG.qsa('.sug41-item', box).forEach((x, i) => x.classList.toggle('active', i === hi));
+  });
  }
  /* ---------- vykreslení panelu ---------- */
+ const field = (id, icon, ph, val, btns) => '<div class="s-wrap"><div class="s-field' + (S.tab === 'conn' ? ' dim' : '') + '"><i class="' + icon + '"></i><input id="' + id + '" placeholder="' + ph + '" value="' + MG.h(val || '') + '" autocomplete="off" enterkeyhint="search">' + (btns || '') + '</div><div class="sug41" id="' + id + '-sug" hidden></div></div>';
  S.render = () => {
   const el = $('sh-search');
   let h = '<div class="sh-grab"></div><div class="sh-body" style="padding-top:2px"><div class="seg-tabs" style="margin:4px 0 10px"><button data-tab="stops" class="' + (S.tab === 'stops' ? 'on' : '') + '"><i class="fa-solid fa-location-dot"></i>Zastávky</button><button data-tab="conn" class="' + (S.tab === 'conn' ? 'on' : '') + '"><i class="fa-solid fa-route"></i>Spojení</button></div>';
   h += MG.dep.favStrip('search');
   if (S.tab === 'stops') {
-   h += '<div class="s-head"><h3>Najít nejbližší zastávky</h3><button class="xbtn" data-close title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>' +
-    '<div class="s-field"><i class="fa-solid fa-location-dot"></i><input id="s-q" placeholder="Zastávka, linka nebo adresa" autocomplete="off"><button class="fbtn" id="s-clr" title="Vymazat"><i class="fa-solid fa-xmark"></i></button><button class="fbtn" id="s-me" title="Moje poloha"><i class="fa-solid fa-crosshairs"></i></button></div>' +
-    '<div id="s-res" class="s-res"></div><button class="s-light" id="s-clear"><i class="fa-solid fa-eraser"></i>Vymazat</button><button class="btn" id="s-go"><i class="fa-solid fa-magnifying-glass"></i>Hledat</button>';
+   h += '<div class="s-head"><h3>' + (S.favLabel != null ? 'Uložit místo' + (S.favLabel ? ' „' + MG.h(S.favLabel) + '“' : '') : 'Najít nejbližší zastávky') + '</h3><button class="xbtn" data-close title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>' +
+    field('s-q', 'fa-solid fa-location-dot', 'Zastávka, linka nebo adresa', S.q ? S.q.name : '', '<button class="fbtn" id="s-clr" title="Vymazat"' + (S.q ? '' : ' hidden') + '><i class="fa-solid fa-xmark"></i></button><button class="fbtn" id="s-me" title="Moje poloha"><i class="fa-solid fa-crosshairs"></i></button>') +
+    '<button class="s-light" id="s-clear"><i class="fa-solid fa-eraser"></i>Vymazat</button><button class="btn" id="s-go"><i class="fa-solid fa-magnifying-glass"></i>Hledat</button><div class="status" id="s-st"></div><div id="s-res"></div>';
   } else {
    h += '<div class="s-head"><h3>Vyhledat spojení</h3><button class="xbtn" data-close title="Zavřít"><i class="fa-solid fa-xmark"></i></button></div>' +
-    '<div class="sugg"><div class="s-field dim"><i class="fa-regular fa-circle"></i><input id="c-from" placeholder="Odkud – adresa nebo místo" value="' + MG.h(S.from ? S.from.name : '') + '" autocomplete="off"><button class="fbtn" id="c-from-me" title="Moje poloha"><i class="fa-solid fa-crosshairs"></i></button></div><div class="sugg-list s-res" id="c-from-l"></div></div>' +
-    '<div class="sugg"><div class="s-field dim"><i class="fa-solid fa-location-dot"></i><input id="c-to" placeholder="Kam – adresa nebo místo" value="' + MG.h(S.to ? S.to.name : '') + '" autocomplete="off"><button class="fbtn" id="c-star" title="Uložit do Mých míst"><i class="fa-regular fa-star"></i></button></div><div class="sugg-list s-res" id="c-to-l"></div></div>' +
-    '<button class="s-light" id="c-swap"><i class="fa-solid fa-arrow-right-arrow-left"></i>Prohodit</button>' +
-    '<div class="dep-ctl" style="margin-top:0"><button class="chip' + (S.t == null ? ' on' : '') + '" id="c-now">Nyní</button><input type="time" id="c-t" value="' + MG.hm2(S.t != null ? S.t : MG.nowMin()) + '"><input type="date" id="c-d" value="' + (S.ymd || MG.pragueParts(MG.now()).ymd) + '"></div>' +
-    '<button class="btn" id="c-go"><i class="fa-solid fa-route"></i>Najít spojení</button><div class="status" id="c-st"></div><div id="c-res"></div>';
+    '<div class="conn-io">' + field('c-from', 'fa-regular fa-circle-dot', 'Odkud – zastávka, adresa nebo místo', S.from ? S.from.name : '', '<button class="fbtn" id="c-from-me" title="Moje poloha"><i class="fa-solid fa-crosshairs"></i></button>') +
+    field('c-to', 'fa-solid fa-location-dot', 'Kam – zastávka, adresa nebo místo', S.to ? S.to.name : '') +
+    '<button class="swap41" id="c-swap" title="Prohodit"><i class="fa-solid fa-arrow-right-arrow-left"></i></button></div>' +
+    '<div class="when41"><button class="chip' + (S.t == null ? ' on' : '') + '" id="c-now">Teď</button><input type="time" id="c-t" value="' + MG.hm2(S.t != null ? S.t : MG.nowMin()) + '"><input type="date" id="c-d" value="' + (S.ymd || MG.pragueParts(MG.now()).ymd) + '"></div>' +
+    '<button class="btn" id="c-go"><i class="fa-solid fa-magnifying-glass"></i>Hledat spojení</button><div class="status" id="c-st"></div><div id="c-res"></div>';
   }
   h += '</div>';
   el.innerHTML = h;
   MG.qsa('[data-tab]', el).forEach(b => b.onclick = () => { S.tab = b.dataset.tab; S.render(); });
-  MG.qsa('[data-close]', el).forEach(b => b.onclick = () => MG.ui.close('sh-search'));
-  MG.dep.bindFav(el, f => S.routeTo({name: f.name, lat: f.lat, lon: f.lon, st: f.st}));
+  MG.dep.bindFav(el, f => S.tab === 'conn' ? (S.to = {name: f.label || f.name, lat: f.lat, lon: f.lon, st: f.st}, S.render(), S.find()) : S.pick({name: f.label, sub: f.name, lat: f.lat, lon: f.lon, st: f.st, fav: true}));
   if (S.tab === 'stops') bindStops(); else { bindConn(); if (S.res) renderResults(); }
  };
- /* přidání do Mých míst z lišty: vyber místo hledáním */
+ /* přidání do Mých míst: vyhledej místo a potvrď */
  S.addFavFlow = (label) => {
-  S.favLabel = label || ''; S.tab = 'stops'; if (MG.ui.cur !== 'sh-search') MG.ui.open('sh-search', {tall: true}); S.render();
-  MG.toast('Vyhledej místo' + (label ? ' pro „' + label + '“' : '') + ' a klepni na hvězdičku', 3500);
+  S.favLabel = label || ''; S.tab = 'stops'; S.q = null; S.near = null;
+  if (MG.ui.cur !== 'sh-search') MG.ui.open('sh-search', {tall: true});
+  S.render(); setTimeout(() => { const q = $('s-q'); if (q) q.focus(); }, 250);
  };
- function stopLines(g) { const st = D.st.get(g); if (!st) return ''; const ls = [...st.lines].map(i => D.ln.get(i)).filter(Boolean).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true})); return ls.length ? '<div class="lns">' + ls.slice(0, 9).map(x => D.badge(x)).join('') + (ls.length > 9 ? '<span style="font:700 10px Outfit;color:var(--faint)">+' + (ls.length - 9) + '</span>' : '') + '</div>' : ''; }
- const star = (i) => '<button class="fbtn" data-star="' + i + '" title="Uložit do Mých míst" style="margin-left:auto"><i class="fa-regular fa-star"></i></button>';
  function bindStops() {
-  const q = $('s-q'), res = $('s-res');
-  let items = [];
-  const run = MG.debounce(async () => {
-   const v = q.value.trim(); if (!v) { res.innerHTML = ''; return; }
-   items = []; let h = '';
-   const lf = MG.fold(v), lines = [];
-   for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) { const L_ = D.ln.get(li); if (L_ && MG.fold(D.lineText(L_)) === lf && !lines.includes(L_)) lines.push(L_); }
-   h += lines.slice(0, 6).map(L_ => '<div class="sg" data-line="' + L_.i + '">' + D.badge(L_, {size: 'big'}) + '<div class="tx"><b>' + MG.h(L_.ln || '') + '</b><small>' + MG.h(L_.city ? 'MHD ' + L_.city : (L_.sys || '')) + '</small></div><i class="fa-solid fa-chevron-right" style="color:var(--faint)"></i></div>').join('');
-   const st = await S.findStops(v, 8);
-   for (const x of st) { await Promise.resolve(); items.push({name: x.name, lat: x.lat, lon: x.lon, st: x.g, ok: x.ok}); h += '<div class="sg stop" data-st="' + x.g + '" data-ok="' + x.ok + '"><span class="ic2"><i class="fa-solid ' + sugIcon(x) + '"></i></span><div class="tx"><b>' + MG.h(x.name) + '</b>' + (stopLines(x.g) || '<small>' + (D.okresy[x.ok] ? 'okres ' + MG.h(D.okresy[x.ok].name) : '') + '</small>') + '</div>' + star(items.length - 1) + '</div>'; }
-   res.innerHTML = h + '<div id="s-geo"></div>';
-   bindRes();
-   if (v.length >= 3) { const g = await S.geocode(v); const ge = $('s-geo'); if (ge && g.length) { ge.innerHTML = g.map((a2) => { items.push(a2); return '<div class="sg" data-geo="' + (items.length - 1) + '"><span class="ic2"><i class="fa-solid fa-map-pin"></i></span><div class="tx"><b>' + MG.h(a2.name) + '</b><small>' + MG.h(a2.sub) + '</small></div>' + star(items.length - 1) + '</div>'; }).join(''); bindRes(); } }
-  }, 220);
-  q.oninput = run;
-  q.onkeydown = e => { if (e.key === 'Enter') { const f = MG.qs('.sg', res); if (f) f.click(); } };
-  $('s-clr').onclick = $('s-clear').onclick = () => { q.value = ''; res.innerHTML = ''; if (S.pin) { MG.map.m.removeLayer(S.pin); S.pin = null; } q.focus(); };
-  $('s-go').onclick = () => { if (q.value.trim()) run(); else $('s-me').click(); };
-  $('s-me').onclick = async () => { const me = MG.app.me || await MG.app.locate(false); if (!me) return MG.toast('Poloha není k dispozici'); S.place({name: 'Moje poloha', lat: me.lat, lon: me.lon, me: true}); };
-  function bindRes() {
-   MG.qsa('[data-line]', res).forEach(x => x.onclick = () => MG.net.openLine(+x.dataset.line));
-   MG.qsa('[data-st]', res).forEach(x => x.onclick = (e) => { if (e.target.closest('[data-star]')) return; MG.dep.show(+x.dataset.st, +x.dataset.ok); });
-   MG.qsa('[data-geo]', res).forEach(x => x.onclick = (e) => { if (e.target.closest('[data-star]')) return; S.place(items[+x.dataset.geo]); });
-   MG.qsa('[data-star]', res).forEach(b => b.onclick = (e) => { e.stopPropagation(); addFav(items[+b.dataset.star], S.favLabel); S.favLabel = ''; });
-  }
-  setTimeout(() => q.focus(), 300);
+  const q = $('s-q');
+  attachSug(q, $('s-q-sug'), r => S.pick(r), {onEnter: () => S.searchText()});
+  $('s-clr').onclick = $('s-clear').onclick = () => { S.q = null; S.near = null; q.value = ''; $('s-res').innerHTML = ''; $('s-st').textContent = ''; $('s-clr').hidden = true; if (S.pin) { MG.map.m.removeLayer(S.pin); S.pin = null; } q.focus(); };
+  q.addEventListener('input', () => { $('s-clr').hidden = !q.value; });
+  $('s-go').onclick = () => S.searchText();
+  $('s-me').onclick = async () => { const me = MG.app.me || await MG.app.locate(false); if (!me) return MG.toast('Poloha není k dispozici'); S.pick({name: 'Moje poloha', sub: 'aktuální poloha', lat: me.lat, lon: me.lon, me: true}); };
+  if (S.q) renderNear(); else if (S.favLabel == null) setTimeout(() => { if (MG.ui.cur === 'sh-search' && !MG.isWide()) return; q.focus(); }, 300);
  }
- /* místo: přiblížit a ukázat nejbližší zastávky */
- S.place = async (a) => {
-  const idx = await D.loadIdx();
-  const near = idx.map(s => [MG.dist(a.lat, a.lon, s.lat, s.lon), s]).sort((x, y) => x[0] - y[0]).slice(0, 4);
-  const res = $('s-res');
-  if (res) {
-   res.innerHTML = '<div class="sec-t">Nejbližší zastávky – ' + MG.h(a.name) + '</div>' + near.map(([d, s]) => '<div class="list-item" data-st="' + s.g + '" data-ok="' + s.ok + '"><i class="fa-solid ' + sugIcon(s) + '" style="color:var(--acc);width:18px;text-align:center"></i><div class="li-tx"><b>' + MG.h(s.name) + '</b><small>' + MG.fmtDist(d) + ' · pěšky ' + Math.max(1, Math.round(d / 70)) + ' min</small></div><span class="li-r">odjezdy</span></div>').join('') +
-    '<button class="btn sec" id="s-route" style="margin-top:6px"><i class="fa-solid fa-route"></i>Spojení sem</button>';
-   MG.qsa('[data-st]', res).forEach(x => x.onclick = () => MG.dep.show(+x.dataset.st, +x.dataset.ok));
-   $('s-route').onclick = () => S.routeTo(a);
-  }
-  const oi = D.okresAt(a.lat, a.lon); if (oi >= 0 && oi !== MG.app.cur) MG.app.selectOkres(oi, {keepView: true});
-  MG.map.m.flyTo([a.lat, a.lon], 16, {duration: .8});
-  if (S.pin) MG.map.m.removeLayer(S.pin);
-  S.pin = L.marker([a.lat, a.lon], {icon: L.divIcon({className: 'plat-ic', html: '<div style="transform:translate(-50%,-100%);color:var(--acc);font-size:30px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))"><i class="fa-solid fa-location-dot"></i></div>', iconSize: [0, 0]}), pane: 'me'}).addTo(MG.map.m);
+ /* tlačítko Hledat / Enter bez výběru: první zastávka, jinak první adresa */
+ S.searchText = async () => {
+  const v = ($('s-q') || {}).value; if (!v || !v.trim()) { $('s-me') && $('s-me').click(); return; }
+  if (S.q && S.q.name === v) return S.pick(S.q);
+  $('s-st').innerHTML = '<span class="spin"></span> Hledám…';
+  const st = await S.findStops(v, 1);
+  if (st[0] && MG.fold(st[0].name).includes(MG.fold(v))) return S.pick({name: st[0].name, sub: D.okresy[st[0].ok] ? 'okres ' + D.okresy[st[0].ok].name : '', lat: st[0].lat, lon: st[0].lon, st: st[0].g, ok: st[0].ok, m: st[0].m});
+  const g = await S.geocode(v);
+  if (g[0]) return S.pick(g[0]);
+  $('s-st').textContent = 'Místo se nepodařilo najít.';
  };
- function bindConn() {
-  sugBox($('c-from'), $('c-from-l'), r => { S.from = r; $('c-from').value = r.name; });
-  sugBox($('c-to'), $('c-to-l'), r => { S.to = r; $('c-to').value = r.name; });
-  $('c-from-me').onclick = async () => { const me = MG.app.me || await MG.app.locate(false); if (!me) return MG.toast('Poloha není k dispozici'); S.from = {name: 'Moje poloha', lat: me.lat, lon: me.lon, me: true}; $('c-from').value = 'Moje poloha'; };
-  $('c-swap').onclick = () => { const a = S.from; S.from = S.to; S.to = a; $('c-from').value = S.from ? S.from.name : ''; $('c-to').value = S.to ? S.to.name : ''; };
-  $('c-star').onclick = () => { if (!S.to) return MG.toast('Nejdřív vyber cíl'); addFav(S.to, ''); };
-  $('c-now').onclick = () => { S.t = null; S.ymd = null; S.render(); };
-  $('c-t').onchange = e => { const [h, m] = e.target.value.split(':').map(Number); if (isFinite(h)) S.t = h * 60 + m; $('c-now').classList.remove('on'); };
-  $('c-d').onchange = e => { S.ymd = e.target.value || null; $('c-now').classList.remove('on'); };
-  $('c-go').onclick = () => S.find();
+ /* výběr místa → nejbližší zastávky */
+ S.pick = async (r) => {
+  if (r.line != null) { MG.net.openLine(r.line); return; }
+  if (S.tab !== 'stops') { S.tab = 'stops'; S.render(); }
+  S.q = r; const qi = $('s-q'); if (qi) qi.value = r.name; if ($('s-clr')) $('s-clr').hidden = false;
+  const idx = await D.loadIdx();
+  const near = idx.map(s => [MG.dist(r.lat, r.lon, s.lat, s.lon), s]).sort((x, y) => x[0] - y[0]).slice(0, 4);
+  if (r.st != null) { const i = near.findIndex(x => x[1].g === r.st); if (i > 0) near.unshift(near.splice(i, 1)[0]); else if (i < 0) { const s = idx.find(x => x.g === r.st); if (s) near.unshift([0, s]); near.length = Math.min(near.length, 4); } }
+  S.near = near;
+  const oi = D.okresAt(r.lat, r.lon);
+  if (oi >= 0 && !D.loaded.has(oi)) D.loadOkres(oi).then(() => { if (S.q === r) renderNear(); }).catch(() => {});
+  if (oi >= 0 && oi !== MG.app.cur) MG.app.selectOkres(oi, {keepView: true});
+  if (MG.mode3d) MG.m3d.flyTo && MG.m3d.flyTo(r.lat, r.lon); else MG.map.m.flyTo([r.lat, r.lon], 16, {duration: .8});
+  if (S.pin) MG.map.m.removeLayer(S.pin);
+  S.pin = L.marker([r.lat, r.lon], {icon: L.divIcon({className: 'plat-ic', html: '<div class="pin41"><i class="fa-solid fa-location-dot"></i></div>', iconSize: [0, 0]}), pane: 'me'}).addTo(MG.map.m);
+  $('s-st').textContent = '';
+  renderNear();
+ };
+ S.place = (a) => { if (MG.ui.cur !== 'sh-search') { S.tab = 'stops'; MG.ui.open('sh-search', {tall: true}); S.render(); } S.pick(a); };
+ function renderNear() {
+  const box = $('s-res'); if (!box || !S.q) return;
+  const r = S.q, near = S.near || [];
+  let h = '<div class="list41-title">Hledané místo</div><div class="hl41"><i class="fa-solid ' + (r.me ? 'fa-location-crosshairs' : r.fav ? (r.icon || 'fa-star') : 'fa-location-dot') + '"></i><span><b>' + MG.h(r.name) + '</b>' + (r.sub ? '<small>' + MG.h(r.sub) + '</small>' : '') + '</span>' +
+   (S.favLabel != null ? '<button class="btn sm" id="s-savefav"><i class="fa-solid fa-star"></i>Uložit</button>' : '<button class="fbtn" id="s-fav" title="Uložit do Mých míst"><i class="fa-regular fa-star"></i></button>') + '</div>';
+  h += '<div class="list41-title">Nejbližší zastávky a jejich linky</div>';
+  near.forEach(([d, s], i) => {
+   const walk = Math.max(1, Math.round(d * 1.25 / 75));
+   h += '<div class="card41" data-st="' + s.g + '" data-ok="' + s.ok + '"><div class="card41-top"><span class="card41-ico">' + (i + 1) + '</span><span class="card41-name">' + MG.h(D.shortName(s.name, '')) + '</span><span class="card41-dist">' + (d < 15 ? 'zde' : MG.fmtDist(d) + ' · ' + walk + ' min') + '</span></div><div class="card41-lines">' + (lineChips(s.g, 14) || '<span class="muted41">' + (D.loaded.has(s.ok) ? 'linky nejsou v datech' : 'načítám linky…') + '</span>') + '</div>' +
+    '<div class="card41-acts"><button class="chip" data-dep="' + s.g + '|' + s.ok + '"><i class="fa-regular fa-clock"></i>Odjezdy</button><button class="chip" data-walk="' + i + '"><i class="fa-solid fa-person-walking"></i>Pěšky sem</button></div></div>';
+  });
+  h += '<button class="btn sec" id="s-route"><i class="fa-solid fa-route"></i>Spojení sem</button>';
+  box.innerHTML = h;
+  MG.qsa('.card41', box).forEach(c => c.onclick = (e) => {
+   if (e.target.closest('[data-line],[data-dep],[data-walk]')) return;
+   const g = +c.dataset.st, s = (S.near.find(x => x[1].g === g) || [])[1]; if (!s) return;
+   if (!MG.isWide()) MG.ui.close('sh-search');
+   MG.map.m.flyTo([s.lat, s.lon], 17, {duration: .7});
+   setTimeout(() => MG.dep.stopPopup(g), 750);
+  });
+  MG.qsa('[data-line]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); MG.net.openLine(+b.dataset.line); });
+  MG.qsa('[data-dep]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const [g, ok] = b.dataset.dep.split('|').map(Number); MG.dep.show(g, ok); });
+  MG.qsa('[data-walk]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const s = S.near[+b.dataset.walk][1]; MG.walk.to({name: s.name, lat: s.lat, lon: s.lon}); });
+  $('s-route').onclick = () => S.routeTo(r);
+  if ($('s-fav')) $('s-fav').onclick = () => addFav(r, '');
+  if ($('s-savefav')) $('s-savefav').onclick = () => { addFav(r, S.favLabel); S.favLabel = null; };
  }
+ MG.on('pack', () => { if (MG.ui.cur === 'sh-search' && S.tab === 'stops' && S.q) renderNear(); });
  function addFav(pt, label0) {
   if (!pt) { S.addFavFlow(''); return; }
   const F = MG.store.get('favs', []) || [];
   const label = label0 || prompt('Název místa (např. Domů, Práce, Škola):', pt.name); if (!label) return;
   const icon = /dom/i.test(label) ? 'fa-house' : /prác|prac/i.test(label) ? 'fa-briefcase' : /škol|skol/i.test(label) ? 'fa-graduation-cap' : 'fa-star';
-  const i = F.findIndex(f => f.label === label); const rec = {label, name: pt.name, lat: pt.lat, lon: pt.lon, st: pt.st, icon};
+  const i = F.findIndex(f => f.label === label); const rec = {label, name: pt.sub && pt.fav ? pt.sub : pt.name, lat: pt.lat, lon: pt.lon, st: pt.st, icon};
   if (i >= 0) F[i] = rec; else F.push(rec);
-  MG.store.set('favs', F); MG.toast('Uloženo do Mých míst: ' + label); S.render();
+  MG.store.set('favs', F); MG.toast('Uloženo do Mých míst: ' + label); S.favLabel = null; S.render();
+ }
+ /* ---------- spojení ---------- */
+ function bindConn() {
+  const fi = $('c-from'), ti = $('c-to');
+  attachSug(fi, $('c-from-sug'), r => { if (r.line != null) return; S.from = r; fi.value = r.name; if (!S.to) ti.focus(); else S.find(); }, {me: true, noLines: true});
+  attachSug(ti, $('c-to-sug'), r => { if (r.line != null) return; S.to = r; ti.value = r.name; if (S.from) S.find(); else fi.focus(); }, {noLines: true});
+  $('c-from-me').onclick = async () => { const me = MG.app.me || await MG.app.locate(false); if (!me) return MG.toast('Poloha není k dispozici'); S.from = {name: 'Moje poloha', lat: me.lat, lon: me.lon, me: true}; fi.value = 'Moje poloha'; if (S.to) S.find(); };
+  $('c-swap').onclick = () => { const a = S.from; S.from = S.to; S.to = a; fi.value = S.from ? S.from.name : ''; ti.value = S.to ? S.to.name : ''; if (S.from && S.to) S.find(); };
+  $('c-now').onclick = () => { S.t = null; S.ymd = null; S.render(); if (S.from && S.to) S.find(); };
+  $('c-t').onchange = e => { const [h, m] = e.target.value.split(':').map(Number); if (isFinite(h)) S.t = h * 60 + m; $('c-now').classList.remove('on'); };
+  $('c-d').onchange = e => { S.ymd = e.target.value || null; $('c-now').classList.remove('on'); };
+  $('c-go').onclick = async () => {
+   if (!S.from && fi.value.trim()) { const r = (await suggestions(fi.value, {noLines: true}))[0] || (await S.geocode(fi.value))[0]; if (r) { S.from = r; fi.value = r.name; } }
+   if (!S.to && ti.value.trim()) { const r = (await suggestions(ti.value, {noLines: true}))[0] || (await S.geocode(ti.value))[0]; if (r) { S.to = r; ti.value = r.name; } }
+   S.find();
+  };
  }
  S.routeTo = (pt) => {
   S.tab = 'conn'; S.to = pt; S.res = null;
   if (!S.from && MG.app.me) S.from = {name: 'Moje poloha', lat: MG.app.me.lat, lon: MG.app.me.lon, me: true};
   if (MG.mode3d) MG.m3d.close();
-  S.render(); MG.ui.open('sh-search', {tall: true}); S.render();
-  if (S.from && S.to) S.find();
+  if (MG.ui.cur !== 'sh-search') MG.ui.open('sh-search', {tall: true});
+  S.render();
+  if (S.from && S.to) S.find(); else setTimeout(() => { const f = $('c-from'); if (f) f.focus(); }, 250);
  };
- S.find = async () => {
-  if (!S.from || !S.to) { $('c-st').textContent = 'Vyber, odkud a kam.'; return; }
-  const ymd = S.ymd || MG.pragueParts(MG.now()).ymd, t = S.t != null ? S.t : Math.ceil(MG.nowMin());
+ S.find = async (tOverride) => {
+  if (!S.from || !S.to) { const st = $('c-st'); if (st) st.textContent = 'Vyber, odkud a kam.'; return; }
+  const ymd = S.ymd || MG.pragueParts(MG.now()).ymd, t = tOverride != null ? tOverride : S.t != null ? S.t : Math.ceil(MG.nowMin());
   $('c-st').innerHTML = '<span class="spin" style="display:inline-block;vertical-align:-3px;margin-right:6px"></span>Hledám spojení…';
   $('c-res').innerHTML = '';
   await MG.sleep(30);
   try {
-   const r = await MG.raptor.search(S.from, S.to, ymd, t, {count: 5});
-   S.res = r; S.sel = 0; S.qymd = ymd;
+   const r = await MG.raptor.search(S.from, S.to, ymd, t, {count: 6});
+   S.res = r; S.sel = 0; S.qymd = ymd; S.qt = t;
    if (r.err) { $('c-st').textContent = r.err; return; }
-   $('c-st').textContent = r.results.length ? '' : 'Spojení nenalezeno. Zkus jiný čas nebo bližší zastávku.';
+   $('c-st').textContent = r.results.length || r.walkOnly ? '' : 'Spojení nenalezeno. Zkus jiný čas nebo bližší zastávku.';
    renderResults(); if (r.results.length) showConn(0);
   } catch (e) { MG.err('raptor', e); $('c-st').textContent = 'Při hledání nastala chyba.'; }
  };
  function legTimes(l) { const st0 = l.p.T[3 * l.j] + (l.day - S.res.qday) * 1440; return {dep: st0 + l.p.dep[l.prof][l.bi], arr: st0 + l.p.arr[l.prof][l.ai]}; }
+ const fmtDur = m => { m = Math.round(m); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + MG.pad(m % 60) + ' min'; };
+ const czStops = n => n + (n === 1 ? ' zastávka' : n < 5 ? ' zastávky' : ' zastávek');
+ const legChip = l => { const L_ = D.ln.get(l.p.l); return D.badge(L_, {text: L_.k === 'vlak' ? D.trainLabel(L_, l.p.n && l.p.n[l.j]) : null}); };
+ function connTimes(c) { const rides = c.legs.filter(l => !l.walk); const t1 = legTimes(rides[0]); return {dep: t1.dep - (c.acc[1] || 0), arr: c.arr, rides}; }
  function renderResults() {
   const box = $('c-res'); if (!box || !S.res) return;
   const r = S.res; let h = '';
-  if (r.walkOnly) h += '<div class="conn"><div class="conn-h"><i class="fa-solid fa-person-walking" style="color:var(--acc)"></i><b>Pěšky</b><span class="du">' + r.walkOnly.dur + ' min · ' + MG.fmtDist(r.walkOnly.dist) + '</span></div></div>';
-  r.results.forEach((c, i) => {
-   const rides = c.legs.filter(l => !l.walk);
-   const t1 = legTimes(rides[0]), tl = legTimes(rides[rides.length - 1]);
-   const dep = t1.dep - (c.acc[1] || 0), arr = c.arr;
-   const chips = c.legs.map(l => l.walk ? (l.dur > 0 ? '<i class="fa-solid fa-person-walking"></i>' : '') : D.badge(D.ln.get(l.p.l), {text: D.ln.get(l.p.l).k === 'vlak' ? D.trainLabel(D.ln.get(l.p.l), l.p.n && l.p.n[l.j]) : null})).filter(Boolean).join('<i class="fa-solid fa-angle-right" style="font-size:9px"></i>');
-   h += '<div class="conn' + (i === S.sel ? ' sel' : '') + '" data-c="' + i + '"><div class="conn-h"><span class="tm">' + MG.hm2(dep) + ' → ' + MG.hm2(arr) + '</span><span class="du">' + fmtDur(arr - dep) + ' · ' + (rides.length - 1 ? (rides.length - 1) + ' přest.' : 'přímo') + '</span></div><div class="conn-legs">' + chips + '</div>';
-   if (i === S.sel) h += detail(c);
-   h += '</div>';
-  });
-  box.innerHTML = h;
-  MG.qsa('.conn[data-c]', box).forEach(x => x.onclick = () => { S.sel = +x.dataset.c; renderResults(); showConn(S.sel); });
-  MG.qsa('[data-alarm]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const [key, k] = b.dataset.alarm.split('|'); MG.alarm.set(key, +k); });
-  MG.qsa('[data-walkto]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const [ll, nm] = b.dataset.walkto.split('|'); const [la, lo] = ll.split(',').map(Number); MG.walk.to({name: nm, lat: la, lon: lo}); });
- }
- const fmtDur = m => { m = Math.round(m); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + MG.pad(m % 60) + ' min'; };
- function detail(c) {
-  let h = '<div class="conn-d">';
-  const nm = i => D.stName(S.res.n.stArr[i]);
-  const firstRide = c.legs.find(l => !l.walk);
-  if (c.acc[1] > 0 || (c.legs[0].walk && c.legs[0].dur > 0)) h += '<div class="leg"><div class="lg-ic"><i class="fa-solid fa-person-walking"></i></div><div class="lg-tx"><b>Pěšky ' + Math.max(1, c.acc[1] || c.legs[0].dur) + ' min</b><small>' + MG.h(S.from.name) + ' → ' + MG.h(nm(c.legs[0].walk ? c.legs[0].to : firstRide.from)) + '</small></div></div>';
-  for (const l of c.legs) {
-   if (l.walk) { if (l.from >= 0 && l.dur > 0) h += '<div class="leg"><div class="lg-ic"><i class="fa-solid fa-person-walking"></i></div><div class="lg-tx"><b>Přestup pěšky ' + l.dur + ' min</b><small>' + MG.h(nm(l.from)) + ' → ' + MG.h(nm(l.to)) + ' · ' + MG.fmtDist(l.dist) + '</small></div></div>'; continue; }
-   const L_ = D.ln.get(l.p.l), t = legTimes(l), pb = D.pl.get(l.p.s[l.bi]), pa = D.pl.get(l.p.s[l.ai]);
-   h += '<div class="leg"><div class="lg-ic">' + D.badge(L_, {text: L_.k === 'vlak' ? D.trainLabel(L_, l.p.n && l.p.n[l.j]) : null}) + '</div><div class="lg-tx"><b>' + MG.hm2(t.dep) + ' ' + MG.h(D.stName(pb.st)) + '</b>' + (pb.lab ? ' <span class="pl" style="font:800 10px Outfit;padding:2px 5px;border-radius:5px;background:var(--hover)">' + MG.h(pb.lab) + '</span>' : '') + '<small>směr ' + MG.h(D.headsign(l.p, l.j)) + ' · ' + (l.ai - l.bi) + ' zast.</small><b>' + MG.hm2(t.arr) + ' ' + MG.h(D.stName(pa.st)) + '</b><div class="leg-acts"><button class="chip" data-alarm="' + l.p.i + ':' + l.j + ':' + l.day + '|' + l.ai + '"><i class="fa-solid fa-bell"></i>Budík na výstup</button><button class="chip" data-walkto="' + pb.lat + ',' + pb.lon + '|' + MG.h(D.stName(pb.st)) + '"><i class="fa-solid fa-person-walking"></i>Pěšky k nástupu</button></div></div></div>';
+  if (r.walkOnly) h += '<div class="var41 t41 walk"><span class="t41-tm"><i class="fa-solid fa-person-walking"></i></span><span class="var41-lines">Pěšky ' + MG.fmtDist(r.walkOnly.dist) + '</span><span class="t41-dur"><b>' + r.walkOnly.dur + ' min</b><small>bez MHD</small></span></div>';
+  if (r.results.length) {
+   h += '<div class="vars41 t41s"><button type="button" class="less41-conn" id="c-less"><i class="fa-solid fa-angles-up"></i> Dřívější spoje</button>';
+   r.results.forEach((c, i) => {
+    const {dep, arr, rides} = connTimes(c);
+    h += '<button type="button" class="var41 t41' + (i === S.sel ? ' active' : '') + '" data-c="' + i + '"><span class="t41-tm"><b>' + MG.hm(dep) + '</b><i>–</i><span>' + MG.hm(arr) + '</span></span><span class="var41-lines">' + rides.map(legChip).join('<i class="fa-solid fa-chevron-right"></i>') + '</span><span class="t41-dur"><b>' + fmtDur(arr - dep) + '</b><small>' + (rides.length - 1 ? (rides.length - 1) + '× přestup' : 'přímo') + '</small></span></button>';
+   });
+   h += '<button type="button" class="more41-conn" id="c-more"><i class="fa-solid fa-angles-down"></i> Další spoje</button></div>';
+   h += plan(r.results[S.sel]);
   }
-  if (c.egress > 0) h += '<div class="leg"><div class="lg-ic"><i class="fa-solid fa-person-walking"></i></div><div class="lg-tx"><b>Pěšky ' + c.egress + ' min</b><small>→ ' + MG.h(S.to.name) + '</small></div></div>';
-  h += '<div class="row" style="margin-top:6px"><a class="btn sec sm" target="_blank" rel="noopener" href="https://idos.cz/vlakyautobusymhdvse/spojeni/?f=' + encodeURIComponent(S.from.st != null ? D.stName(S.from.st) : S.from.name) + '&t=' + encodeURIComponent(S.to.st != null ? D.stName(S.to.st) : S.to.name) + '"><i class="fa-solid fa-arrow-up-right-from-square"></i>Ověřit v IDOS</a></div></div>';
+  box.innerHTML = h;
+  MG.qsa('.var41[data-c]', box).forEach(x => x.onclick = () => { S.sel = +x.dataset.c; renderResults(); showConn(S.sel); });
+  if ($('c-less')) $('c-less').onclick = () => { const d0 = connTimes(r.results[0]).dep; S.find(Math.max(0, d0 - 75)); };
+  if ($('c-more')) $('c-more').onclick = () => { const dl = connTimes(r.results[r.results.length - 1]).dep; S.find(dl + 1); };
+  MG.qsa('[data-alarm]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const [key, k] = b.dataset.alarm.split('|'); MG.alarm.set(key, +k); b.classList.add('on'); });
+  MG.qsa('[data-walkto]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const [ll, nm] = b.dataset.walkto.split('|'); const [la, lo] = ll.split(',').map(Number); MG.walk.to({name: nm, lat: la, lon: lo}); });
+  MG.qsa('[data-depst]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); MG.dep.show(+b.dataset.depst); });
+ }
+ function plan(c) {
+  const nm = i => D.stName(S.res.n.stArr[i]);
+  const {dep, arr, rides} = connTimes(c);
+  let h = '<div class="plan41"><div class="plan41-head"><span>' + MG.h(S.from.name) + '</span><i class="fa-solid fa-arrow-right"></i><span>' + MG.h(S.to.name) + '</span><em>' + MG.hm(dep) + ' – ' + MG.hm(arr) + ' · ' + fmtDur(arr - dep) + '</em></div>';
+  const firstRide = rides[0];
+  const walkIn = c.acc[1] > 0 ? c.acc[1] : (c.legs[0].walk ? c.legs[0].dur : 0);
+  if (walkIn > 0) { const pb = D.pl.get(firstRide.p.s[firstRide.bi]); h += '<div class="step41 walk"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-person-walking"></i> Pěšky ' + walkIn + ' min na zastávku ' + MG.h(D.stName(pb.st)) + ' <button type="button" class="step41-dep" data-walkto="' + pb.lat + ',' + pb.lon + '|' + MG.h(D.stName(pb.st)) + '"><i class="fa-solid fa-diamond-turn-right"></i> navigovat</button></div></div>'; }
+  let prev = null;
+  for (const l of c.legs) {
+   if (l.walk) { if (l.from >= 0 && l.dur > 0) h += '<div class="step41 xfer"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-person-walking"></i> Přestup pěšky ' + l.dur + ' min · ' + MG.h(nm(l.from)) + ' → ' + MG.h(nm(l.to)) + ' · ' + MG.fmtDist(l.dist) + '</div></div>'; continue; }
+   const L_ = D.ln.get(l.p.l), t = legTimes(l), pb = D.pl.get(l.p.s[l.bi]), pa = D.pl.get(l.p.s[l.ai]);
+   if (prev) { const wait = Math.round(t.dep - legTimes(prev).arr); h += '<div class="step41 xfer"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-arrow-right-arrow-left"></i> Přestup – ' + MG.h(D.stName(pb.st)) + (wait > 0 ? ' · čekání ' + wait + ' min' : '') + '</div></div>'; }
+   const mids = l.p.s.slice(l.bi + 1, l.ai).map(pg => { const pl = D.pl.get(pg); return pl ? D.stName(pl.st) : ''; });
+   h += '<div class="step41 ride" style="--lc:' + L_.c + '"><div class="step41-rail"></div><div class="step41-body"><div class="step41-top">' + legChip(l) + '<span class="step41-dir">směr ' + MG.h(D.headsign(l.p, l.j)) + '</span></div>' +
+    '<div class="step41-stop"><span class="t41">' + MG.hm2(t.dep) + '</span><strong>' + MG.h(D.stName(pb.st)) + '</strong>' + (pb.lab ? '<span class="pl41">' + MG.h(pb.lab) + '</span>' : '') + '<button type="button" class="step41-dep" data-depst="' + pb.st + '"><i class="fa-regular fa-clock"></i> odjezdy</button></div>' +
+    (mids.length ? '<details class="step41-mid"><summary>' + czStops(l.ai - l.bi) + '</summary>' + mids.map(x => '<div>' + MG.h(x) + '</div>').join('') + '</details>' : '<div class="step41-mid plain">' + czStops(l.ai - l.bi) + '</div>') +
+    '<div class="step41-stop"><span class="t41">' + MG.hm2(t.arr) + '</span><strong>' + MG.h(D.stName(pa.st)) + '</strong><button type="button" class="step41-alight" data-alarm="' + l.p.i + ':' + l.j + ':' + l.day + '|' + l.ai + '" title="Upozornit, až se budu blížit k výstupu"><i class="fa-solid fa-bell"></i> Upozornit na výstup</button></div></div></div>';
+   prev = l;
+  }
+  if (c.egress > 0) h += '<div class="step41 walk"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-flag-checkered"></i> Pěšky ' + c.egress + ' min do cíle ' + MG.h(S.to.name) + '</div></div>';
+  h += '<div class="plan41-note">Podle jízdního řádu CIS JŘ' + (MG.live.on ? ', zpoždění vozidel vidíš na mapě' : '') + '.</div><a class="idos41" target="_blank" rel="noopener" href="https://idos.cz/vlakyautobusymhdvse/spojeni/?f=' + encodeURIComponent(S.from.st != null ? D.stName(S.from.st) : S.from.name) + '&t=' + encodeURIComponent(S.to.st != null ? D.stName(S.to.st) : S.to.name) + '"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ověřit v IDOS</a></div>';
   return h;
  }
  function showConn(i) {
@@ -2747,17 +3021,18 @@ MG.jtsk = function(ex, ny, H){
   const nmll = si => { const s = D.st.get(S.res.n.stArr[si]); return [s.lat, s.lon]; };
   const firstRide = c.legs.find(l => !l.walk);
   const a0 = nmll(c.legs[0].walk ? c.legs[0].to : firstRide.from);
-  L.polyline([[S.from.lat, S.from.lon], a0], {renderer: MG.map.rSel, color: '#6b625b', weight: 4, dashArray: '2 8', lineCap: 'round'}).addTo(g);
+  const walkLine = (a, b) => L.polyline([a, b], {renderer: MG.map.rSel, color: '#2F6F4E', weight: 4, dashArray: '2 8', lineCap: 'round'}).addTo(g);
+  walkLine([S.from.lat, S.from.lon], a0);
   for (const l of c.legs) {
-   if (l.walk) { if (l.from >= 0) L.polyline([nmll(l.from), nmll(l.to)], {renderer: MG.map.rSel, color: '#6b625b', weight: 4, dashArray: '2 8', lineCap: 'round'}).addTo(g); continue; }
+   if (l.walk) { if (l.from >= 0) walkLine(nmll(l.from), nmll(l.to)); continue; }
    const L_ = D.ln.get(l.p.l), geo = D.geo3(l.p), pts = geo.pts.slice(geo.x[l.bi], geo.x[l.ai] + 1);
    all.push(...pts);
-   L.polyline(pts, {renderer: MG.map.rSel, color: '#fff', weight: 9, opacity: .95}).addTo(g);
-   L.polyline(pts, {renderer: MG.map.rSel, color: L_.c, weight: 5.5}).addTo(g);
+   L.polyline(pts, {renderer: MG.map.rSel, color: '#fff', weight: 10, opacity: .95}).addTo(g);
+   L.polyline(pts, {renderer: MG.map.rSel, color: L_.c, weight: 6}).addTo(g);
    for (const k of [l.bi, l.ai]) { const pl = D.pl.get(l.p.s[k]); L.circleMarker([pl.lat, pl.lon], {renderer: MG.map.rSel, radius: 6, color: L_.c, weight: 3, fillColor: '#fff', fillOpacity: 1}).bindTooltip(MG.h(D.stName(pl.st)), {className: 'stop-tip'}).addTo(g); }
   }
-  const last = nmll(c.end); L.polyline([last, [S.to.lat, S.to.lon]], {renderer: MG.map.rSel, color: '#6b625b', weight: 4, dashArray: '2 8', lineCap: 'round'}).addTo(g);
-  for (const [p, ic] of [[S.from, 'fa-circle-dot'], [S.to, 'fa-location-dot']]) L.marker([p.lat, p.lon], {icon: L.divIcon({className: 'plat-ic', html: '<div style="transform:translate(-50%,-90%);color:#24201c;font-size:22px;filter:drop-shadow(0 1px 2px #fff)"><i class="fa-solid ' + ic + '"></i></div>', iconSize: [0, 0]}), pane: 'me'}).addTo(g);
+  const last = nmll(c.end); walkLine(last, [S.to.lat, S.to.lon]);
+  for (const [p, t] of [[S.from, 'A'], [S.to, 'B']]) L.marker([p.lat, p.lon], {icon: L.divIcon({className: 'rt41', html: '<span class="rt41-pin' + (t === 'B' ? ' b' : '') + '">' + t + '</span>', iconSize: [24, 24], iconAnchor: [12, 12]}), pane: 'me'}).addTo(g);
   all.push([S.from.lat, S.from.lon], [S.to.lat, S.to.lon]);
   MG.map.fitPad(L.latLngBounds(all));
  }
@@ -2945,13 +3220,15 @@ MG.jtsk = function(ex, ny, H){
   $('m-3d').classList.add('on'); $('m-2d').classList.remove('on');
   MG.qs('#tabs button[data-t=ride]').classList.toggle('on', !!opt.ride);
   let c;
-  if (opt.follow) { const it = MG.veh.byKey.get(opt.follow) || MG.veh.findSel(); if (it) c = {lat: it.lat, lon: it.lon}; }
+  if (opt.follow) { const it = opt.it || MG.veh.byKey.get(opt.follow) || MG.veh.findSel(); if (it) c = {lat: it.lat, lon: it.lon}; }
+  if (!c && opt.it && opt.it.virt) { const q = D.pointAt(D.geo3(opt.it.p), 0); c = {lat: q[0], lon: q[1]}; }
   if (!c) c = await T.homeCenter();
   if (!T.map) init(c); else { T.map.resize(); T.map.jumpTo({center: [c.lon, c.lat], zoom: 15.6, pitch: 62, bearing: -18}); }
   if (c.name && !opt.follow) MG.toast('3D · ' + c.name);
   T.loadAround(c);
   if (opt.follow) { T.follow = opt.follow; }
-  if (opt.ride) setTimeout(() => opt.follow ? T.startRide(opt.follow) : T.pickRide(), 700);
+  if (opt.it && opt.it.virt) { const q = D.pointAt(D.geo3(opt.it.p), 0); T.map.jumpTo({center: [q[1], q[0]]}); }
+  if (opt.ride) setTimeout(() => (opt.follow || opt.it) ? T.startRide(opt.follow, opt.it) : T.pickRide(), T.ready ? 150 : 900);
   MG.veh.tick();
  };
  T.close = () => {
@@ -3030,7 +3307,16 @@ MG.jtsk = function(ex, ny, H){
   T.map.getSource('net3').setData(fc(lines)); T.map.getSource('st3').setData(fc(stops));
  };
  MG.on('pack', () => T.updData());
- T.setSel = (pts, color) => { if (!T.ready) return; T.map.getSource('sel3').setData(fc(pts && pts.length > 1 ? [{type: 'Feature', properties: {c: color}, geometry: {type: 'LineString', coordinates: pts.map(q => [q[1], q[0]])}}] : [])); };
+ T.setSel = (pts, color, road) => {
+  if (!T.ready) return;
+  T.map.getSource('sel3').setData(fc(pts && pts.length > 1 ? [{type: 'Feature', properties: {c: color}, geometry: {type: 'LineString', coordinates: pts.map(q => [q[1], q[0]])}}] : []));
+  /* při jízdě pás šíře vozovky (7 m) jako v OpavaGO, jinak čára */
+  try {
+   T.map.setPaintProperty('sel3', 'line-width', road ? ['interpolate', ['exponential', 2], ['zoom'], 10, .075, 22, 307] : ['interpolate', ['linear'], ['zoom'], 11, 3.5, 16, 7, 19, 18]);
+   T.map.setPaintProperty('sel3', 'line-opacity', road ? .82 : 1);
+   T.map.setLayoutProperty('sel3-case', 'visibility', road ? 'none' : 'visible');
+  } catch (_) {}
+ };
  /* zrcadlení výběru z 2D */
  const sp = MG.map.showPattern, cs = MG.map.clearSel;
  MG.map.showPattern = function(p, opt) { const r = sp.apply(this, arguments); try { const g = D.geo3(p); let pts = g.pts; if (opt && opt.fromD != null) { const q = D.pointAt(g, opt.fromD); pts = [[q[0], q[1]], ...g.pts.slice(q[3] + 1)]; } T.setSel(pts, D.ln.get(p.l).c); } catch (_) {} return r; };
@@ -3051,7 +3337,9 @@ MG.jtsk = function(ex, ny, H){
     const sc = MG.clamp(Math.pow(2, (16.2 - z)), 1, 7);
     /* lokální soustava v metrech kolem středu mapy (přesnost float32), sever = +Y */
     const c = this.map.getCenter(), ref = mapboxgl.MercatorCoordinate.fromLngLat([c.lng, c.lat], 0), mpu = ref.meterInMercatorCoordinateUnits();
+    if (R) rideStep(now);
     for (const o of T.objs.values()) {
+     o.g.visible = !(R && o.it && o.it.key === R.it.key);
      const a = MG.clamp((now - o.t0) / 1000, 0, 1);
      const lat = o.a[0] + (o.b[0] - o.a[0]) * a, lon = o.a[1] + (o.b[1] - o.a[1]) * a;
      let dh = ((o.b[2] - o.a[2] + 540) % 360) - 180; const hd = o.a[2] + dh * a;
@@ -3062,7 +3350,12 @@ MG.jtsk = function(ex, ny, H){
      M.premultiply(new THREE.Matrix4().makeScale(sc, sc, sc)); M.premultiply(new THREE.Matrix4().makeTranslation(dx, dy, 0));
      o.g.matrix.copy(M); o.g.matrixAutoUpdate = false; o.g.matrixWorldNeedsUpdate = true;
     }
-    if (T.ride) rideCam();
+    if (R && R.cur) {
+     const [lat, lon, hd] = R.cur, mc = mapboxgl.MercatorCoordinate.fromLngLat([lon, lat], 0);
+     const M = new THREE.Matrix4().makeRotationZ(-hd * Math.PI / 180); M.premultiply(new THREE.Matrix4().makeTranslation((mc.x - ref.x) / mpu, -(mc.y - ref.y) / mpu, 0));
+     R.obj.matrix.copy(M); R.obj.matrixAutoUpdate = false; R.obj.matrixWorldNeedsUpdate = true;
+     rideCam();
+    }
     else if (T.follow) { const o = T.objs.get(T.follow); if (o && o.cur) this.map.jumpTo({center: [o.cur[1], o.cur[0]]}); }
     const loc = new THREE.Matrix4().makeTranslation(ref.x, ref.y, ref.z).scale(new THREE.Vector3(mpu, -mpu, mpu));
     this.camera.projectionMatrix = new THREE.Matrix4().fromArray(matrix).multiply(loc);
@@ -3092,88 +3385,159 @@ MG.jtsk = function(ex, ny, H){
   }
   for (const [k, o] of T.objs) if (!keep.has(k)) { tl.scene.remove(o.g); T.objs.delete(k); }
   T.map.getSource('veh3').setData(fc(feats));
-  if (T.ride) rideHud();
+  if (R) rideHud();
  };
- /* ---------- jízda vozidlem ---------- */
- /* ---------- jízda vozidlem (jako OpavaGO): výběr linky ---------- */
+ /* ---------- jízda vozidlem (jako OpavaGO) ----------
+  Vozidlo plynule jede po trase spoje (rychlost podle jízdního řádu, na zastávkách zastaví),
+  kamera je za ním, trasa je na silnici vyznačená pásem šíře vozovky. 2× zrychlí jízdu. */
+ const RIDE = {zoom: 19.1, pitch: 66};
+ let R = null;
  T.pickRide = () => {
-  const oi = MG.app.cur; const ids = (D.okLines.get(oi) || []).map(i => D.ln.get(i)).filter(Boolean);
+  const oi = MG.app.cur; const ids = (D.okLines.get(oi) || []).map(i => D.ln.get(i)).filter(Boolean).filter(L_ => !L_.city || !D.okresy[oi] || true);
   const o = D.okresy[oi]; const bb = o ? o.bbox : null;
   const act = new Map(); for (const it of MG.veh.active(bb ? [bb[1], bb[0], bb[3], bb[2]] : null)) { MG.veh.place(it); (act.get(it.L.i) || act.set(it.L.i, []).get(it.L.i)).push(it); }
   const groups = [['tram', 'Tramvaje'], ['trol', 'Trolejbusy'], ['metro', 'Metro'], ['mhd', 'Autobusy MHD'], ['regio', 'Regionální autobusy'], ['mezi', 'Dálkové autobusy'], ['vlak', 'Vlaky']];
   const num = s => { const m = /(\d+)/.exec(s || ''); return m ? +m[1] : 1e9; };
-  let h = '<div class="rd-pick">';
+  let h = '<div class="rd-pick"><button class="btn" id="rd-rnd"><i class="fa-solid fa-shuffle"></i>Náhodné vozidlo</button>';
   for (const [k, t] of groups) {
    const ls = ids.filter(L_ => L_.k === k).sort((a, b) => num(D.lineText(a)) - num(D.lineText(b)) || String(D.lineText(a)).localeCompare(String(D.lineText(b))));
    if (!ls.length) continue;
-   h += '<div class="sec-t">' + t + '</div><div class="lns">' + ls.slice(0, 80).map(L_ => '<span class="ln' + (act.has(L_.i) ? '' : ' off') + '" data-rl="' + L_.i + '" style="--lc:' + L_.c + ';--lt:' + L_.tc + '" title="' + MG.h(L_.ln || '') + '">' + MG.h(D.lineText(L_)) + '</span>').join('') + '</div>';
+   h += '<div class="sec-t">' + t + '</div><div class="lns">' + ls.slice(0, 90).map(L_ => '<span class="ln' + (act.has(L_.i) ? '' : ' off') + '" data-rl="' + L_.i + '" style="--lc:' + L_.c + ';--lt:' + L_.tc + '" title="' + MG.h(L_.ln || '') + '">' + MG.h(D.lineText(L_)) + '</span>').join('') + '</div>';
   }
-  h += '<div style="height:12px"></div><button class="s-light" id="rd-rnd" style="height:42px"><i class="fa-solid fa-shuffle"></i>Náhodná linka</button></div>';
-  const el = MG.ui.misc({eb: 'Jízda vozidlem', title: 'Vyberte linku', sub: o ? 'Okres ' + MG.h(o.name) + ' · barevné linky teď jezdí' : ''}, h, true);
+  h += '<div class="status" style="margin-top:12px">Barevné linky právě jezdí – jízda začne tam, kde je vozidlo teď. U šedých linek začne na první zastávce.</div></div>';
+  const el = MG.ui.misc({eb: 'Jízda vozidlem', title: 'Vyber linku', sub: o ? 'Okres ' + MG.h(o.name) : ''}, h, true);
   const go = (li) => {
-   const its = act.get(li); if (!its || !its.length) { MG.toast('Na této lince teď nic nejede'); return; }
-   const c = T.map ? T.map.getCenter() : MG.map.m.getCenter(); const cl = c.lat, cn = c.lng != null ? c.lng : c.lon;
-   its.sort((a, b2) => MG.dist(cl, cn, a.lat, a.lon) - MG.dist(cl, cn, b2.lat, b2.lon));
-   MG.ui.close('sh-misc'); T.open({follow: its[0].key, ride: true});
+   const its = act.get(li);
+   MG.ui.close('sh-misc');
+   if (its && its.length) {
+    const c = T.map ? T.map.getCenter() : MG.map.m.getCenter(); const cl = c.lat, cn = c.lng;
+    its.sort((a, b2) => MG.dist(cl, cn, a.lat, a.lon) - MG.dist(cl, cn, b2.lat, b2.lon));
+    return T.open({follow: its[0].key, ride: true, it: its[0]});
+   }
+   const L_ = D.ln.get(li), mp = D.mainPats(L_), pt = mp[0] || mp[1]; if (!pt) return MG.toast('Linka nemá trasu');
+   T.open({ride: true, it: {key: 'v:' + pt.i, p: pt, L: L_, j: -1, virt: true}});
   };
   MG.qsa('[data-rl]', el).forEach(b => b.onclick = () => go(+b.dataset.rl));
   $('rd-rnd').onclick = () => { const keys = [...act.keys()].filter(li => (D.ln.get(li) || {}).k !== 'vlak'); if (!keys.length) { MG.toast('V okrese teď nic nejede'); return; } go(keys[Math.floor(Math.random() * keys.length)]); };
  };
- T.startRide = (key) => {
-  let it = key ? (MG.veh.byKey.get(key) || MG.veh.findKey(key)) : null;
+ const stopD = (g, k) => g.cd[g.x[k]];
+ T.startRide = (key, it0) => {
+  let it = it0 || (key ? (MG.veh.byKey.get(key) || MG.veh.findKey(key) || ((T.objs.get(key) || {}).it)) : null);
   if (!it) { T.pickRide(); return; }
-  T.ride = it.key; T.follow = null; MG.veh.sel = it.key; document.body.classList.add('riding');
-  MG.qs('#tabs button[data-t=ride]').classList.add('on');
-  MG.map.showPattern(it.p, {fromD: it.pos && it.pos.d, kind: 'veh'});
-  T.setSel(D.geo3(it.p).pts, '#C1784F');
+  if (!tl || !T.ready) { setTimeout(() => T.startRide(key, it), 400); return; }
+  T.endRide(true);
+  if (!it.virt && !it.pos) MG.veh.place(it);
+  const p = it.p, g = D.geo3(p), end = g.cd[g.cd.length - 1];
+  let d = !it.virt && it.pos && isFinite(it.pos.d) ? it.pos.d : stopD(g, 0);
+  if (d > end - 60) d = stopD(g, 0);
+  const obj = MG.models.build(MG.models.typeOf(it.L), MG.models.livery(it.L)); tl.scene.add(obj);
+  R = {it, p, g, d, end, mult: 1, dwell: 0, served: -1, sb: null, last: 0, obj, done: false, sig: ''};
+  for (let k = 0; k < p.s.length; k++) if (stopD(g, k) <= d + 2) R.served = k;
+  T.ride = it.key; T.follow = null; MG.veh.sel = it.key; T.joyB = 0; T.joyP = 0;
+  document.body.classList.add('riding');
+  MG.qs('#tabs button[data-t=ride]').classList.add('on'); $('m-ride').classList.add('on'); $('m-3d').classList.remove('on');
+  T.setSel(g.pts, '#C1784F', true);
+  try { T.map.setLayoutProperty('net3', 'visibility', 'none'); } catch (_) {}
   rideHud(true);
+  const pt = D.pointAt(g, d); T.map.jumpTo({center: [pt[1], pt[0]], zoom: RIDE.zoom, pitch: RIDE.pitch, bearing: pt[2], padding: ridePad()});
+  setFF();
  };
- T.endRide = () => { if (!T.ride) return; T.ride = null; MG.veh.sel = null; document.body.classList.remove('riding'); MG.qs('#tabs button[data-t=ride]').classList.remove('on'); T.setSel(null); if (T.map) T.map.easeTo({pitch: 62, zoom: 16, duration: 600}); };
- function rideCam() {
-  const o = T.objs.get(T.ride); if (!o || !o.cur) return;
-  const [lat, lon, hd] = o.cur, k = Math.PI / 180;
-  const ahead = 0.00022; /* střed kousek před vozidlem – vozidlo je v dolní třetině obrazu */
-  const la = lat + Math.cos(hd * k) * ahead, lo = lon + Math.sin(hd * k) * ahead / Math.cos(lat * k);
-  T.map.jumpTo({center: [lo, la], bearing: hd + (T.joyB || 0), pitch: MG.clamp(64 + (T.joyP || 0), 30, 80), zoom: 17.7});
+ T.endRide = (quiet) => {
+  if (!R && !T.ride) return;
+  if (R && R.obj && tl) tl.scene.remove(R.obj);
+  R = null; T.ride = null; MG.veh.sel = null; document.body.classList.remove('riding');
+  MG.qs('#tabs button[data-t=ride]').classList.remove('on'); T.setSel(null);
+  $('m-ride').classList.remove('on'); if (MG.mode3d) $('m-3d').classList.add('on');
+  try { T.map.setLayoutProperty('net3', 'visibility', 'visible'); } catch (_) {}
+  if (T.map && !quiet) { T.map.easeTo({pitch: 62, zoom: 16.4, padding: {top: 0, bottom: 0, left: 0, right: 0}, duration: 700}); }
+ };
+ function ridePad() {
+  const h = $('ride-hud'), m = $('map3d'); if (!h || !m) return {top: 0, bottom: 0, left: 0, right: 0};
+  const a = h.getBoundingClientRect(), b = m.getBoundingClientRect();
+  if (!a.width) return {top: 0, bottom: 0, left: 0, right: 0};
+  if (a.width < b.width * .7) return {top: 0, bottom: 0, left: 0, right: Math.max(0, b.right - a.left)};
+  return {top: 40, bottom: Math.max(0, b.bottom - a.top), left: 0, right: 0};
  }
- let rideSig = '';
+ /* rychlost úseku podle jízdního řádu (m/s) */
+ function segSpeed(k) {
+  const p = R.p, g = R.g, it = R.it, prof = it.prof != null ? it.prof : (p.T ? p.T[1] : 0);
+  const dist = stopD(g, k + 1) - stopD(g, k);
+  let v = 0;
+  try { const dt = (p.arr[prof][k + 1] - p.dep[prof][k]) * 60; if (dt > 20) v = dist / dt; } catch (_) {}
+  const vmax = it.L.k === 'vlak' ? 33 : it.L.k === 'mezi' || it.L.k === 'regio' ? 22 : 15;
+  return MG.clamp(v || 10, 5, vmax);
+ }
+ function rideStep(now) {
+  if (!R) return;
+  const dt = R.last ? Math.min(.1, (now - R.last) / 1000) : 0; R.last = now;
+  const p = R.p, g = R.g, n = p.s.length;
+  if (R.dwell > 0) { R.dwell -= dt * R.mult; }
+  else if (!R.done) {
+   const k = Math.min(R.served + 1, n - 1), ds = stopD(g, k), toStop = ds - R.d;
+   let v = segSpeed(Math.max(0, k - 1)) * R.mult;
+   const since = R.d - stopD(g, Math.max(0, R.served));
+   if (toStop < 45) v = Math.max(1.4 * R.mult, v * Math.sqrt(Math.max(0, toStop) / 45));
+   else if (since < 30) v = Math.max(2.5 * R.mult, v * Math.sqrt(Math.max(.05, since / 30)));
+   R.d = Math.min(R.end, R.d + v * dt);
+   if (R.d >= ds - .6) {
+    R.d = Math.max(R.d, ds); R.served = k;
+    if (k >= n - 1) { R.done = true; MG.toast('Konečná zastávka – ' + D.stName(D.pl.get(p.s[n - 1]).st), 3500); setTimeout(() => { if (R && R.done) T.endRide(); }, 7000); }
+    else R.dwell = D.isRequest(p, k) ? 2.5 : 6;
+    rideHud(true);
+   }
+  }
+  const a = D.pointAt(g, R.d), b = D.pointAt(g, Math.min(R.end, R.d + 9));
+  let hd = R.d < R.end - 1 ? MG.bearing(a[0], a[1], b[0], b[1]) : a[2];
+  if (R.sb == null) R.sb = hd;
+  const df = ((hd - R.sb + 540) % 360) - 180; R.sb = (R.sb + df * Math.min(1, dt * 7) + 360) % 360;
+  R.cur = [a[0], a[1], R.sb];
+ }
+ function rideCam() {
+  if (!R || !R.cur) return;
+  T.map.jumpTo({center: [R.cur[1], R.cur[0]], bearing: (R.sb + (T.joyB || 0)) % 360, pitch: MG.clamp(RIDE.pitch + (T.joyP || 0), 30, 80), zoom: RIDE.zoom + (T.joyZ || 0), padding: ridePad()});
+ }
+ function setFF() { const f = $('ride-ff'); if (!f) return; const on = R && R.mult > 1; f.classList.toggle('on', !!on); f.title = on ? 'Zpomalit na 1×' : '2× zrychlit jízdu'; f.innerHTML = '<i class="fa-solid fa-' + (on ? 'backward' : 'forward') + '"></i>'; }
+ T.rideFast = () => { if (!R) return; R.mult = R.mult > 1 ? 1 : 2; setFF(); MG.toast(R.mult > 1 ? 'Jízda 2× rychleji' : 'Jízda normální rychlostí', 1400); };
  function rideHud(force) {
-  const h = $('ride-hud'); const o = T.objs.get(T.ride);
-  const it = o ? o.it : MG.veh.findKey(T.ride);
-  if (!it) { if (T.ride) { MG.toast('Spoj dojel do cíle'); T.endRide(); } return; }
-  const p = it.p, pos = it.pos || {k: 0, at: true}, n = p.s.length, L_ = it.L, city = L_.city || '';
-  const nk = pos.at ? pos.k : Math.min(pos.k + 1, n - 1);
-  const g = D.geo3(p), dNext = Math.max(0, g.cd[g.x[nk]] - (pos.d || 0)), seg = nk > 0 ? g.cd[g.x[nk]] - g.cd[g.x[nk - 1]] : 1;
-  const prog = MG.clamp(1 - dNext / (seg || 1), 0, 1);
-  const sig = it.key + '|' + nk;
-  if (force || sig !== rideSig || !h.querySelector('.rd-next')) {
-   rideSig = sig;
+  const h = $('ride-hud'); if (!R) return;
+  const it = R.it, p = R.p, n = p.s.length, L_ = it.L, city = L_.city || '', g = R.g;
+  const nk = R.dwell > 0 ? R.served : Math.min(R.served + 1, n - 1);
+  const dNext = Math.max(0, stopD(g, nk) - R.d), seg = nk > 0 ? stopD(g, nk) - stopD(g, nk - 1) : 1;
+  const prog = R.dwell > 0 ? 1 : MG.clamp(1 - dNext / (seg || 1), 0, 1);
+  const sig = it.key + '|' + nk + '|' + (R.dwell > 0 ? 1 : 0) + '|' + R.done;
+  if (force || sig !== R.sig || !h.querySelector('.rd-next')) {
+   R.sig = sig;
+   const st0 = it.virt ? null : it.start;
    const rows = [];
    for (let k = Math.max(0, nk - 1); k < n; k++) {
     const pl = D.pl.get(p.s[k]); const s = pl && D.st.get(pl.st);
     const others = s ? [...s.lines].filter(x => x !== L_.i).map(x => D.ln.get(x)).filter(Boolean).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k)).slice(0, 10) : [];
-    rows.push('<div class="rd-s' + (k < nk ? ' past' : '') + (k === nk ? ' nx' : '') + '"><div class="rd-d"><i></i></div><div class="rd-t"><b>' + MG.h(D.shortName(s ? s.name : '?', city)) + (D.isRequest(p, k) ? ' <i class="fa-solid fa-hand" style="font-size:10px;color:var(--faint)"></i>' : '') + '</b>' + (others.length ? '<div class="lns">' + others.map(x => D.badge(x)).join('') + '</div>' : '') + '</div></div>');
+    const tm = st0 != null ? MG.hm2(st0 + p.dep[it.prof][k] + (it.delay > 0 ? it.delay : 0)) : '';
+    rows.push('<div class="rd-s' + (k < nk || (k === nk && R.done) ? ' past' : '') + (k === nk && !R.done ? ' nx' : '') + '"><div class="rd-d"><i></i></div><div class="rd-t"><b>' + MG.h(D.shortName(s ? s.name : '?', city)) + (D.isRequest(p, k) ? ' <span class="req-ic" title="Zastávka na znamení"><i class="fa-solid fa-thumbs-up"></i></span>' : '') + '</b>' + (others.length ? '<div class="lns">' + others.map(x => D.badge(x)).join('') + '</div>' : '') + '</div>' + (tm ? '<em class="rd-tm">' + tm + '</em>' : '') + '</div>');
    }
    const t0 = D.shortName(D.plName(p.s[0]), city), t1 = D.shortName(D.plName(p.s[n - 1]), city);
-   h.innerHTML = '<div class="rd-h">' + D.badge(L_, {text: MG.veh.label(it)}) + '<b>' + MG.h(t0) + ' → ' + MG.h(t1) + '</b></div>' +
-    '<div class="rd-next"><small>Příští zastávka</small><div><b id="rd-nn">' + MG.h(D.shortName(D.plName(p.s[nk]), city)) + '</b><span id="rd-nd"></span></div><div class="rd-bar"><i id="rd-nb"></i></div></div>' +
+   const ttl = R.done ? 'Konečná zastávka' : R.dwell > 0 ? 'Stojíme – zastávka' : 'Příští zastávka';
+   h.innerHTML = '<div class="rd-h">' + D.badge(L_, {text: MG.veh.label(it)}) + '<b>' + MG.h(t0) + ' → ' + MG.h(t1) + '<small>' + MG.h((MG.models.TYPES[MG.models.typeOf(it.L)] || '').split(' (')[0]) + (it.live ? ' · živě' + (it.delay != null ? (it.delay > .5 ? ' +' + Math.round(it.delay) + ' min' : ' včas') : '') : it.virt ? ' · ukázková jízda' : ' · podle jízdního řádu') + '</small></b></div>' +
+    '<div class="rd-next"><small>' + ttl + '</small><div><b id="rd-nn">' + MG.h(D.shortName(D.plName(p.s[nk]), city)) + '</b><span id="rd-nd"></span></div><div class="rd-bar"><i id="rd-nb"></i></div></div>' +
     '<div class="rd-list" style="--lc:' + L_.c + '">' + rows.join('') + '</div>';
   }
   const nd = $('rd-nd'), nb = $('rd-nb');
-  if (nd) nd.textContent = dNext < 1000 ? Math.round(dNext / 10) * 10 + ' m' : (dNext / 1000).toFixed(1).replace('.', ',') + ' km';
+  if (nd) nd.textContent = R.dwell > 0 || R.done ? '' : dNext < 1000 ? Math.round(dNext / 10) * 10 + ' m' : (dNext / 1000).toFixed(1).replace('.', ',') + ' km';
   if (nb) nb.style.width = Math.round(prog * 100) + '%';
  }
+ setInterval(() => { if (R) rideHud(); }, 500);
  /* ---------- ovladač kamery (joystick) ---------- */
  (function joy() {
   const j = $('joy'), k = $('joy-k'); if (!j) return;
   let on = false, x0 = 0, y0 = 0, b0 = 0, p0 = 0, raf = 0, dx = 0, dy = 0;
-  const loop = () => { if (!on || !T.map) return; if (T.ride) { T.joyB = (T.joyB || 0) + dx * .04; T.joyP = MG.clamp((T.joyP || 0) - dy * .03, -30, 16); } else T.map.jumpTo({bearing: T.map.getBearing() + dx * .05, pitch: MG.clamp(T.map.getPitch() - dy * .04, 0, 82)}); raf = requestAnimationFrame(loop); };
+  const loop = () => { if (!on || !T.map) return; if (R) { T.joyB = (T.joyB || 0) + dx * .05; T.joyP = MG.clamp((T.joyP || 0) - dy * .03, -33, 15); } else T.map.jumpTo({bearing: T.map.getBearing() + dx * .05, pitch: MG.clamp(T.map.getPitch() - dy * .04, 0, 82)}); raf = requestAnimationFrame(loop); };
   j.addEventListener('pointerdown', e => { on = true; x0 = e.clientX; y0 = e.clientY; dx = dy = 0; j.setPointerCapture(e.pointerId); raf = requestAnimationFrame(loop); });
   j.addEventListener('pointermove', e => { if (!on) return; dx = MG.clamp(e.clientX - x0, -26, 26); dy = MG.clamp(e.clientY - y0, -26, 26); k.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; });
   const up = () => { on = false; cancelAnimationFrame(raf); k.style.transform = ''; };
   j.addEventListener('pointerup', up); j.addEventListener('pointercancel', up);
   j.addEventListener('dblclick', () => { T.joyB = 0; T.joyP = 0; T.north(); });
   const rx = $('ride-x'); if (rx) rx.onclick = () => T.endRide();
+  const ff = $('ride-ff'); if (ff) ff.onclick = () => T.rideFast();
  })();
  /* ---------- bublina vozidla ve 3D ---------- */
  let vpop = null;
@@ -3445,7 +3809,7 @@ MG.jtsk = function(ex, ny, H){
   if (keys.length > 8) for (const k of keys.slice(0, keys.length - 8)) await c.delete(k);
  }
  /* ---------------- instalace (PWA) ---------------- */
- MG.pwa = {prompt: null};
+ MG.pwa = {prompt: null, can: () => !(matchMedia('(display-mode: standalone)').matches || navigator.standalone)};
  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); MG.pwa.prompt = e; });
  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !/claude\.ai|claudeusercontent/.test(location.host)) {
   fetch('sw.js', {method: 'HEAD'}).then(r => { if (r.ok) navigator.serviceWorker.register('sw.js').catch(() => {}); }).catch(() => {});
@@ -3489,11 +3853,13 @@ MG.jtsk = function(ex, ny, H){
   MG.map.drawOkresy(oi); MG.map.drawNet();
   MG.emit('okres', oi);
   MG.veh.tick();
-  if (MG.ui.cur === 'sh-net') MG.net.render();
+  if (MG.ui.cur === 'sh-net' && MG.net.open == null) MG.net.render();
  };
  /* automatické načtení okresu pod středem mapy */
  const autoLoad = MG.debounce(() => {
   if (!D.geo || MG.mode3d) return;
+  /* při prohlížení linky, spojení nebo vozidla okres neměnit (panel by se překreslil) */
+  if (MG.map.selKind || MG.veh.sel || (MG.ui.cur && MG.ui.cur !== 'sh-dep')) return;
   const m = MG.map.m; if (m.getZoom() < 11) return;
   const c = m.getCenter(), oi = D.okresAt(c.lat, c.lng);
   if (oi >= 0 && oi !== A.cur) A.selectOkres(oi, {keepView: true});

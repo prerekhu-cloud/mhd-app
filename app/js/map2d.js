@@ -38,7 +38,8 @@
   $('lay-basic').style.backgroundImage = 'url(' + thumb('streets-v12') + ')';
   $('lay-light').style.backgroundImage = 'url(' + thumb('light-v11') + ')';
   $('lay-sat').style.backgroundImage = 'url(' + thumb('satellite-streets-v12') + ')';
-  map.on('zoomend', () => M.restyleNet && M.restyleNet());
+  map.on('zoomend', () => { if ((map.getZoom() >= 15.5) !== !!M.netDetail) M.drawNet(); else M.restyleNet && M.restyleNet(); });
+  map.on('moveend', MG.debounce(() => { if (M.netDetail) M.drawNet(); }, 250));
   map.on('zoomend moveend', () => { updScale(); M.refreshStops(); MG.emit('view'); });
   map.on('click', () => MG.emit('mapclick'));
   updScale();
@@ -89,7 +90,27 @@
   const dark = document.body.classList.contains('dark'), z = M.m.getZoom();
   const copper = dark ? '#E39A70' : '#C1784F';
   const add = (pts, o) => { const l = L.polyline(pts, Object.assign({renderer: M.rNet, lineCap: 'round', lineJoin: 'round', interactive: true}, o)); l._k = o._k; l.on('click', e => { L.DomEvent.stop(e); M.linesAt(e.latlng); }); l.addTo(M.gNet); M.netLayers.push(l); return l; };
-  for (const oi of D.loaded) {
+  /* při velkém přiblížení skutečné trasy linek (vedou osou silnic a kolejí, směry se překrývají), jinak sloučená síť */
+  M.netDetail = z >= 15.5;
+  if (M.netDetail) {
+   const b = M.m.getBounds().pad(.35), S = b.getSouth(), Wd = b.getWest(), N = b.getNorth(), E = b.getEast();
+   const seen = new Set(), rail = [], reg = [], city = [];
+   for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) {
+    if (seen.has(li)) continue; seen.add(li); const Ln = D.ln.get(li); if (!Ln) continue;
+    if (Ln.k === 'vlak' ? MG.app.hideTrains : (Ln.k === 'regio' || Ln.k === 'mezi') && MG.app.hideRegio) continue;
+    const pats = Ln.pats.length <= 6 ? Ln.pats : D.mainPats(Ln).filter(Boolean).concat(Ln.pats.filter(p => p.nt >= 4));
+    for (const p of new Set(pats)) {
+     const g = D.geo3(p), pts = [];
+     let inb = false; for (let i = 0; i < g.lat.length; i += 3) if (g.lat[i] > S && g.lat[i] < N && g.lon[i] > Wd && g.lon[i] < E) { inb = true; break; }
+     if (!inb) continue;
+     (Ln.k === 'vlak' ? rail : Ln.k === 'regio' || Ln.k === 'mezi' ? reg : city).push(g.pts);
+    }
+   }
+   if (rail.length) { add(rail, {color: dark ? '#9aa1ad' : '#4a4f5a', weight: W(z) * .9 + 1.4, opacity: .8, _k: 'vlak0'}); add(rail, {color: dark ? '#24221f' : '#ffffff', weight: Math.max(1.2, W(z) * .45), opacity: .95, dashArray: '7 8', interactive: false, _k: 'vlak1'}); }
+   if (reg.length) add(reg, {color: dark ? '#b98a6c' : '#b98c6e', weight: Math.max(1.6, W(z) * .62), opacity: .75, _k: 'regio'});
+   if (city.length) add(city, {color: copper, weight: W(z), opacity: .92, _k: 'mhd'});
+  }
+  else for (const oi of D.loaded) {
    const n = D.okNet && D.okNet.get(oi); if (!n) continue;
    if (!MG.app.hideTrains) for (const p of n.vlak) { add(p, {color: dark ? '#9aa1ad' : '#4a4f5a', weight: W(z) * .9 + 1.4, opacity: .8, _k: 'vlak0'}); add(p, {color: dark ? '#24221f' : '#ffffff', weight: Math.max(1.2, W(z) * .45), opacity: .95, dashArray: '7 8', interactive: false, _k: 'vlak1'}); }
    if (!MG.app.hideRegio) for (const p of n.regio) add(p, {color: dark ? '#b98a6c' : '#b98c6e', weight: Math.max(1.6, W(z) * .62), opacity: .75, _k: 'regio'});
@@ -173,7 +194,20 @@
   if (opt.fit) { const b = L.latLngBounds(pts); M.m.flyToBounds(b, {padding: M.padFit(), duration: .7, maxZoom: 16}); }
  };
  M.padFit = () => { const sheetOpen = document.querySelector('.sheet.open,#vcard.open'); const land = matchMedia('(orientation:landscape) and (max-height:520px), (min-width:900px) and (min-height:521px)').matches; if (!sheetOpen) return [30, 30]; return land ? [30, 30] : [30, 30]; };
- M.fitPad = (b) => { const sh = document.querySelector('.sheet.open,#vcard.open'); const land = matchMedia('(orientation:landscape) and (max-height:520px), (min-width:900px) and (min-height:521px)').matches; let opt = {padding: [30, 30], maxZoom: 16, duration: .7}; if (sh) { const r = sh.getBoundingClientRect(), mr = $('mapwrap').getBoundingClientRect(); if (land) opt = {paddingTopLeft: [Math.max(30, r.right - mr.left + 16), 30], paddingBottomRight: [30, 30], maxZoom: 16, duration: .7}; else opt = {paddingTopLeft: [30, 30], paddingBottomRight: [30, Math.max(30, mr.bottom - r.top + 16)], maxZoom: 16, duration: .7}; } M.m.flyToBounds(b, opt); };
+ M.fitPad = (b) => {
+  /* odsazení jen o tu část panelu, která mapu skutečně zakrývá (telefon: list dole, šířka: panel vedle mapy) */
+  const sh = document.querySelector('.sheet.open,#vcard.open'), mr = $('mapwrap').getBoundingClientRect();
+  let tl = [40, 50], br = [40, 62];
+  if (sh) {
+   const r = sh.getBoundingClientRect();
+   const ox = Math.min(r.right, mr.right) - Math.max(r.left, mr.left), oy = Math.min(r.bottom, mr.bottom) - Math.max(r.top, mr.top);
+   if (ox > 0 && oy > 0) {
+    if (r.width < mr.width * .75) { if (r.left - mr.left > mr.right - r.right) br[0] = mr.right - r.left + 16; else tl[0] = r.right - mr.left + 16; }
+    else br[1] = mr.bottom - r.top + 16;
+   }
+  }
+  M.m.flyToBounds(b, {paddingTopLeft: tl, paddingBottomRight: br, maxZoom: 16, duration: .7});
+ };
  /* ---------- moje poloha ---------- */
  M.setMe = (lat, lon, acc) => {
   if (!M.meMk) {
