@@ -4,11 +4,12 @@
  const M = MG.map = {};
  const CZ_BOUNDS = L.latLngBounds([48.55, 12.09], [51.06, 18.86]);
  const OSMA = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · data CIS JŘ, PID';
- /* bez Mapbox tokenu: CARTO (OSM) a Esri letecké snímky */
- const FALLBACK = {'streets-v12': 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', 'navigation-night-v1': 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 'light-v11': 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', 'dark-v11': 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 'satellite-streets-v12': 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'};
+ /* bez Mapbox tokenu: OpenStreetMap (CARTO už vyžaduje klíč) – světlá a tmavá varianta filtrem, letecká Esri */
+ const OSMT = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+ const FALLBACK = {'streets-v12': [OSMT, ''], 'navigation-night-v1': [OSMT, 'tl-dark'], 'light-v11': [OSMT, 'tl-light'], 'dark-v11': [OSMT, 'tl-dark'], 'satellite-streets-v12': [ESRI, '']};
  const tile = (style) => MG.cfg.MAPBOX ? L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/' + style + '/tiles/512/{z}/{x}/{y}@2x?access_token=' + MG.cfg.MAPBOX,
   {tileSize: 512, zoomOffset: -1, maxZoom: 20, crossOrigin: true, attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> ' + OSMA}) :
-  L.tileLayer(FALLBACK[style], {maxZoom: 20, maxNativeZoom: style.startsWith('satellite') ? 19 : 20, subdomains: 'abcd', crossOrigin: true, attribution: (style.startsWith('satellite') ? '© Esri, Maxar ' : '© <a href="https://carto.com/">CARTO</a> ') + OSMA});
+  L.tileLayer(FALLBACK[style][0], {maxZoom: 20, maxNativeZoom: 19, className: FALLBACK[style][1], crossOrigin: true, attribution: (style.startsWith('satellite') ? '© Esri, Maxar · ' : '') + OSMA});
  M.init = () => {
   const map = M.m = L.map('map', {zoomControl: false, preferCanvas: true, minZoom: 6, maxZoom: 19, zoomSnap: .5, wheelPxPerZoomLevel: 90, maxBounds: CZ_BOUNDS.pad(.6), worldCopyJump: false});
   map.setView([49.8, 15.5], 7);
@@ -34,7 +35,8 @@
   $('z-in').onclick = () => MG.mode3d ? MG.m3d.zoom(1) : map.zoomIn();
   $('z-out').onclick = () => MG.mode3d ? MG.m3d.zoom(-1) : map.zoomOut();
   MG.qsa('#layers .lay, #layseg button').forEach(b => b.onclick = () => M.setLayer(b.dataset.l));
-  const thumb = (st) => MG.cfg.MAPBOX ? 'https://api.mapbox.com/styles/v1/mapbox/' + st + '/tiles/256/12/2211/1387?access_token=' + MG.cfg.MAPBOX : FALLBACK[st].replace('{s}', 'a').replace('{z}', 12).replace('{x}', 2211).replace('{y}', 1387).replace('{r}', '');
+  const thumb = (st) => MG.cfg.MAPBOX ? 'https://api.mapbox.com/styles/v1/mapbox/' + st + '/tiles/256/12/2211/1387?access_token=' + MG.cfg.MAPBOX : FALLBACK[st][0].replace('{z}', 12).replace('{x}', 2211).replace('{y}', 1387);
+  if (!MG.cfg.MAPBOX) $('lay-light').classList.add('tl-light');
   $('lay-basic').style.backgroundImage = 'url(' + thumb('streets-v12') + ')';
   $('lay-light').style.backgroundImage = 'url(' + thumb('light-v11') + ')';
   $('lay-sat').style.backgroundImage = 'url(' + thumb('satellite-streets-v12') + ')';

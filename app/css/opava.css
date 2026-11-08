@@ -466,3 +466,6 @@ body.riding #joy{top:210px}
 .ln-th.gen{position:relative;width:40px;height:26px;border-radius:9px;background:color-mix(in srgb,var(--lc,#888) 14%,transparent)}
 .ln-th.gen i{color:var(--lc,#888);font-size:14px}
 .ln-th.gen i.tb{position:absolute;right:3px;top:2px;font-size:8px}
+/* náhradní podklady bez Mapbox tokenu (OpenStreetMap) */
+.leaflet-layer.tl-light,#lay-light.tl-light{filter:grayscale(.85) brightness(1.06) contrast(.92)}
+.leaflet-layer.tl-dark{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6)}

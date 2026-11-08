@@ -141,7 +141,7 @@
   if (!src.length || !dst.length) return {err: 'V okolí nejsou žádné zastávky.'};
   const direct = MG.dist(from.lat, from.lon, to.lat, to.lon);
   const results = []; let tt = t;
-  for (let it = 0; it < (opt.count || 5) && results.length < (opt.count || 5); it++) {
+  for (let it = 0; it < (opt.count || 5) * 2 && results.length < (opt.count || 5); it++) {
    const r = run(n, src, dst, tt, qday, 6);
    if (!r.length) break;
    for (const c of r) {
@@ -154,11 +154,18 @@
     const key = c.legs.filter(l => !l.walk).map(l => l.p.i + ':' + l.j).join('|');
     if (!results.some(x => x.key === key)) { c.key = key; results.push(c); }
    }
-   const firsts = r.map(c => c.rideDep).filter(isFinite);
+   /* další hledání od minuty po nejdřívějším nalezeném odjezdu (jinak se najde stále totéž spojení) */
+   const firsts = r.map(c => c.dep).filter(isFinite);
    if (!firsts.length) break;
-   tt = Math.min(...firsts) + 1 - 2;
+   tt = Math.max(tt + 1, Math.min(...firsts) + 1);
   }
-  results.sort((a, b) => a.arr - b.arr || a.rounds - b.rounds);
+  /* jako IDOS: podle odjezdu; ze spojení se stejným odjezdem to s dřívějším příjezdem */
+  results.sort((a, b) => a.dep - b.dep || a.arr - b.arr || a.rounds - b.rounds);
+  /* vyřadit spojení, která jsou horší ve všem: existuje jiné, co odjíždí stejně nebo později a přijede stejně nebo dřív */
+  for (let i = results.length - 1; i >= 0; i--) {
+   const a = results[i];
+   if (results.some(b => b !== a && b.dep >= a.dep && b.arr <= a.arr && (b.dep > a.dep || b.arr < a.arr || (b.rounds || 0) < (a.rounds || 0)))) results.splice(i, 1);
+  }
   const walkOnly = direct < 1500 ? {walk: true, dur: Math.round(direct / WALK), dist: direct} : null;
   return {results: results.slice(0, opt.count || 5), n, src, dst, walkOnly, qday};
  };
