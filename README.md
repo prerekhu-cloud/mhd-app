@@ -66,7 +66,7 @@ Struktura `data/`:
 ## Mapbox token
 
 GitHub (push protection) nedovolí uložit Mapbox token do repozitáře, proto v `mhdgo.html` v repozitáři není.
-Bez tokenu aplikace použije podklady CARTO/OpenStreetMap a Esri (letecké) a 3D mapa nejde spustit.
+Bez tokenu aplikace použije podklady OpenStreetMap (základní, světlá a tmavá varianta) a Esri (letecké) a 3D mapa nejde spustit.
 Token se dá zadat:
 
 - v aplikaci: **Více → Nastavení → Mapbox token** (uloží se v prohlížeči), nebo
