@@ -51,8 +51,12 @@
  /* obrázek vozidla u linky (jako OpavaGO) */
  function thumb(L_) {
   const T = MG.THUMBS || {}, dark = document.body.classList.contains('dark');
-  const src = {trol: dark ? T.trolD : T.trol, mhd: dark ? T.busD : T.bus, regio: T.regio, mezi: T.regio, vlak: T.vlak, tram: T.tram, metro: T.metro}[L_.k];
-  return '<span class="ln-th">' + (src ? '<img src="' + src + '" alt="" loading="lazy">' : '<i class="fa-solid ' + D.KIND[L_.k][0] + '"></i>') + '</span>';
+  /* fotky vozů z OpavaGO jen u linek, kde opravdu jezdí (MHD Opava, ODIS); jinde neutrální ikona – nic nepředstírat */
+  const opava = L_.city === 'Opava', odis = L_.sys === 'ODIS';
+  const src = {trol: opava ? (dark ? T.trolD : T.trol) : null, mhd: opava ? (dark ? T.busD : T.bus) : null, regio: odis ? T.regio : null, mezi: null, vlak: T.vlak, tram: T.tram, metro: T.metro}[L_.k];
+  if (src) return '<span class="ln-th"><img src="' + src + '" alt="" loading="lazy"></span>';
+  const ic = {trol: 'fa-bus', mhd: 'fa-bus', regio: 'fa-bus-simple', mezi: 'fa-bus-simple', lan: 'fa-cable-car', lod: 'fa-ferry'}[L_.k] || D.KIND[L_.k][0];
+  return '<span class="ln-th gen" style="--lc:' + L_.c + '"><i class="fa-solid ' + ic + '"></i>' + (L_.k === 'trol' ? '<i class="fa-solid fa-bolt tb"></i>' : '') + '</span>';
  }
  function expand(L_) {
   const pats = D.mainPats(L_);

@@ -102,7 +102,7 @@
  document.addEventListener('visibilitychange', () => jmkSync());
  function jmkList() {
   const now = Date.now(), out = [];
-  for (const [id, v] of JMK.veh) { if (now - v.t > 180000) { JMK.veh.delete(id); continue; } out.push({src: 'IDS JMK', line: v.line, lat: v.lat, lon: v.lon, delay: v.delay, head: (JMK.names && JMK.names[v.fin]) || '', low: v.lf, bearing: v.b, plate: String(id), sys: 'JMK'}); }
+  for (const [id, v] of JMK.veh) { if (now - v.t > 180000) { JMK.veh.delete(id); continue; } out.push({src: 'IDS JMK', line: v.line, lat: v.lat, lon: v.lon, delay: v.delay, head: (JMK.names && JMK.names[v.fin]) || '', low: v.lf, bearing: v.b, plate: String(id), sys: 'JMK', t: v.t}); }
   return out;
  }
  LV.allBus = () => (LV.busOdis || []).concat(LV.busWorker || [], jmkList());

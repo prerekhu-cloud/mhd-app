@@ -202,6 +202,8 @@
  const SHORT = {bus12: 'Autobus 12 m', bus18: 'Kloubový autobus', bus10: 'Midibus 10,5 m', trol12: 'Trolejbus', trol18: 'Kloubový trolejbus', regio: 'Regionální autobus', coach: 'Dálkový autobus', tram: 'Tramvaj', metro: 'Souprava metra', 'train-os': 'Osobní vlak', 'train-r': 'Rychlík', 'train-ic': 'Dálkový vlak', funi: 'Lanovka', boat: 'Přívoz'};
  MD.short = L_ => SHORT[MD.typeOf(L_)] || '';
  /* popis pro panel jízdy: u skutečného modelu poctivě „ilustrační model“ */
- MD.label = L_ => { const t = MD.typeOf(L_); return MD.glb[t] ? SHORT[t] + ' · ilustrační 3D model ' + MD.GLB[t].name : SHORT[t] || ''; };
+ const KINDN = {mhd: 'Autobus MHD', trol: 'Trolejbus', tram: 'Tramvaj', metro: 'Metro', regio: 'Regionální autobus', mezi: 'Dálkový autobus', vlak: 'Vlak', lan: 'Lanovka', lod: 'Přívoz'};
+ /* skutečný typ vozu neznáme: jen druh dopravy, u 3D modelu poctivě „ilustrační“ */
+ MD.label = L_ => { const t = MD.typeOf(L_); return (KINDN[L_.k] || '') + (MD.glb[t] ? ' · ilustrační 3D model ' + MD.GLB[t].name : ' · ilustrační 3D model'); };
  MD.length = {bus12: 12, bus10: 10.5, bus18: 18, trol12: 12, trol18: 18, regio: 12, coach: 13, tram: 27, metro: 59, 'train-os': 52, 'train-r': 115, 'train-ic': 105, funi: 10, boat: 14};
 })();

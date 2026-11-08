@@ -26,11 +26,24 @@ def fold(s):
     return re.sub(r'[^a-z0-9]+', ' ', s).strip()
 
 def town(name):
-    return name.split(',')[0].strip()
+    return re.sub(r'\s*\[[^\]]*\]\s*$', '', name.split(',')[0]).strip()
 
 # ---------------------------------------------------------------- linky
 DP_RE = re.compile(r'dopravn[íi] podnik|městsk[ýá] dopravn|^DP[A-ZÚ]|^MDP|^DPO$|^DPMB|^DPMO|^PMDP|^DSZO|^DPKV|^DPMLJ|^DPMÚL|^DPMHK|^DPMP|^DPMCB|^DPMJ|^DPmML|^DPMD|^DPML|^DPMK|^MHD|Dopravní společnost Zlín|Plzeňské městské dopravní|Městská doprava|TEDOM BUS', re.I)
 LONG_RE = re.compile(r'RegioJet|FlixBus|Student Agency|Leo Express|BlaBlaCar|Eurolines|ALSA|Gepard', re.I)
+
+# druh linky podle celostátních dat JDF (Oběhy, CC0): 704 = městská (MHD), 701 = regionální, 202 = dálková,
+# 800 = trolejbus, 900 = tramvaj. Klíč = číslo linky CIS JŘ. (PID a IDS JMK v tomto souboru nejsou.)
+JDF = {}
+_jz = os.environ.get('JDF_ZIP') or os.path.join(work, 'src', 'jdf_filtered.zip')
+if os.path.exists(_jz):
+    import zipfile, csv, io
+    with zipfile.ZipFile(_jz) as _z:
+        for _r in csv.DictReader(io.TextIOWrapper(_z.open('routes.txt'), 'utf-8-sig')):
+            JDF.setdefault(_r['route_id'].split(':')[-1], collections.Counter())[_r['route_type']] += 1
+    JDF = {k: v.most_common(1)[0][0] for k, v in JDF.items()}
+log('JDF line types', len(JDF), collections.Counter(JDF.values()))
+def jdf_type(r): return JDF.get(r['rel'].get('CISJR', ''))
 
 # veřejné číslo linky (CIS JŘ často uvádí 6místné licenční číslo) a čistší název
 LN_RE = re.compile(r'linka\s*(?:č\.)?\s*:?\s*([0-9A-Za-z]+)\s*:?\s*', re.I)
@@ -44,8 +57,15 @@ for r in R:
         m2 = re.match(r'^(\d{1,3})\s+(.*)$', lg)
         if m2 and DP_RE.search(r['agency']):
             r['short'] = m2.group(1); lg = m2.group(2)
-        elif DP_RE.search(r['agency']) or r['type'] in (0, 11, 7):
+        elif DP_RE.search(r['agency']) or r['type'] in (0, 11, 7) or jdf_type(r) in ('704', '800', '900'):
             r['short'] = str(int(sn[3:]))
+    if re.match(r'^MHD\s+\S', r['short'] or ''):          # „MHD 1“ (PID – Benešov, Kolín, Říčany…) → „1“, linka je městská
+        r['short'] = re.sub(r'^MHD\s+', '', r['short']); r['_mhd'] = True
+    m3 = (re.match(r'^MHD\s+([^:0-9]+?)\s+linka', lg) or re.match(r'^MHD\s+([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][^:0-9]*?)(?:\s+(?:[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]{3,}|\d)|:)', lg)
+          or re.match(r'^MHD\s+([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][a-záčďéěíňóřšťúůýž]+(?:\s+(?:nad|pod|u|v)?\s*[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]?[a-záčďéěíňóřšťúůýž]+){0,3})\s*$', lg))
+    if m3:
+        c3 = m3.group(1).strip()
+        r['_mhd'] = True; r['_city'] = ' '.join(w if w in ('nad', 'pod', 'u', 'v') else w.capitalize() for w in c3.lower().split()) if c3.isupper() else c3
     lg = re.sub(r'^MHD\s+[^:]*:\s*', '', lg)
     lg = re.sub(r',\s*,', ', ', lg).replace(' ,', ',')
     lg = re.sub(r'^\d{1,3}\s+(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ])', '', lg) if r['short'] and lg.startswith(r['short'] + ' ') else lg
@@ -58,7 +78,10 @@ for pi_, pt in enumerate(PT):
     for x in pt['stops']:
         route_st[pt['route']][P[x]['st']] += pt['n']
 
+PID_CITY = re.compile(r'^(AE|[1-2]\d\d|9(0\d|1[0-7]))$')
 def classify(ri):
+    """Druh linky. Pořadí důkazů: typ vozidla v GTFS → oficiální druh linky JDF (704 = MHD) → číselné řady PID
+    → heuristika (dopravní podnik / všechny zastávky v jednom městě; o „MHD“ se rozhodne až podle celého města)."""
     r = R[ri]; t = r['type']
     if t == 1: return 'metro'
     if t == 0: return 'tram'
@@ -66,30 +89,49 @@ def classify(ri):
     if t == 7: return 'lan'
     if t == 4: return 'lod'
     if t == 2: return 'vlak'
+    jt = jdf_type(r)
+    if jt == '704': return 'mhd'
+    if jt == '800': return 'trol'
+    if jt == '900': return 'tram'
+    if jt == '202': return 'mezi'
+    short = r['short'] or ''
     sts = list(route_st[ri].keys())
     if not sts: return 'regio'
-    towns = collections.Counter(town(S[s]['name']) for s in sts)
-    top, cnt = towns.most_common(1)[0]
-    share = cnt / len(sts)
+    if r.get('_mhd') and jt in (None, '704'): return 'mhd'
+    if jt is None and 'PID' in r['rel']:
+        if PID_CITY.match(short) or re.match(r'^X(?:[1-2]\d\d|9\d\d)$', short): return 'mhd'
+        return regional(ri, sts)
+    if jt is None:
+        towns = collections.Counter(town(S[s]['name']) for s in sts)
+        top, cnt = towns.most_common(1)[0]
+        if DP_RE.search(r['agency']) and len(short) <= 4 and cnt / len(sts) >= .5: return 'mhd'
+        if cnt / len(sts) >= 0.7 and len(short) <= 3 and len(sts) >= 3: return 'mhd?'
+    return regional(ri, sts)
+
+def regional(ri, sts):
+    r = R[ri]
     kraje = collections.Counter(okres_kraj[st_okres[s]] if st_okres[s] >= 0 else -1 for s in sts)
     foreign = kraje.get(-1, 0)
-    short = r['short'] or ''
-    if DP_RE.search(r['agency']) and len(short) <= 4:
-        return 'mhd'
-    if share >= 0.7 and len(short) <= 3 and len(sts) >= 3:
-        return 'mhd'
     if LONG_RE.search(r['agency']) or foreign >= 2:
         return 'mezi'
     ks = [k for k in kraje.most_common() if k[0] >= 0]
     if len(ks) >= 2 and (ks[1][1] / len(sts) >= 0.2 or len(ks) >= 3):
         return 'mezi'
-    # délka trasy
     lat = [S[s]['lat'] for s in sts if S[s]['lat']]; lon = [S[s]['lon'] for s in sts if S[s]['lon']]
     if lat and math.hypot((max(lat) - min(lat)) * 111, (max(lon) - min(lon)) * 72) > 110:
         return 'mezi'
     return 'regio'
 
 kind = {ri: classify(ri) for ri in range(len(R)) if route_trips[ri]}
+# „MHD?“ (všechny zastávky v jednom městě, bez oficiálního údaje): MHD jen tam, kde město MHD opravdu má –
+# potvrzená linka MHD (JDF/dopravní podnik) nebo aspoň 2 takové linky; osamocené místní linky na vesnicích jsou regionální
+def town_of(ri): return collections.Counter(town(S[s]['name']) for s in route_st[ri]).most_common(1)[0][0]
+mhd_towns = collections.Counter(town_of(ri) for ri, k in kind.items() if k in ('mhd', 'trol', 'tram'))
+cand_towns = collections.Counter(town_of(ri) for ri, k in kind.items() if k == 'mhd?')
+for ri, k in list(kind.items()):
+    if k == 'mhd?':
+        tw = town_of(ri)
+        kind[ri] = 'mhd' if (mhd_towns[tw] or cand_towns[tw] >= 2) else regional(ri, list(route_st[ri].keys()))
 log('route kinds', collections.Counter(kind.values()))
 
 def home_okres(ri):
@@ -114,8 +156,8 @@ for ri in sorted(kind, key=lambda r: (kind[r], R[r]['short'], -route_trips[r])):
     r = R[ri]; k = kind[ri]
     ho = home_okres(ri)
     if k in ('mhd', 'tram', 'trol', 'metro', 'lan', 'lod'):
-        city = city_of(ri)
-        key = (k if k != 'mhd' else 'bus', r['short'], city)
+        city = r.get('_city') or ('Praha' if ('PID' in r['rel'] and (k in ('trol', 'tram', 'metro') or PID_CITY.match(r['short'] or '') or re.match(r'^X\d', r['short'] or '')) and not r.get('_mhd')) else city_of(ri))
+        key = ('city' if k in ('mhd', 'trol') else k, r['short'], city)   # bus a trolejbus téhož čísla = jedna linka
     elif k == 'vlak':
         m = TRAIN_LABEL.match(r['short'] or '')
         city = ''
@@ -136,9 +178,10 @@ for ri in sorted(kind, key=lambda r: (kind[r], R[r]['short'], -route_trips[r])):
         gl = len(lines)
         groups.setdefault(key, []).append(gl)
         lines.append({'kind': k, 'short': r['short'], 'long': r['long'], 'city': city, 'type': r['type'], 'routes': [],
-                      'agencies': [], '_st': set(), 'home': ho, 'trips': 0, 'night': r['night'], 'cis': []})
+                      'agencies': [], '_st': set(), 'home': ho, 'trips': 0, 'night': r['night'], 'cis': [], '_kt': collections.Counter()})
     L = lines[gl]
-    L['routes'].append(ri); L['_st'] |= stset; L['trips'] += route_trips[ri]
+    L['routes'].append(ri); L['_st'] |= stset; L['trips'] += route_trips[ri]; L['_kt'][k] += route_trips[ri]
+    L['kind'] = L['_kt'].most_common(1)[0][0]
     if r['agency'] and r['agency'] not in L['agencies']: L['agencies'].append(r['agency'])
     if 'CISJR' in r['rel'] and r['rel']['CISJR'] not in L['cis']: L['cis'].append(r['rel']['CISJR'])
     if 'PID' in r['rel']: L['pid'] = True

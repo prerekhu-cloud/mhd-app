@@ -208,14 +208,18 @@
   const oi = MG.app.cur; const ids = (D.okLines.get(oi) || []).map(i => D.ln.get(i)).filter(Boolean).filter(L_ => !L_.city || !D.okresy[oi] || true);
   const o = D.okresy[oi]; const bb = o ? o.bbox : null;
   const act = new Map(); for (const it of MG.veh.active(bb ? [bb[1], bb[0], bb[3], bb[2]] : null)) { MG.veh.place(it); (act.get(it.L.i) || act.set(it.L.i, []).get(it.L.i)).push(it); }
-  const groups = [['tram', 'Tramvaje'], ['trol', 'Trolejbusy'], ['metro', 'Metro'], ['mhd', 'Autobusy MHD'], ['regio', 'Regionální autobusy'], ['mezi', 'Dálkové autobusy'], ['vlak', 'Vlaky']];
   const num = s => { const m = /(\d+)/.exec(s || ''); return m ? +m[1] : 1e9; };
+  const srt = ls => ls.sort((a, b) => num(D.lineText(a)) - num(D.lineText(b)) || String(D.lineText(a)).localeCompare(String(D.lineText(b))));
+  const chips = ls => '<div class="lns">' + srt(ls).slice(0, 90).map(L_ => '<span class="ln' + (act.has(L_.i) ? '' : ' off') + '" data-rl="' + L_.i + '" style="--lc:' + L_.c + ';--lt:' + L_.tc + '" title="' + MG.h(L_.ln || '') + '">' + MG.h(D.lineText(L_)) + '</span>').join('') + '</div>';
   let h = '<div class="rd-pick"><button class="btn" id="rd-rnd"><i class="fa-solid fa-shuffle"></i>Náhodné vozidlo</button>';
-  for (const [k, t] of groups) {
-   const ls = ids.filter(L_ => L_.k === k).sort((a, b) => num(D.lineText(a)) - num(D.lineText(b)) || String(D.lineText(a)).localeCompare(String(D.lineText(b))));
-   if (!ls.length) continue;
-   h += '<div class="sec-t">' + t + '</div><div class="lns">' + ls.slice(0, 90).map(L_ => '<span class="ln' + (act.has(L_.i) ? '' : ' off') + '" data-rl="' + L_.i + '" style="--lc:' + L_.c + ';--lt:' + L_.tc + '" title="' + MG.h(L_.ln || '') + '">' + MG.h(D.lineText(L_)) + '</span>').join('') + '</div>';
-  }
+  /* jako v síti: nejdřív MHD okresního města podle druhu, pak MHD dalších měst, regionální, dálkové, vlaky */
+  const CITYK = ['metro', 'tram', 'trol', 'mhd'], seat = o ? o.seat : '';
+  const KN = {metro: 'Metro', tram: 'Tramvaje', trol: 'Trolejbusy', mhd: 'Autobusy'};
+  const mine = ids.filter(L_ => CITYK.includes(L_.k) && (!L_.city || L_.city === seat));
+  for (const k of CITYK) { const ls = mine.filter(L_ => L_.k === k); if (ls.length) h += '<div class="sec-t">' + (seat ? 'MHD ' + MG.h(seat) + ' · ' : '') + KN[k] + '</div>' + chips(ls); }
+  const byCity = new Map(); for (const L_ of ids.filter(L_ => CITYK.includes(L_.k) && L_.city && L_.city !== seat)) (byCity.get(L_.city) || byCity.set(L_.city, []).get(L_.city)).push(L_);
+  for (const [city, ls] of [...byCity].sort((a, b) => b[1].length - a[1].length)) h += '<div class="sec-t">MHD ' + MG.h(city) + '</div>' + chips(ls);
+  for (const [k, t] of [['regio', 'Regionální autobusy'], ['mezi', 'Dálkové autobusy'], ['vlak', 'Vlaky']]) { const ls = ids.filter(L_ => L_.k === k); if (ls.length) h += '<div class="sec-t">' + t + '</div>' + chips(ls); }
   h += '<div class="status" style="margin-top:12px">Barevné linky právě jezdí – jízda začne tam, kde je vozidlo teď. U šedých linek začne na první zastávce.</div></div>';
   const el = MG.ui.misc({eb: 'Jízda vozidlem', title: 'Vyber linku', sub: o ? 'Okres ' + MG.h(o.name) : ''}, h, true);
   const go = (li) => {

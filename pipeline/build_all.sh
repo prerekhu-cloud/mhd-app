@@ -10,6 +10,8 @@ echo "== stahuji zdroje"
 curl -fsSL -o "$W/src/cisjr/gtfs.zip" "https://spojenka.d3s.mff.cuni.cz/api/data/timetable/gtfs"
 curl -fsSL -o "$W/src/pid/PID_GTFS.zip" "https://data.pid.cz/PID_GTFS.zip"
 curl -fsSL -o "$W/src/kordis_gtfs.zip" "https://kordis-jmk.cz/gtfs/gtfs.zip" || true
+# druh linek (městská/regionální) z celostátních dat JDF – Oběhy, CC0
+curl -fsSL -o "$W/src/jdf_filtered.zip" "https://motis.obehy.cz/get-feeds/cz-jdf-filtered-gtfs.zip" || true
 if [ ! -s "$W/src/osm/cz.osm.pbf" ] || [ -n "${OSM_REFRESH:-}" ]; then
   curl -fsSL -o "$W/src/osm/cz.osm.pbf" "https://download.geofabrik.de/europe/czech-republic-latest.osm.pbf" \
   || curl -fsSL -o "$W/src/osm/cz.osm.pbf" "https://download.openstreetmap.fr/extracts/europe/czech_republic-latest.osm.pbf"

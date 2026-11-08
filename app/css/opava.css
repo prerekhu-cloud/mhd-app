@@ -462,3 +462,7 @@ body.riding #joy{top:210px}
 .st-r span.req-ic{flex:0 0 21px;width:21px;max-width:21px;margin-left:-4px}
 .st-r .lns{flex-wrap:wrap;row-gap:2px}
 .req-ic.sm{width:17px;height:17px;font-size:8px;vertical-align:1px;margin-left:2px}
+/* neutrální obrázek linky (mimo Opavu nejsou fotky skutečných vozů) */
+.ln-th.gen{position:relative;width:40px;height:26px;border-radius:9px;background:color-mix(in srgb,var(--lc,#888) 14%,transparent)}
+.ln-th.gen i{color:var(--lc,#888);font-size:14px}
+.ln-th.gen i.tb{position:absolute;right:3px;top:2px;font-size:8px}

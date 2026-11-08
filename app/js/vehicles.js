@@ -220,7 +220,7 @@
   }
   const lv = it.live;
   const meta = [];
-  meta.push('<span><i class="fa-solid ' + KI[L_.k] + '"></i>' + MG.h(MG.models ? (MG.models.short(L_) || KN[L_.k]) : KN[L_.k]) + '</span>');
+  meta.push('<span><i class="fa-solid ' + KI[L_.k] + '"></i>' + MG.h(KN[L_.k] || '') + '</span>');   /* typ vozu neznáme – jen druh dopravy */
   if (lv && lv.plate) meta.push('<span>ev. č. ' + MG.h(lv.plate) + '</span>');
   if (L_.k === 'vlak' && it.num) meta.push('<span>vlak ' + MG.h(it.num) + (lv && lv.name ? ' ' + MG.h(lv.name) : '') + '</span>');
   else if (it.spoj) meta.push('<span>spoj ' + it.spoj + '</span>');
@@ -241,7 +241,13 @@
   popEl.querySelectorAll('.tl-s').forEach(r => r.onclick = (e) => { e.stopPropagation(); if (V.pick && r.classList.contains('pick')) { V.pick = false; MG.alarm.set(it.key, +r.dataset.k); popSig = ''; renderCard(it); return; } });
   if (pop) pop.update();
  }
- function ageTxt(lv) { const at = lv.src === 'Správa železnic' ? LV.at.sz : (lv.src === 'ODIS' ? LV.at.odis : LV.at.worker); const a = Math.max(0, Math.round((Date.now() - at) / 1000)); return 'před ' + (a < 60 ? a + ' s' : Math.round(a / 60) + ' min'); }
+ function ageTxt(lv) {
+  /* stáří polohy: vlastní čas zdroje (stream, GTFS-RT), jinak čas posledního načtení zdroje */
+  let at = lv.t || (lv.ts ? lv.ts * 1000 : 0) || (lv.src === 'Správa železnic' ? LV.at.sz : lv.src === 'IDS JMK' ? LV.at.jmk : (lv.src === 'ODIS' && LV.at.odis ? LV.at.odis : LV.at.worker));
+  if (!at) return '';
+  const a = Math.max(0, Math.round((Date.now() - at) / 1000));
+  return a > 3600 ? '' : 'před ' + (a < 60 ? a + ' s' : Math.round(a / 60) + ' min');
+ }
  function renderExtra(v, L_) {
   if (!popEl) return;
   const isT = !!v.train;
