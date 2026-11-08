@@ -1332,6 +1332,29 @@ MG.jtsk = function(ex, ny, H){
   const r = D.pointAt(g, d);
   return {lat: r[0], lon: r[1], hd: r[2], k, at: false, f, d};
  };
+ /* odhad zpoždění z polohy vozidla: průmět na trasu spoje → plánovaný čas v tom místě (min). Pro zdroje bez zpoždění. */
+ D.estDelay = (it, lat, lon) => {
+  const p = it.p, g = D.geo3(p), dep = p.dep[it.prof], arr = p.arr[it.prof], n = dep.length, N = g.lat.length;
+  const kx = Math.cos(lat * Math.PI / 180) * 111320, ky = 110574;
+  const tNow = it.m - it.start;
+  let best = null;
+  for (let i = 0; i < N - 1; i++) {
+   const ax = (g.lon[i] - lon) * kx, ay = (g.lat[i] - lat) * ky, bx = (g.lon[i + 1] - lon) * kx, by = (g.lat[i + 1] - lat) * ky;
+   const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+   let t = L2 > 0 ? -(ax * dx + ay * dy) / L2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+   const px = ax + dx * t, py = ay + dy * t, dist = Math.hypot(px, py);
+   if (dist > 160) continue;
+   const d = g.cd[i] + (g.cd[i + 1] - g.cd[i]) * t;
+   /* plánovaný čas ve vzdálenosti d */
+   let k = 0; while (k < n - 2 && g.cd[g.x[k + 1]] < d) k++;
+   const d0 = g.cd[g.x[k]], d1 = g.cd[g.x[k + 1]], f = d1 > d0 ? MG.clamp((d - d0) / (d1 - d0), 0, 1) : 0;
+   const ts = dep[k] + (arr[k + 1] - dep[k]) * f;
+   const del = tNow - ts, score = Math.abs(del) + dist / 80;
+   if (!best || score < best.s) best = {s: score, del};
+  }
+  if (!best || best.del < -15 || best.del > 120) return null;
+  return Math.round(best.del * 2) / 2;
+ };
  /* ---------- linky ---------- */
  const KIND = {metro: ['fa-train-subway', 'Metro'], tram: ['fa-train-tram', 'Tramvaje'], trol: ['fa-bolt', 'Trolejbusy'], mhd: ['fa-bus', 'Autobusy MHD'], regio: ['fa-bus-simple', 'Regionální autobusy'], mezi: ['fa-route', 'Meziregionální a dálkové'], vlak: ['fa-train', 'Vlaky'], lan: ['fa-cable-car', 'Lanové dráhy'], lod: ['fa-ferry', 'Přívozy']};
  D.KIND = KIND;
@@ -1645,8 +1668,10 @@ MG.jtsk = function(ex, ny, H){
 /* ===== mhdGO – živé polohy a zpoždění =====
  Zdroje:
   • Správa železnic – polohy všech osobních vlaků v ČR se zpožděním (veřejné API, CORS povolen)
-  • ODIS (Moravskoslezský kraj) – autobusy, trolejbusy, tramvaje přes proxy (Cloudflare Worker OpavaGO)
-  • volitelně vlastní worker mhdGO (worker/mhdgo-worker.js) – sjednocený formát pro další systémy */
+  • IDS JMK (Brno a Jihomoravský kraj) – otevřený stream poloh data.brno.cz (KORDIS JMK, CC BY 4.0), přímo z prohlížeče
+  • worker mhdGO (worker/mhdgo-worker.js) – PID, celostátní GTFS-RT regionálních autobusů a MHD (IDOL, JIKORD, ODIS, IDZK,
+    DÚK, DPMD…), ODIS přes proxy OpavaGO
+  • záložně ODIS přímo přes proxy OpavaGO */
 (function(){
  const D = MG.D;
  const LV = MG.live = {on: MG.store.get('live', true), trains: new Map(), bus: [], st: {sz: '', odis: '', worker: ''}, at: {sz: 0, odis: 0, worker: 0}, err: {}};
@@ -1707,38 +1732,88 @@ MG.jtsk = function(ex, ny, H){
    LV.wStats = j.stats || {}; LV.at.worker = Date.now(); LV.st.worker = 'ok'; LV.wFail = 0;
   } catch (e) { LV.st.worker = 'err'; LV.err.worker = String(e.message || e); LV.wFail = (LV.wFail || 0) + 1; LV.wLast = Date.now(); LV.busWorker = []; }
  }
- LV.allBus = () => (LV.busOdis || []).concat(LV.busWorker || []);
- /* ---------- párování živých vozů se spoji jízdního řádu ---------- */
+ /* ---------- IDS JMK: otevřený stream poloh (data.brno.cz) ---------- */
+ const JMK = LV.jmk = {ws: null, veh: new Map(), names: null, filt: '', next: 0};
+ const JMK_URL = 'wss://gis.brno.cz/geoevent/ws/services/Kordis_stream/StreamServer/subscribe';
+ const needJmk = () => { for (const oi of D.loaded) { const k = D.kraje[D.okresy[oi].kraj]; if (k && k.code === 'JHM') return true; } return false; };
+ function jmkFilter() {
+  const ws = JMK.ws; if (!ws || ws.readyState !== 1) return;
+  let s_, w_, n_, e_;
+  if (MG.mode3d && MG.m3d.map) { const b = MG.m3d.bounds(); [s_, w_, n_, e_] = b; }
+  else { const b = MG.map.m.getBounds().pad(.35); s_ = b.getSouth(); w_ = b.getWest(); n_ = b.getNorth(); e_ = b.getEast(); }
+  const r = x => Math.round(x * 50) / 50;
+  const box = {xmin: r(w_) - .02, ymin: r(s_) - .02, xmax: r(e_) + .02, ymax: r(n_) + .02};
+  const key = JSON.stringify(box); if (key === JMK.filt) return; JMK.filt = key;
+  ws.send(JSON.stringify({filter: {geometry: JSON.stringify(Object.assign(box, {spatialReference: {wkid: 4326}})), outFields: 'ID,LineName,Delay,FinalStopID,Bearing,LF,VType,IsInactive'}}));
+ }
+ function jmkSync() {
+  const want = LV.on && needJmk() && !document.hidden;
+  if (!want) { if (JMK.ws) { const w = JMK.ws; JMK.ws = null; try { w.close(); } catch (_) {} } JMK.veh.clear(); LV.st.jmk = ''; return; }
+  if (!JMK.names) { JMK.names = {}; MG.fetchJSON('kordis_stops.json').then(j => { JMK.names = j || {}; }).catch(() => {}); }
+  if (JMK.ws) { jmkFilter(); return; }
+  if (Date.now() < JMK.next || typeof WebSocket === 'undefined') return;
+  try {
+   const ws = JMK.ws = new WebSocket(JMK_URL); JMK.filt = ''; LV.st.jmk = LV.st.jmk || 'wait';
+   ws.onopen = () => jmkFilter();
+   ws.onmessage = ev => {
+    let j; try { j = JSON.parse(ev.data); } catch (_) { return; }
+    const a = j && j.attributes; if (!a || a.ID == null) return;
+    if (String(a.IsInactive) === 'true' || a.VType === 5 || a.VType === 0) { JMK.veh.delete(a.ID); return; }
+    const g = j.geometry || {}; if (!isFinite(g.y) || !isFinite(g.x)) return;
+    JMK.veh.set(a.ID, {line: String(a.LineName || ''), lat: g.y, lon: g.x, delay: isFinite(a.Delay) ? +a.Delay : null, fin: a.FinalStopID, lf: String(a.LF) === 'true', b: a.Bearing, t: Date.now()});
+    LV.st.jmk = 'ok'; LV.at.jmk = Date.now();
+   };
+   ws.onclose = ws.onerror = () => { if (JMK.ws === ws) { JMK.ws = null; JMK.next = Date.now() + 15000; if (LV.st.jmk !== 'ok') LV.st.jmk = 'err'; } };
+  } catch (e) { JMK.ws = null; JMK.next = Date.now() + 30000; LV.st.jmk = 'err'; }
+ }
+ document.addEventListener('visibilitychange', () => jmkSync());
+ function jmkList() {
+  const now = Date.now(), out = [];
+  for (const [id, v] of JMK.veh) { if (now - v.t > 180000) { JMK.veh.delete(id); continue; } out.push({src: 'IDS JMK', line: v.line, lat: v.lat, lon: v.lon, delay: v.delay, head: (JMK.names && JMK.names[v.fin]) || '', low: v.lf, bearing: v.b, plate: String(id), sys: 'JMK'}); }
+  return out;
+ }
+ LV.allBus = () => (LV.busOdis || []).concat(LV.busWorker || [], jmkList());
+ /* ---------- párování živých vozů se spoji jízdního řádu ----------
+  1) přesně: číslo linky CIS JŘ + číslo spoje (ODIS, celostátní GTFS-RT), PID: linka + spoj
+  2) jinak (IDS JMK stream): stejná linka a cíl, nejbližší spoj k poloze podle jízdního řádu posunuté o hlášené zpoždění;
+     přiřazení globálně od nejbližších dvojic, takže se vozy „nekradou“ */
  LV.matchBus = (insts) => {
   const res = new Map();
   const bus = LV.allBus(); if (!bus.length) return {res, extra: []};
   const byCis = new Map(), byShort = new Map(), byPid = new Map();
   for (const it of insts) {
    const L_ = it.L; if (!L_ || L_.k === 'vlak') continue;
-   for (const c of (L_.cis || [])) { const k = c + ':' + it.spoj; if (it.spoj) byCis.set(k, it); }
+   if (it.spoj) for (const c of (L_.cis || [])) byCis.set(c + ':' + it.spoj, it);
    if (L_.sys === 'PID' && it.spoj) byPid.set(L_.n + ':' + it.spoj, it);
-   const ks = (L_.n || '') + '|' + (L_.city || L_.sys || '');
    (byShort.get(L_.n) || byShort.set(L_.n, []).get(L_.n)).push(it);
   }
-  const used = new Set(), extra = [];
+  const used = new Set(), rest = [], extra = [];
   for (const v of bus) {
-   let it = v.cis && v.spoj ? byCis.get(v.cis + ':' + v.spoj) : (v.src === 'PID' && v.spoj ? byPid.get(v.line + ':' + v.spoj) : null);
-   if (!it) {
-    const cands = byShort.get(String(v.line)) || [];
-    const hf = fold(v.head).split(' ').pop();
-    let best = null, bd = 1e9;
-    for (const c of cands) {
-     if (used.has(c.key)) continue;
-     const hs = fold(c.head);
-     const okHead = !hf || hs.includes(hf) || fold(v.head).includes(hs.split(' ').pop());
-     const d = MG.dist(v.lat, v.lon, c.lat, c.lon) * (okHead ? 1 : 3);
-     if (d < bd) { bd = d; best = c; }
-    }
-    if (best && bd < (best.L.k === 'regio' || best.L.k === 'mezi' ? 9000 : 3500)) it = best;
-   }
+   const it = v.cis && v.spoj ? byCis.get(v.cis + ':' + v.spoj) : (v.src === 'PID' && v.spoj ? byPid.get(v.line + ':' + v.spoj) : null);
    if (it && !used.has(it.key)) { used.add(it.key); res.set(it.key, v); }
-   else extra.push(v);
+   else if (v.cis && v.spoj) extra.push(v);         /* přesný klíč bez spoje v datech – nehádat */
+   else rest.push(v);
   }
+  const pairs = [];
+  rest.forEach((v, vi) => {
+   let cands = byShort.get(String(v.line)) || [];
+   if (v.sys === 'JMK') cands = cands.filter(c => /JMK/.test(c.L.sys || ''));
+   const vf = fold(v.head), hf = vf.split(' ').pop();
+   for (const c of cands) {
+    if (used.has(c.key)) continue;
+    let lat = c.lat, lon = c.lon;
+    if (v.delay != null && c.p) { const q = D.tripPos(c.p, c.prof, c.m - c.start - Math.max(-5, v.delay)); lat = q.lat; lon = q.lon; }
+    const hs = fold(c.head);
+    const okHead = !hf || hs.includes(hf) || vf.includes(hs.split(' ').pop());
+    const d = MG.dist(v.lat, v.lon, lat, lon) * (okHead ? 1 : 4);
+    const lim = c.L.k === 'regio' || c.L.k === 'mezi' ? 8000 : 2500;
+    if (d < lim) pairs.push([d, vi, c]);
+   }
+  });
+  pairs.sort((x, y) => x[0] - y[0]);
+  const vUsed = new Set();
+  for (const [d, vi, c] of pairs) { if (vUsed.has(vi) || used.has(c.key)) continue; vUsed.add(vi); used.add(c.key); res.set(c.key, rest[vi]); }
+  rest.forEach((v, vi) => { if (!vUsed.has(vi)) extra.push(v); });
   return {res, extra};
  };
  /* ---------- smyčka ---------- */
@@ -1748,21 +1823,22 @@ MG.jtsk = function(ex, ny, H){
   const now = Date.now();
   const jobs = [];
   if (now - tSZ > 20000) { tSZ = now; jobs.push(fetchSZ()); }
-  if (now - tB > 10000) { tB = now; const wOdis = LV.st.worker === 'ok' && Date.now() - LV.at.worker < 60000 && (LV.wStats || {})['mpvnet:odis'] > 0; jobs.push(fetchWorker()); if (!wOdis) jobs.push(fetchOdis()); else { LV.busOdis = []; LV.st.odis = ''; } }
+  jmkSync();
+  if (now - tB > 10000) { tB = now; const wOdis = LV.st.worker === 'ok' && Date.now() - LV.at.worker < 60000 && ((LV.wStats || {}).odis > 0 || (LV.wStats || {})['mpvnet:odis'] > 0); jobs.push(fetchWorker()); if (!wOdis) jobs.push(fetchOdis()); else { LV.busOdis = []; LV.st.odis = ''; } }
   if (jobs.length) { await Promise.all(jobs); MG.emit('live'); updBtn(); }
  };
  function updBtn() {
   const b = MG.$('live-btn'); if (!b) return;
   b.classList.remove('ok', 'warn', 'off');
   if (!LV.on) { b.classList.add('off'); MG.$('live-n').textContent = ''; b.title = 'Živé polohy vypnuty'; return; }
-  const ok = LV.st.sz === 'ok' || LV.st.odis === 'ok' || LV.st.worker === 'ok';
+  const ok = LV.st.sz === 'ok' || LV.st.odis === 'ok' || LV.st.worker === 'ok' || LV.st.jmk === 'ok';
   const err = LV.st.sz === 'err' && (LV.st.odis === 'err' || !LV.st.odis);
   b.classList.add(ok ? 'ok' : err ? 'warn' : 'off');
   MG.$('live-n').textContent = LV.liveCount ? String(LV.liveCount) : '';
-  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO ' + Object.keys(LV.wStats || {}).filter(k => k !== 'alerts').join(', ').replace(/mpvnet:/g, '').toUpperCase() : '') + (LV.st.odis ? ', ODIS ' + LV.st.odis : '');
+  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO ' + Object.keys(LV.wStats || {}).filter(k => k !== 'alerts').map(k => ({jdf: 'regionální GTFS-RT', pid: 'PID', sz: 'SŽ', odis: 'ODIS'})[k] || k).join(', ') : '') + (LV.st.odis ? ', ODIS ' + LV.st.odis : '') + (LV.st.jmk ? ', IDS JMK ' + LV.st.jmk : '');
  }
  LV.updBtn = updBtn;
- LV.toggle = (on) => { LV.on = on; MG.store.set('live', on); if (on) { tSZ = tB = 0; LV.tick(); } else { LV.trains = new Map(); LV.busOdis = []; LV.busWorker = []; MG.emit('live'); } updBtn(); };
+ LV.toggle = (on) => { LV.on = on; MG.store.set('live', on); if (on) { tSZ = tB = 0; LV.tick(); } else { LV.trains = new Map(); LV.busOdis = []; LV.busWorker = []; jmkSync(); MG.emit('live'); } updBtn(); };
  LV.start = () => { setInterval(() => LV.tick(), 2000); LV.tick(); };
 })();
 
@@ -1821,10 +1897,12 @@ MG.jtsk = function(ex, ny, H){
  };
  V.place = (it) => {
   const lv = V.liveMap.get(it.key);
-  const delay = lv && lv.delay != null ? lv.delay : null;
+  /* zdroje bez zpoždění (celostátní GTFS-RT): odhad z polohy proti jízdnímu řádu */
+  if (lv && lv.delay == null && isFinite(lv.lat) && (lv._estAt == null || Date.now() - lv._estAt > 15000)) { lv._est = D.estDelay(it, lv.lat, lv.lon); lv._estAt = Date.now(); }
+  const delay = lv ? (lv.delay != null ? lv.delay : (lv._est != null ? lv._est : null)) : null;
   const t = it.m - it.start - (delay && delay > 0 ? delay : 0);
   const pos = D.tripPos(it.p, it.prof, t);
-  it.pos = pos; it.delay = delay; it.live = lv || null;
+  it.pos = pos; it.delay = delay; it.live = lv || null; it.delayEst = !!(lv && lv.delay == null && delay != null);
   if (lv && isFinite(lv.lat)) { it.lat = lv.lat; it.lon = lv.lon; } else { it.lat = pos.lat; it.lon = pos.lon; }
   it.hd = pos.hd;
   return it;
@@ -1855,7 +1933,7 @@ MG.jtsk = function(ex, ny, H){
  function html(it, cls) {
   const L_ = it.L, dc = dCls(it.delay), train = L_.k === 'vlak';
   const ic = train ? '<i class="fa-solid fa-train"></i>' : '';
-  const d = it.live ? '<span class="veh-d ' + dc + '">' + dTxt(it.delay) + '</span>' : '';
+  const d = it.live ? '<span class="veh-d ' + dc + '"' + (it.delayEst ? ' title="odhad podle polohy"' : '') + '>' + (it.delay == null ? '<i class="fa-solid fa-tower-broadcast" style="font-size:7px"></i>' : (it.delayEst && it.delay > .5 ? '~' : '') + dTxt(it.delay)) + '</span>' : '';
   return '<div class="veh' + (train ? ' train' : '') + cls + '" style="--c:' + L_.c + ';--t:' + L_.tc + '"><span class="veh-arr" style="transform:translate(-50%,-50%) rotate(' + Math.round(it.hd || 0) + 'deg) translateY(-17px)"></span><span class="veh-l">' + ic + MG.h(V.label(it)) + '</span>' + d + '</div>';
  }
  let lastFull = 0;
@@ -1960,8 +2038,9 @@ MG.jtsk = function(ex, ny, H){
  function delayChip(it) {
   if (!it.live) return '<span class="vc-dl tt" title="Poloha podle jízdního řádu"><i class="fa-regular fa-clock"></i> JŘ</span>';
   const d = it.delay; if (d == null) return '<span class="vc-dl">živě</span>';
-  if (d <= .5) return '<span class="vc-dl">' + (d < -1 ? '−' + Math.abs(Math.round(d)) + ' min' : 'včas') + '</span>';
-  return '<span class="vc-dl ' + (d <= 3 ? 'mid' : 'bad') + '">+' + Math.round(d) + ' min</span>';
+  const est = it.delayEst ? ' title="Odhad zpoždění podle polohy vozidla"' : '', tl = it.delayEst ? '~' : '';
+  if (d <= .5) return '<span class="vc-dl"' + est + '>' + (d < -1 ? tl + '−' + Math.abs(Math.round(d)) + ' min' : (it.delayEst ? '~včas' : 'včas')) + '</span>';
+  return '<span class="vc-dl ' + (d <= 3 ? 'mid' : 'bad') + '"' + est + '>' + tl + '+' + Math.round(d) + ' min</span>';
  }
  function renderCard(it) {
   if (!popEl) return;
@@ -2198,8 +2277,8 @@ MG.jtsk = function(ex, ny, H){
   const LV = MG.live, st = x => x === 'ok' ? '<b style="color:var(--ok)">funguje</b>' : x === 'err' ? '<b style="color:var(--bad)">nedostupné</b>' : '<span style="color:var(--faint)">neaktivní</span>';
   const el = misc({icon: 'fa-solid fa-tower-broadcast', eb: 'Živé polohy', title: 'Polohy a zpoždění', sub: 'Vozidla bez živých dat jezdí podle jízdního řádu'},
    '<div class="list-item" id="lv-tg"><i class="fa-solid fa-power-off" style="color:var(--acc)"></i><div class="li-tx"><b>Živé polohy ' + (LV.on ? 'zapnuty' : 'vypnuty') + '</b><small>Klepnutím přepneš</small></div></div>' +
-   '<div class="sec-t">Zdroje</div><div class="info-p"><p><b>Vlaky celé ČR</b> – Správa železnic: ' + st(LV.st.sz) + ' (' + LV.trains.size + ' vlaků)</p><p><b>ODIS</b> (Moravskoslezský kraj – MHD i regionální autobusy): ' + st(LV.st.odis) + '</p><p><b>Vlastní worker mhdGO</b>: ' + (MG.cfg.WORKER ? st(LV.st.worker) : '<span style="color:var(--faint)">nenastaven</span>') + '</p></div>' +
-   '<div class="sec-t">Adresa workeru mhdGO</div><div class="field"><i class="fa-solid fa-link"></i><input id="lv-w" placeholder="https://…workers.dev/" value="' + MG.h(MG.cfg.WORKER) + '"></div><div class="status">Worker (soubor <b>worker/mhdgo-worker.js</b> v repozitáři) sjednocuje živé polohy dalších dopravců – PID, IDS JMK a další.</div>' +
+   '<div class="sec-t">Zdroje</div><div class="info-p"><p><b>Vlaky celé ČR</b> – Správa železnic: ' + st(LV.st.sz) + ' (' + LV.trains.size + ' vlaků)</p><p><b>IDS JMK</b> (Brno a Jihomoravský kraj) – stream data.brno.cz: ' + st(LV.st.jmk === 'wait' ? '' : LV.st.jmk) + '</p><p><b>Worker mhdGO</b> – PID, regionální GTFS-RT (IDOL, JIKORD, ODIS, IDZK, DÚK, DPMD), ODIS: ' + (MG.cfg.WORKER ? st(LV.st.worker) : '<span style="color:var(--faint)">nenastaven</span>') + '</p><p><b>ODIS přímo</b> (proxy OpavaGO): ' + st(LV.st.odis) + '</p></div>' +
+   '<div class="sec-t">Adresa workeru mhdGO</div><div class="field"><i class="fa-solid fa-link"></i><input id="lv-w" placeholder="https://…workers.dev/" value="' + MG.h(MG.cfg.WORKER) + '"></div><div class="status">Worker (soubor <b>worker/mhdgo-worker.js</b> v repozitáři) sjednocuje živé polohy dalších systémů.</div>' +
    '<div class="field"><i class="fa-solid fa-link"></i><input id="lv-o" placeholder="Proxy ODIS" value="' + MG.h(MG.cfg.ODIS) + '"></div><div style="height:8px"></div><button class="btn" id="lv-save"><i class="fa-solid fa-floppy-disk"></i>Uložit</button>');
   $('lv-tg').onclick = () => { LV.toggle(!LV.on); U.liveSettings(); };
   $('lv-save').onclick = () => { const c = MG.store.get('config', {}) || {}; c.worker = $('lv-w').value.trim(); c.odis = $('lv-o').value.trim(); MG.store.set('config', c); MG.cfg.WORKER = c.worker; MG.cfg.ODIS = c.odis; MG.toast('Uloženo'); LV.toggle(true); };
@@ -2238,7 +2317,7 @@ MG.jtsk = function(ex, ny, H){
    ['fa-solid fa-magnifying-glass', 'Hledání zastávek a spojení', 'Najdi zastávku, linku nebo adresu kdekoli v ČR. V záložce Spojení zadej odkud a kam – mhdGO najde spojení s přestupy, vlaky i pěšími úseky. U jízdy můžeš nastavit budík na výstup nebo navigaci pěšky k nástupu.'],
    ['fa-regular fa-clock', 'Odjezdy ze zastávek', 'Odjezdy z libovolné zastávky s odpočtem, nástupišti a živým zpožděním. Lze zvolit jiný čas a den a filtrovat linky. Klepnutím na odjezd uvidíš další zastávky spoje.'],
    ['fa-solid fa-star', 'Moje místa', 'Ulož si Domů, Práci nebo jiná místa. Z lišty Moje místa pak jedním klepnutím vyhledáš spojení nebo odjezdy.'],
-   ['fa-solid fa-tower-broadcast', 'Živé polohy a zpoždění', 'Zelená fajfka = vozidlo jede včas podle živých dat, oranžová/červená = zpoždění v minutách, bez odznaku = poloha podle jízdního řádu. Vlaky celé ČR jsou živě ze Správy železnic, autobusy a MHD v Moravskoslezském kraji z ODIS, další přes worker mhdGO.'],
+   ['fa-solid fa-tower-broadcast', 'Živé polohy a zpoždění', 'Zelená fajfka = vozidlo jede včas podle živých dat, oranžová/červená = zpoždění v minutách, bez odznaku = poloha podle jízdního řádu. Vlaky celé ČR jsou živě ze Správy železnic, Brno a JMK z otevřeného streamu IDS JMK, Praha z PID, Ústecký, Liberecký, Jihočeský, Zlínský a Moravskoslezský kraj z celostátního GTFS-RT. Odhad zpoždění z polohy je označen vlnovkou.'],
    ['fa-solid fa-map-location-dot', 'Okres a celá ČR', 'Po spuštění se načte tvůj okres (podle polohy), bez povolení polohy náhodný okres. Okres změníš klepnutím na jeho název pod logem; při posunu mapy se síť dalšího okresu načte sama.'],
    ['fa-solid fa-bell', 'Budík a pěší navigace', 'V bublině vozidla zvol Budík a klepni na zastávku, kde vystupuješ – mhdGO tě upozorní zvukem, vibrací a oznámením. V okně zastávky spustíš pěší navigaci.'],
    ['fa-solid fa-book-open', 'Bedekr', 'Památky a zajímavá místa celé ČR po krajích a okresech s fotografiemi a popisem, včetně cesty k nim.'],
@@ -2262,10 +2341,11 @@ MG.jtsk = function(ex, ny, H){
    '<h3>Data</h3><ul><li>Jízdní řády: <b>CIS JŘ</b> (Celostátní informační systém o jízdních řádech, GTFS projektu Spojenka MFF UK), platnost od ' + MG.h(c.d0 || '') + ' na ' + (c.nd || 0) + ' dní. Data sestavena ' + MG.h(c.built || '') + '.</li>' +
    '<li>Trasy linek: <b>PID</b> (data.pid.cz), ostatní dopočítány po silnicích a kolejích z <b>OpenStreetMap</b> (Valhalla).</li>' +
    '<li>Nástupiště: CIS JŘ, PID, IDS JMK, IDOL, ODIS a zastávkové sloupky z OpenStreetMap.</li>' +
-   '<li>Živé polohy: <b>Správa železnic</b> (vlaky celé ČR), <b>ODIS</b> (Moravskoslezský kraj), přes worker mhdGO také <b>PID</b> (Praha a Středočeský kraj).</li>' +
+   '<li>Živé polohy: <b>Správa železnic</b> (vlaky celé ČR); <b>IDS JMK</b> – otevřený stream poloh data.brno.cz (KORDIS JMK, CC BY 4.0); přes worker mhdGO <b>PID</b> (Praha a Středočeský kraj), celostátní GTFS-RT <b>Oběhy</b> (IDOL, JIKORD, ODIS, IDZK, DÚK, DPMD Děčín, Arriva Express) a <b>ODIS</b>. Kde zdroj neudává zpoždění, mhdGO ho odhadne z polohy vozidla proti jízdnímu řádu. Bez živých dat zatím: MHD Plzeň, Olomouc, Hradec Králové, Pardubice, Zlín, Liberec, Jihlava, Karlovy Vary a autobusy v krajích Plzeňském, Karlovarském, Královéhradeckém, Pardubickém, Vysočině a Olomouckém – tam vozidla jedou podle jízdního řádu.</li>' +
    '<li>Mimořádnosti a výluky: <b>IDS JMK</b> (data.brno.cz), přes worker <b>PID</b>. Pěší trasy: Valhalla (OpenStreetMap).</li>' +
    '<li>Bedekr: <b>Wikidata</b>, <b>Wikipedie</b> a fotografie z <b>Wikimedia Commons</b> (autoři uvedeni u fotografií na Commons).</li>' +
-   '<li>Mapy: © Mapbox © OpenStreetMap, počasí Open-Meteo, geokódování Photon (komoot).</li></ul>' +
+   '<li>Mapy: © Mapbox © OpenStreetMap, počasí Open-Meteo, geokódování Photon (komoot).</li>' +
+   '<li>3D modely (ilustrační): <b>Tatra T3</b> – conflig, CC BY-NC 4.0; <b>ČD 810</b> – voxellation, CC BY 4.0 (Sketchfab). Ostatní vozidla jsou zjednodušené modely mhdGO.</li></ul>' +
    '<h3>Upozornění</h3><p><small>Polohy vozidel bez živých dat jsou vypočteny z jízdního řádu a nemusí odpovídat skutečnosti. Pro závazné informace použij oficiální jízdní řády dopravců a IDOS. Vzhled 3D modelů vozidel je orientační.</small></p></div>', true);
  };
 })();
@@ -2389,7 +2469,8 @@ MG.jtsk = function(ex, ny, H){
   for (const v of LV.allBus()) if (v.spoj === sp && ((d.L.cis && d.L.cis.includes(v.cis)) || (v.src === 'PID' && d.L.sys === 'PID' && String(v.line) === String(d.L.n)))) return v;
   return null;
  };
- const dlHtml = (lv) => { if (!lv || lv.delay == null) return ''; const d = lv.delay; return d <= .5 ? '<span class="dl">včas</span>' : '<span class="dl ' + (d <= 3 ? 'mid' : 'bad') + '">+' + Math.round(d) + ' min</span>'; };
+ const lvDelay = lv => !lv ? null : lv.delay != null ? lv.delay : (lv._est != null ? lv._est : null);
+ const dlHtml = (lv) => { const d = lvDelay(lv); if (d == null) return ''; const t = lv.delay == null ? '~' : '', ti = lv.delay == null ? ' title="odhad podle polohy vozidla"' : ''; return d <= .5 ? '<span class="dl"' + ti + '>' + t + 'včas</span>' : '<span class="dl ' + (d <= 3 ? 'mid' : 'bad') + '"' + ti + '>' + t + '+' + Math.round(d) + ' min</span>'; };
  const until = (t, nowM) => { const x = Math.round(t - nowM); return x <= 0 ? 'teď' : x < 60 ? 'za ' + x + ' min' : ''; };
  async function ensureStation(g, okres) {
   if (D.st.has(g)) return true;
@@ -2438,7 +2519,7 @@ MG.jtsk = function(ex, ny, H){
    const lv = ymd === nowP.ymd ? P.liveFor(d) : null;
    const hs = D.headsign(d.p, d.j);
    const pl = D.pl.get(d.pl);
-   const delay = lv && lv.delay > 0 ? lv.delay : 0;
+   const delay = lvDelay(lv) > 0 ? lvDelay(lv) : 0;
    const k2 = d.p.i + ':' + d.j + ':' + d.day + ':' + d.k;
    const exp = d.t + delay, cd = today ? cdTxt(exp, nowS) : '';
    const op = P.open === k2, mins = Math.round((exp * 60 - nowS) / 60);
@@ -3182,7 +3263,60 @@ MG.jtsk = function(ex, ny, H){
  B['train-ic'] = (liv) => { const g = new THREE.Group(); for (let i = 0; i < 4; i++) railcar(g, 39 - i * 26.5, 26, liv, {front: i === 0, back: i === 3, glassLow: .4}); pantograph(g, 45, 4.5); return g; };
  B.funi = (liv) => { const g = new THREE.Group(); section(g, {l: 10, w: 2.6, h: 3, z0: .4, y0: 0, liv: {body: '#d6001c', low: '#a8001a', stripe: '#ffffff', roof: '#ddd'}, front: 1, back: 1, doors: [2, -2]}); return g; };
  B.boat = (liv) => { const g = new THREE.Group(); box(g, 4, 14, 1.4, 0, 0, .7, mat('#f4f4f4')); box(g, 3, 6, 2, 0, -1, 2.3, mat('#1c2630')); box(g, 3.2, 6.2, .2, 0, -1, 3.4, mat('#c8102e')); return g; };
+ /* ---------- skutečné 3D modely (GLB, Sketchfab) ----------
+  Tramvaj: „Tatra T3“ – conflig, CC BY-NC 4.0; osobní vlak: „CD810 motor train“ – voxellation, CC BY 4.0.
+  Model je ilustrační (stejný pro všechna města a typy vozů). */
+ MD.GLB = {
+  tram: {file: 'models/tatra_t3.glb', len: 14, name: 'Tatra T3', credit: 'Tatra T3 – conflig (Sketchfab), CC BY-NC 4.0', rot: 0},
+  'train-os': {file: 'models/cd810.glb', len: 14, name: 'ČD 810', credit: 'CD810 motor train – voxellation (Sketchfab), CC BY 4.0', rot: 0}
+ };
+ MD.glb = {};
+ const loadScript = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
+ /* osy: GLB má Y nahoru → u nás Z nahoru; délka vozu podél +Y (dopředu), střed v počátku, kola na z = 0 */
+ MD.normalize = (scene, cfg) => {
+  const inner = new THREE.Group(); inner.add(scene); inner.rotation.x = Math.PI / 2;
+  const mid = new THREE.Group(); mid.add(inner);
+  const outer = new THREE.Group(); outer.add(mid);
+  outer.updateMatrixWorld(true);
+  let size = new THREE.Box3().setFromObject(outer).getSize(new THREE.Vector3());
+  if (size.x > size.y) mid.rotation.z = Math.PI / 2;
+  if (cfg.rot) mid.rotation.z += cfg.rot;
+  outer.updateMatrixWorld(true);
+  size = new THREE.Box3().setFromObject(outer).getSize(new THREE.Vector3());
+  const k = cfg.len / Math.max(size.y, .01); mid.scale.setScalar(k);
+  outer.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(outer), c = box.getCenter(new THREE.Vector3());
+  mid.position.set(-c.x, -c.y, -box.min.z);
+  /* materiály z PBR (bez mapy prostředí by byly tmavé) → matné, osvětlené jako zbytek scény */
+  outer.traverse(o => { if (o.isMesh) { o.frustumCulled = false; const ms = Array.isArray(o.material) ? o.material : [o.material]; o.material = Array.isArray(o.material) ? ms.map(conv) : conv(o.material); } });
+  outer.userData.glb = cfg.name;
+  return outer;
+ };
+ const convCache = new Map();
+ function conv(m) {
+  if (!m) return m; if (convCache.has(m)) return convCache.get(m);
+  const n = new THREE.MeshLambertMaterial({color: m.color ? m.color.clone() : new THREE.Color('#ffffff'), map: m.map || null, transparent: !!m.transparent, opacity: m.opacity != null ? m.opacity : 1, side: m.side, alphaTest: m.alphaTest || 0});
+  if (m.map) { m.map.anisotropy = 4; m.map.encoding = THREE.LinearEncoding; }
+  if (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > .05) { n.emissive = m.emissive.clone(); n.emissiveMap = m.emissiveMap || null; n.emissiveIntensity = .5; }
+  convCache.set(m, n); return n;
+ }
+ MD.loadGLB = () => {
+  if (MD._glbP) return MD._glbP;
+  MD._glbP = (async () => {
+   try { if (!THREE.GLTFLoader) await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'); } catch (_) { return; }
+   const loader = new THREE.GLTFLoader();
+   const bases = MG._goodBase ? [MG._goodBase, ...MG.cfg.DATA.filter(b => b !== MG._goodBase)] : MG.cfg.DATA;
+   for (const [type, cfg] of Object.entries(MD.GLB)) {
+    for (const b of bases) {
+     try { const g = await new Promise((ok, bad) => loader.load(b + cfg.file, ok, undefined, bad)); MD.glb[type] = MD.normalize(g.scene, cfg); break; } catch (_) {}
+    }
+   }
+   MG.emit('models');
+  })();
+  return MD._glbP;
+ };
  MD.build = (type, liv) => {
+  if (MD.glb[type]) return MD.glb[type].clone();
   const key = type + '|' + JSON.stringify(liv);
   let proto = MD.cache.get(key);
   if (!proto) { proto = (B[type] || B.bus12)(liv); MD.cache.set(key, proto); }
@@ -3190,6 +3324,8 @@ MG.jtsk = function(ex, ny, H){
  };
  const SHORT = {bus12: 'Autobus 12 m', bus18: 'Kloubový autobus', bus10: 'Midibus 10,5 m', trol12: 'Trolejbus', trol18: 'Kloubový trolejbus', regio: 'Regionální autobus', coach: 'Dálkový autobus', tram: 'Tramvaj', metro: 'Souprava metra', 'train-os': 'Osobní vlak', 'train-r': 'Rychlík', 'train-ic': 'Dálkový vlak', funi: 'Lanovka', boat: 'Přívoz'};
  MD.short = L_ => SHORT[MD.typeOf(L_)] || '';
+ /* popis pro panel jízdy: u skutečného modelu poctivě „ilustrační model“ */
+ MD.label = L_ => { const t = MD.typeOf(L_); return MD.glb[t] ? SHORT[t] + ' · ilustrační 3D model ' + MD.GLB[t].name : SHORT[t] || ''; };
  MD.length = {bus12: 12, bus10: 10.5, bus18: 18, trol12: 12, trol18: 18, regio: 12, coach: 13, tram: 27, metro: 59, 'train-os': 52, 'train-r': 115, 'train-ic': 105, funi: 10, boat: 14};
 })();
 
@@ -3215,6 +3351,7 @@ MG.jtsk = function(ex, ny, H){
   opt = opt || {};
   if (!MG.cfg.MAPBOX) { MG.toast('3D mapa potřebuje Mapbox token – zadej ho v Nastavení', 4200); MG.ui.settings(); return; }
   if (!(await waitLibs())) { MG.toast('3D knihovny se nepodařilo načíst'); return; }
+  MG.models.loadGLB();
   MG.ui.closeSheets();
   document.body.classList.add('m3d'); MG.mode3d = true;
   $('m-3d').classList.add('on'); $('m-2d').classList.remove('on');
@@ -3307,6 +3444,13 @@ MG.jtsk = function(ex, ny, H){
   T.map.getSource('net3').setData(fc(lines)); T.map.getSource('st3').setData(fc(stops));
  };
  MG.on('pack', () => T.updData());
+ /* po načtení skutečných 3D modelů vyměnit vozidla v mapě */
+ MG.on('models', () => {
+  if (!tl) return;
+  for (const o of T.objs.values()) { const type = MG.models.typeOf(o.it.L); if (!MG.models.glb[type] || (o.g.userData && o.g.userData.glb)) continue; tl.scene.remove(o.g); o.g = MG.models.build(type, MG.models.livery(o.it.L)); tl.scene.add(o.g); }
+  if (R && R.obj && !(R.obj.userData && R.obj.userData.glb)) { const type = MG.models.typeOf(R.it.L); if (MG.models.glb[type]) { tl.scene.remove(R.obj); R.obj = MG.models.build(type, MG.models.livery(R.it.L)); tl.scene.add(R.obj); } }
+  if (R) rideHud(true);
+ });
  T.setSel = (pts, color, road) => {
   if (!T.ready) return;
   T.map.getSource('sel3').setData(fc(pts && pts.length > 1 ? [{type: 'Feature', properties: {c: color}, geometry: {type: 'LineString', coordinates: pts.map(q => [q[1], q[0]])}}] : []));
@@ -3517,7 +3661,7 @@ MG.jtsk = function(ex, ny, H){
    }
    const t0 = D.shortName(D.plName(p.s[0]), city), t1 = D.shortName(D.plName(p.s[n - 1]), city);
    const ttl = R.done ? 'Konečná zastávka' : R.dwell > 0 ? 'Stojíme – zastávka' : 'Příští zastávka';
-   h.innerHTML = '<div class="rd-h">' + D.badge(L_, {text: MG.veh.label(it)}) + '<b>' + MG.h(t0) + ' → ' + MG.h(t1) + '<small>' + MG.h((MG.models.TYPES[MG.models.typeOf(it.L)] || '').split(' (')[0]) + (it.live ? ' · živě' + (it.delay != null ? (it.delay > .5 ? ' +' + Math.round(it.delay) + ' min' : ' včas') : '') : it.virt ? ' · ukázková jízda' : ' · podle jízdního řádu') + '</small></b></div>' +
+   h.innerHTML = '<div class="rd-h">' + D.badge(L_, {text: MG.veh.label(it)}) + '<b>' + MG.h(t0) + ' → ' + MG.h(t1) + '<small>' + MG.h(MG.models.label(it.L)) + (it.live ? ' · živě' + (it.delay != null ? (it.delay > .5 ? ' +' + Math.round(it.delay) + ' min' : ' včas') : '') : it.virt ? ' · ukázková jízda' : ' · podle jízdního řádu') + '</small></b></div>' +
     '<div class="rd-next"><small>' + ttl + '</small><div><b id="rd-nn">' + MG.h(D.shortName(D.plName(p.s[nk]), city)) + '</b><span id="rd-nd"></span></div><div class="rd-bar"><i id="rd-nb"></i></div></div>' +
     '<div class="rd-list" style="--lc:' + L_.c + '">' + rows.join('') + '</div>';
   }

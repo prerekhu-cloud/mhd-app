@@ -108,6 +108,29 @@
   const r = D.pointAt(g, d);
   return {lat: r[0], lon: r[1], hd: r[2], k, at: false, f, d};
  };
+ /* odhad zpoždění z polohy vozidla: průmět na trasu spoje → plánovaný čas v tom místě (min). Pro zdroje bez zpoždění. */
+ D.estDelay = (it, lat, lon) => {
+  const p = it.p, g = D.geo3(p), dep = p.dep[it.prof], arr = p.arr[it.prof], n = dep.length, N = g.lat.length;
+  const kx = Math.cos(lat * Math.PI / 180) * 111320, ky = 110574;
+  const tNow = it.m - it.start;
+  let best = null;
+  for (let i = 0; i < N - 1; i++) {
+   const ax = (g.lon[i] - lon) * kx, ay = (g.lat[i] - lat) * ky, bx = (g.lon[i + 1] - lon) * kx, by = (g.lat[i + 1] - lat) * ky;
+   const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+   let t = L2 > 0 ? -(ax * dx + ay * dy) / L2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+   const px = ax + dx * t, py = ay + dy * t, dist = Math.hypot(px, py);
+   if (dist > 160) continue;
+   const d = g.cd[i] + (g.cd[i + 1] - g.cd[i]) * t;
+   /* plánovaný čas ve vzdálenosti d */
+   let k = 0; while (k < n - 2 && g.cd[g.x[k + 1]] < d) k++;
+   const d0 = g.cd[g.x[k]], d1 = g.cd[g.x[k + 1]], f = d1 > d0 ? MG.clamp((d - d0) / (d1 - d0), 0, 1) : 0;
+   const ts = dep[k] + (arr[k + 1] - dep[k]) * f;
+   const del = tNow - ts, score = Math.abs(del) + dist / 80;
+   if (!best || score < best.s) best = {s: score, del};
+  }
+  if (!best || best.del < -15 || best.del > 120) return null;
+  return Math.round(best.del * 2) / 2;
+ };
  /* ---------- linky ---------- */
  const KIND = {metro: ['fa-train-subway', 'Metro'], tram: ['fa-train-tram', 'Tramvaje'], trol: ['fa-bolt', 'Trolejbusy'], mhd: ['fa-bus', 'Autobusy MHD'], regio: ['fa-bus-simple', 'Regionální autobusy'], mezi: ['fa-route', 'Meziregionální a dálkové'], vlak: ['fa-train', 'Vlaky'], lan: ['fa-cable-car', 'Lanové dráhy'], lod: ['fa-ferry', 'Přívozy']};
  D.KIND = KIND;

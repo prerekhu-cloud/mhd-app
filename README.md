@@ -32,6 +32,12 @@ Jízdní řády si stahuje po okresech z adresáře [`data/`](data) tohoto repoz
 - **Budík před výstupem** – v kartě vozidla (Budík → klepni na zastávku) nebo u každé jízdy ve vyhledaném spojení;
   upozorní zvukem, vibrací a oznámením na příští zastávku a při výstupu.
 - **Pěší navigace k zastávce** (okno zastávky → chodec, karta nejbližší zastávky v Hledání, nebo „navigovat“ ve spojení) s pokyny v češtině.
+- **Živé polohy** – vlaky celé ČR (Správa železnic), Brno a Jihomoravský kraj (otevřený stream data.brno.cz, KORDIS JMK),
+  Praha a Středočeský kraj (PID), regionální autobusy a část MHD v Libereckém, Jihočeském, Zlínském, Moravskoslezském a Ústeckém kraji
+  (celostátní GTFS-RT projektu Oběhy: IDOL, JIKORD, IDZK, ODIS, DÚK, DPMD Děčín, Arriva Express). Kde zdroj neudává zpoždění,
+  mhdGO ho odhadne z polohy vozidla proti jízdnímu řádu (zobrazeno s vlnovkou ~). Bez živých dat zatím MHD Plzeň, Olomouc,
+  Hradec Králové, Pardubice, Zlín, Liberec, Jihlava, Karlovy Vary a autobusy v Plzeňském, Karlovarském, Královéhradeckém,
+  Pardubickém, Olomouckém kraji a na Vysočině.
 - **Mimořádnosti a výluky** – IDS JMK přímo, PID přes worker; ⚠ u linek v Síti, v odjezdech, na mapě a v seznamu (Info → Mimořádnosti, na telefonu Více → Mimořádnosti).
 - **Offline a instalace na plochu** – otevřené okresy se ukládají (až 8) a fungují i bez připojení; manifest a service worker
   (`manifest.webmanifest`, `sw.js`) pro instalaci, když je aplikace na webu (např. GitHub Pages).
@@ -106,3 +112,9 @@ Zdrojové soubory jsou v `app/` (`index.html`, `css/`, `js/`), `python3 app/buil
 Lokálně: `python3 -m http.server` v kořeni repozitáře a otevřít `http://localhost:8000/mhdgo.html`.
 
 Licence dat: CIS JŘ (veřejná data), PID (CC BY 4.0), OpenStreetMap (ODbL), Wikidata (CC0), Wikipedie/Commons (CC BY-SA, autoři u fotografií).
+
+## 3D modely
+
+Ilustrační modely ze Sketchfab (v `data/models/`): **Tatra T3** – conflig, CC BY-NC 4.0
+(https://sketchfab.com/3d-models/tatra-t3-76aa08d7c06340fc89229551c45e3c3a), **CD810 motor train** – voxellation, CC BY 4.0
+(https://sketchfab.com/3d-models/cd810-motor-train-121922992c4c44c9a121a40c82c79382). Ostatní vozidla jsou zjednodušené modely mhdGO.

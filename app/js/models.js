@@ -140,7 +140,60 @@
  B['train-ic'] = (liv) => { const g = new THREE.Group(); for (let i = 0; i < 4; i++) railcar(g, 39 - i * 26.5, 26, liv, {front: i === 0, back: i === 3, glassLow: .4}); pantograph(g, 45, 4.5); return g; };
  B.funi = (liv) => { const g = new THREE.Group(); section(g, {l: 10, w: 2.6, h: 3, z0: .4, y0: 0, liv: {body: '#d6001c', low: '#a8001a', stripe: '#ffffff', roof: '#ddd'}, front: 1, back: 1, doors: [2, -2]}); return g; };
  B.boat = (liv) => { const g = new THREE.Group(); box(g, 4, 14, 1.4, 0, 0, .7, mat('#f4f4f4')); box(g, 3, 6, 2, 0, -1, 2.3, mat('#1c2630')); box(g, 3.2, 6.2, .2, 0, -1, 3.4, mat('#c8102e')); return g; };
+ /* ---------- skutečné 3D modely (GLB, Sketchfab) ----------
+  Tramvaj: „Tatra T3“ – conflig, CC BY-NC 4.0; osobní vlak: „CD810 motor train“ – voxellation, CC BY 4.0.
+  Model je ilustrační (stejný pro všechna města a typy vozů). */
+ MD.GLB = {
+  tram: {file: 'models/tatra_t3.glb', len: 14, name: 'Tatra T3', credit: 'Tatra T3 – conflig (Sketchfab), CC BY-NC 4.0', rot: 0},
+  'train-os': {file: 'models/cd810.glb', len: 14, name: 'ČD 810', credit: 'CD810 motor train – voxellation (Sketchfab), CC BY 4.0', rot: 0}
+ };
+ MD.glb = {};
+ const loadScript = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
+ /* osy: GLB má Y nahoru → u nás Z nahoru; délka vozu podél +Y (dopředu), střed v počátku, kola na z = 0 */
+ MD.normalize = (scene, cfg) => {
+  const inner = new THREE.Group(); inner.add(scene); inner.rotation.x = Math.PI / 2;
+  const mid = new THREE.Group(); mid.add(inner);
+  const outer = new THREE.Group(); outer.add(mid);
+  outer.updateMatrixWorld(true);
+  let size = new THREE.Box3().setFromObject(outer).getSize(new THREE.Vector3());
+  if (size.x > size.y) mid.rotation.z = Math.PI / 2;
+  if (cfg.rot) mid.rotation.z += cfg.rot;
+  outer.updateMatrixWorld(true);
+  size = new THREE.Box3().setFromObject(outer).getSize(new THREE.Vector3());
+  const k = cfg.len / Math.max(size.y, .01); mid.scale.setScalar(k);
+  outer.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(outer), c = box.getCenter(new THREE.Vector3());
+  mid.position.set(-c.x, -c.y, -box.min.z);
+  /* materiály z PBR (bez mapy prostředí by byly tmavé) → matné, osvětlené jako zbytek scény */
+  outer.traverse(o => { if (o.isMesh) { o.frustumCulled = false; const ms = Array.isArray(o.material) ? o.material : [o.material]; o.material = Array.isArray(o.material) ? ms.map(conv) : conv(o.material); } });
+  outer.userData.glb = cfg.name;
+  return outer;
+ };
+ const convCache = new Map();
+ function conv(m) {
+  if (!m) return m; if (convCache.has(m)) return convCache.get(m);
+  const n = new THREE.MeshLambertMaterial({color: m.color ? m.color.clone() : new THREE.Color('#ffffff'), map: m.map || null, transparent: !!m.transparent, opacity: m.opacity != null ? m.opacity : 1, side: m.side, alphaTest: m.alphaTest || 0});
+  if (m.map) { m.map.anisotropy = 4; m.map.encoding = THREE.LinearEncoding; }
+  if (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > .05) { n.emissive = m.emissive.clone(); n.emissiveMap = m.emissiveMap || null; n.emissiveIntensity = .5; }
+  convCache.set(m, n); return n;
+ }
+ MD.loadGLB = () => {
+  if (MD._glbP) return MD._glbP;
+  MD._glbP = (async () => {
+   try { if (!THREE.GLTFLoader) await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'); } catch (_) { return; }
+   const loader = new THREE.GLTFLoader();
+   const bases = MG._goodBase ? [MG._goodBase, ...MG.cfg.DATA.filter(b => b !== MG._goodBase)] : MG.cfg.DATA;
+   for (const [type, cfg] of Object.entries(MD.GLB)) {
+    for (const b of bases) {
+     try { const g = await new Promise((ok, bad) => loader.load(b + cfg.file, ok, undefined, bad)); MD.glb[type] = MD.normalize(g.scene, cfg); break; } catch (_) {}
+    }
+   }
+   MG.emit('models');
+  })();
+  return MD._glbP;
+ };
  MD.build = (type, liv) => {
+  if (MD.glb[type]) return MD.glb[type].clone();
   const key = type + '|' + JSON.stringify(liv);
   let proto = MD.cache.get(key);
   if (!proto) { proto = (B[type] || B.bus12)(liv); MD.cache.set(key, proto); }
@@ -148,5 +201,7 @@
  };
  const SHORT = {bus12: 'Autobus 12 m', bus18: 'Kloubový autobus', bus10: 'Midibus 10,5 m', trol12: 'Trolejbus', trol18: 'Kloubový trolejbus', regio: 'Regionální autobus', coach: 'Dálkový autobus', tram: 'Tramvaj', metro: 'Souprava metra', 'train-os': 'Osobní vlak', 'train-r': 'Rychlík', 'train-ic': 'Dálkový vlak', funi: 'Lanovka', boat: 'Přívoz'};
  MD.short = L_ => SHORT[MD.typeOf(L_)] || '';
+ /* popis pro panel jízdy: u skutečného modelu poctivě „ilustrační model“ */
+ MD.label = L_ => { const t = MD.typeOf(L_); return MD.glb[t] ? SHORT[t] + ' · ilustrační 3D model ' + MD.GLB[t].name : SHORT[t] || ''; };
  MD.length = {bus12: 12, bus10: 10.5, bus18: 18, trol12: 12, trol18: 18, regio: 12, coach: 13, tram: 27, metro: 59, 'train-os': 52, 'train-r': 115, 'train-ic': 105, funi: 10, boat: 14};
 })();

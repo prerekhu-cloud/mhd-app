@@ -52,10 +52,12 @@
  };
  V.place = (it) => {
   const lv = V.liveMap.get(it.key);
-  const delay = lv && lv.delay != null ? lv.delay : null;
+  /* zdroje bez zpoždění (celostátní GTFS-RT): odhad z polohy proti jízdnímu řádu */
+  if (lv && lv.delay == null && isFinite(lv.lat) && (lv._estAt == null || Date.now() - lv._estAt > 15000)) { lv._est = D.estDelay(it, lv.lat, lv.lon); lv._estAt = Date.now(); }
+  const delay = lv ? (lv.delay != null ? lv.delay : (lv._est != null ? lv._est : null)) : null;
   const t = it.m - it.start - (delay && delay > 0 ? delay : 0);
   const pos = D.tripPos(it.p, it.prof, t);
-  it.pos = pos; it.delay = delay; it.live = lv || null;
+  it.pos = pos; it.delay = delay; it.live = lv || null; it.delayEst = !!(lv && lv.delay == null && delay != null);
   if (lv && isFinite(lv.lat)) { it.lat = lv.lat; it.lon = lv.lon; } else { it.lat = pos.lat; it.lon = pos.lon; }
   it.hd = pos.hd;
   return it;
@@ -86,7 +88,7 @@
  function html(it, cls) {
   const L_ = it.L, dc = dCls(it.delay), train = L_.k === 'vlak';
   const ic = train ? '<i class="fa-solid fa-train"></i>' : '';
-  const d = it.live ? '<span class="veh-d ' + dc + '">' + dTxt(it.delay) + '</span>' : '';
+  const d = it.live ? '<span class="veh-d ' + dc + '"' + (it.delayEst ? ' title="odhad podle polohy"' : '') + '>' + (it.delay == null ? '<i class="fa-solid fa-tower-broadcast" style="font-size:7px"></i>' : (it.delayEst && it.delay > .5 ? '~' : '') + dTxt(it.delay)) + '</span>' : '';
   return '<div class="veh' + (train ? ' train' : '') + cls + '" style="--c:' + L_.c + ';--t:' + L_.tc + '"><span class="veh-arr" style="transform:translate(-50%,-50%) rotate(' + Math.round(it.hd || 0) + 'deg) translateY(-17px)"></span><span class="veh-l">' + ic + MG.h(V.label(it)) + '</span>' + d + '</div>';
  }
  let lastFull = 0;
@@ -191,8 +193,9 @@
  function delayChip(it) {
   if (!it.live) return '<span class="vc-dl tt" title="Poloha podle jízdního řádu"><i class="fa-regular fa-clock"></i> JŘ</span>';
   const d = it.delay; if (d == null) return '<span class="vc-dl">živě</span>';
-  if (d <= .5) return '<span class="vc-dl">' + (d < -1 ? '−' + Math.abs(Math.round(d)) + ' min' : 'včas') + '</span>';
-  return '<span class="vc-dl ' + (d <= 3 ? 'mid' : 'bad') + '">+' + Math.round(d) + ' min</span>';
+  const est = it.delayEst ? ' title="Odhad zpoždění podle polohy vozidla"' : '', tl = it.delayEst ? '~' : '';
+  if (d <= .5) return '<span class="vc-dl"' + est + '>' + (d < -1 ? tl + '−' + Math.abs(Math.round(d)) + ' min' : (it.delayEst ? '~včas' : 'včas')) + '</span>';
+  return '<span class="vc-dl ' + (d <= 3 ? 'mid' : 'bad') + '"' + est + '>' + tl + '+' + Math.round(d) + ' min</span>';
  }
  function renderCard(it) {
   if (!popEl) return;

@@ -12,7 +12,8 @@
   for (const v of LV.allBus()) if (v.spoj === sp && ((d.L.cis && d.L.cis.includes(v.cis)) || (v.src === 'PID' && d.L.sys === 'PID' && String(v.line) === String(d.L.n)))) return v;
   return null;
  };
- const dlHtml = (lv) => { if (!lv || lv.delay == null) return ''; const d = lv.delay; return d <= .5 ? '<span class="dl">včas</span>' : '<span class="dl ' + (d <= 3 ? 'mid' : 'bad') + '">+' + Math.round(d) + ' min</span>'; };
+ const lvDelay = lv => !lv ? null : lv.delay != null ? lv.delay : (lv._est != null ? lv._est : null);
+ const dlHtml = (lv) => { const d = lvDelay(lv); if (d == null) return ''; const t = lv.delay == null ? '~' : '', ti = lv.delay == null ? ' title="odhad podle polohy vozidla"' : ''; return d <= .5 ? '<span class="dl"' + ti + '>' + t + 'včas</span>' : '<span class="dl ' + (d <= 3 ? 'mid' : 'bad') + '"' + ti + '>' + t + '+' + Math.round(d) + ' min</span>'; };
  const until = (t, nowM) => { const x = Math.round(t - nowM); return x <= 0 ? 'teď' : x < 60 ? 'za ' + x + ' min' : ''; };
  async function ensureStation(g, okres) {
   if (D.st.has(g)) return true;
@@ -61,7 +62,7 @@
    const lv = ymd === nowP.ymd ? P.liveFor(d) : null;
    const hs = D.headsign(d.p, d.j);
    const pl = D.pl.get(d.pl);
-   const delay = lv && lv.delay > 0 ? lv.delay : 0;
+   const delay = lvDelay(lv) > 0 ? lvDelay(lv) : 0;
    const k2 = d.p.i + ':' + d.j + ':' + d.day + ':' + d.k;
    const exp = d.t + delay, cd = today ? cdTxt(exp, nowS) : '';
    const op = P.open === k2, mins = Math.round((exp * 60 - nowS) / 60);

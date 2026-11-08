@@ -11,12 +11,14 @@
  * delay = zpoždění v minutách (záporné = napřed)
  *
  * Zdroje (každý lze vypnout proměnnou prostředí "0"):
- *  - ODIS (Moravskoslezský kraj), JIKORD (Jihočeský kraj), IDOL (Liberecký kraj)
- *                                           MPVNET_PORTALS="odis,jikord,idol"  mpvnet.cz/<portál>/map/mapData (záloha ODIS_PROXY)
- *  - PID (Praha a Středočeský kraj)          PID=1             mapa.pid.cz (veřejná mapa PID); nebo GOLEMIO_TOKEN=... api.golemio.cz
- *  - mimořádnosti a výluky PID              ALERTS=1          pid.cz RSS (výstup alerts[])
- *  - IDS JMK (Brno a Jihomoravský kraj)     IDSJMK_URL=...    např. https://mapa.idsjmk.cz/api/vehicles.json
- *  - Správa železnic (všechny vlaky v ČR)   SZ=1
+ *  - regionální autobusy a MHD z celostátních dat   JDF=1   motis.obehy.cz/get-feeds/cz-jdf-gtfs-rt.pb (GTFS-RT, Oběhy)
+ *      obsahuje veřejné mapy poloh IDOL, JIKORD, ODIS, IDZK (CHAPS mpvnet), DÚK (Ústecký kraj, MHD Teplice
+ *      a Ústí), DPMD Děčín a Arriva Express; spoje jsou označené číslem linky CIS JŘ a číslem spoje
+ *  - ODIS přes proxy OpavaGO                        ODIS_PROXY=https://opavago.prerekhu.workers.dev/ ("" = vypnout)
+ *  - PID (Praha a Středočeský kraj)                 PID=1   mapa.pid.cz (veřejná mapa PID); nebo GOLEMIO_TOKEN=... api.golemio.cz
+ *  - mimořádnosti a výluky PID                     ALERTS=1 pid.cz RSS (výstup alerts[])
+ *  - Správa železnic (všechny vlaky v ČR)          SZ=1
+ *  (Brno a Jihomoravský kraj: aplikace se připojuje přímo k otevřenému streamu poloh na data.brno.cz.)
  *
  * Nasazení: Cloudflare → Workers & Pages → Create → Worker „mhdgo-live“ → Edit code → vložit tento soubor → Deploy
  *           (nebo „npx wrangler deploy“ ve složce worker/). Bez proměnných běží vše výchozí.
@@ -24,7 +26,6 @@
  */
 const CZ = {w: 12.0, s: 48.5, e: 18.95, n: 51.1};
 /* rozsahy veřejných map poloh CHAPS (mpvnet.cz/<portál>/map) */
-const BBOX = {odis: {w: 17.1, s: 49.35, e: 18.9, n: 50.35}, jikord: {w: 13.35, s: 48.5, e: 15.65, n: 49.7}, idol: {w: 14.35, s: 50.4, e: 15.6, n: 51.08}, pid: {w: 13.4, s: 49.5, e: 15.6, n: 50.62}};
 /* paměť v rámci instance workeru (Cache API na *.workers.dev nefunguje) */
 let MEM = null, MEM_AT = 0, PENDING = null;
 
@@ -35,7 +36,7 @@ export default {
   const url = new URL(req.url);
   const bbox = parseBbox(url.searchParams.get('bbox')) || CZ;
   let all = null;
-  if (MEM && Date.now() - MEM_AT < 8000) all = MEM;
+  if (MEM && Date.now() - MEM_AT < 9000) all = MEM;
   else {
    if (!PENDING) PENDING = collect(env).then(r => { MEM = r; MEM_AT = Date.now(); PENDING = null; return r; }).catch(e => { PENDING = null; throw e; });
    all = await PENDING;
@@ -54,8 +55,9 @@ const on = (env, k, def) => { const v = env[k]; return v == null ? def : !(v ===
 async function collect(env) {
  const stats = {}, errors = {}, vehicles = [], trains = [], alerts = [];
  const jobs = [];
- const portals = String(env.MPVNET_PORTALS || 'odis,jikord,idol').split(',').map(s => s.trim()).filter(Boolean);
- if (on(env, 'ODIS', true)) for (const p of portals) jobs.push(run('mpvnet:' + p, () => mpvnet(p, BBOX[p] || CZ, env), r => { vehicles.push(...r.vehicles); trains.push(...r.trains); return r.vehicles.length; }));
+ if (on(env, 'JDF', true)) jobs.push(run('jdf', () => jdfRT(), r => { vehicles.push(...r); return r.length; }));
+ const px = env.ODIS_PROXY != null ? env.ODIS_PROXY : 'https://opavago.prerekhu.workers.dev/';
+ if (on(env, 'ODIS', true) && px) jobs.push(run('odis', () => odisProxy(px), r => { vehicles.push(...r.vehicles); trains.push(...r.trains); return r.vehicles.length; }));
  if (env.GOLEMIO_TOKEN) jobs.push(run('pid', () => golemio(env.GOLEMIO_TOKEN), r => { vehicles.push(...r); return r.length; }));
  else if (on(env, 'PID', true)) jobs.push(run('pid', () => pidmap(), r => { vehicles.push(...r); return r.length; }));
  if (on(env, 'ALERTS', true)) jobs.push(run('alerts', () => pidAlerts(), r => { alerts.push(...r); return r.length; }));
@@ -70,21 +72,59 @@ async function collect(env) {
 }
 function withTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]); }
 
-/* ---------- CHAPS mpvnet (ODIS a další portály) ---------- */
-async function mpvnet(portal, b, env) {
- let j = null;
- try {
-  const r = await fetch('https://mpvnet.cz/' + portal + '/map/mapData', {method: 'POST', headers: {'Content-Type': 'application/json; charset=utf-8', 'Accept': 'application/json'},
-   body: JSON.stringify({w: b.w, s: b.s, e: b.e, n: b.n, zoom: 13, showStops: false, mapFilterId: null})});
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  j = await r.json();
- } catch (e) {
-  /* záloha: stávající proxy OpavaGO (pokrývá okolí Opavy) */
-  const px = env && env.ODIS_PROXY != null ? env.ODIS_PROXY : 'https://opavago.prerekhu.workers.dev/'; if (portal !== 'odis' || !px) throw e;
-  const r2 = await fetch(px, {headers: {'Accept': 'application/json'}}); if (!r2.ok) throw e;
-  j = await r2.json();
+/* ---------- GTFS-RT: regionální autobusy a MHD (Oběhy, celostátní data JDF) ---------- */
+const JDF_SRC = {mpvnet: 'CHAPS', duk: 'DÚK', dpmd: 'DPMD', 'arriva-express': 'Arriva Express'};
+async function jdfRT() {
+ const r = await fetch('https://motis.obehy.cz/get-feeds/cz-jdf-gtfs-rt.pb');
+ if (!r.ok) throw new Error('HTTP ' + r.status);
+ const u = new Uint8Array(await r.arrayBuffer());
+ const out = [];
+ for (const v of gtfsrtVehicles(u)) {
+  const src = (v.vid.split(':')[0] || '');
+  if (src === 'pid') continue;                       /* PID je z mapa.pid.cz i se zpožděním */
+  const p = v.trip.split(':'); if (p[0] !== 'jdf' || p[1] !== 'trip' || !/^\d{6}$/.test(p[2] || '')) continue;
+  let spoj = 0; for (let i = 4; i < p.length; i++) { if (p[i] === 'overlay') break; if (/^\d+$/.test(p[i])) { spoj = +p[i]; break; } }
+  if (!spoj || !isFinite(v.lat) || !isFinite(v.lon)) continue;
+  out.push({src: JDF_SRC[src] || src.toUpperCase(), cis: p[2], line: String(+p[2].slice(3)), spoj, lat: +v.lat.toFixed(6), lon: +v.lon.toFixed(6), bearing: isFinite(v.bearing) ? Math.round(v.bearing) : null,
+   delay: null, plate: src === 'mpvnet' ? v.vid.slice(7) : '', ts: v.ts || 0});
  }
- const list = j.transmitters || j || [];
+ return out;
+}
+/* minimální čtečka GTFS-RT (protobuf) – jen VehiclePosition: trip_id, poloha, směr, čas, vozidlo */
+function gtfsrtVehicles(u) {
+ const dv = new DataView(u.buffer, u.byteOffset, u.byteLength), td = new TextDecoder();
+ const out = [];
+ let pos = 0;
+ const vint = () => { let x = 0, m = 1, b; do { b = u[pos++]; x += (b & 127) * m; m *= 128; } while (b & 128); return x; };
+ const skip = (wt) => { if (wt === 0) vint(); else if (wt === 1) pos += 8; else if (wt === 2) { const l = vint(); pos += l; } else if (wt === 5) pos += 4; else throw new Error('pb wt ' + wt); };
+ const str = (l) => { const s = td.decode(u.subarray(pos, pos + l)); pos += l; return s; };
+ function msg(end, onField) { while (pos < end) { const tag = vint(), f = Math.floor(tag / 8), wt = tag & 7; if (!onField(f, wt)) skip(wt); } }
+ msg(u.length, (f, wt) => {
+  if (f !== 2 || wt !== 2) return false;                     /* FeedMessage.entity */
+  const ln = vint(), end = pos + ln;
+  msg(end, (f2, wt2) => {
+   if (f2 !== 4 || wt2 !== 2) return false;                  /* FeedEntity.vehicle */
+   const ln2 = vint(), e2 = pos + ln2, v = {trip: '', vid: '', lat: NaN, lon: NaN, bearing: NaN, ts: 0};
+   msg(e2, (f3, wt3) => {
+    if (f3 === 1 && wt3 === 2) { const ln3 = vint(), e3 = pos + ln3; msg(e3, (f4, wt4) => { if (f4 === 1 && wt4 === 2) { v.trip = str(vint()); return true; } return false; }); return true; }
+    if (f3 === 2 && wt3 === 2) { const ln3 = vint(), e3 = pos + ln3; msg(e3, (f4, wt4) => { if (wt4 === 5) { const x = dv.getFloat32(pos, true); pos += 4; if (f4 === 1) v.lat = x; else if (f4 === 2) v.lon = x; else if (f4 === 3) v.bearing = x; return true; } return false; }); return true; }
+    if (f3 === 5 && wt3 === 0) { v.ts = vint(); return true; }
+    if (f3 === 8 && wt3 === 2) { const ln3 = vint(), e3 = pos + ln3; msg(e3, (f4, wt4) => { if (f4 === 1 && wt4 === 2) { v.vid = str(vint()); return true; } return false; }); return true; }
+    return false;
+   });
+   pos = e2; out.push(v); return true;
+  });
+  pos = end; return true;
+ });
+ return out;
+}
+
+/* ---------- ODIS přes proxy OpavaGO ---------- */
+async function odisProxy(px) {
+ const r = await fetch(px, {headers: {'Accept': 'application/json'}}); if (!r.ok) throw new Error('HTTP ' + r.status);
+ const j = await r.json();
+ const portal = 'odis';
+ const list = Array.isArray(j) ? j : (j.transmitters || j.odis || []);
  const vehicles = [], trains = [];
  for (const t of list) {
   if (!t || !isFinite(t.x) || !isFinite(t.y)) continue;
@@ -152,7 +192,7 @@ async function pidAlerts() {
 }
 function unent(s) { return String(s || '').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' '); }
 
-/* ---------- IDS JMK ---------- */
+/* ---------- IDS JMK (volitelně vlastní adresa) ---------- */
 async function idsjmk(u) {
  const r = await fetch(u, {headers: {'Accept': 'application/json'}});
  if (!r.ok) throw new Error('HTTP ' + r.status);

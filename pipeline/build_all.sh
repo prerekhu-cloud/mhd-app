@@ -9,6 +9,7 @@ P="$ROOT/pipeline"
 echo "== stahuji zdroje"
 curl -fsSL -o "$W/src/cisjr/gtfs.zip" "https://spojenka.d3s.mff.cuni.cz/api/data/timetable/gtfs"
 curl -fsSL -o "$W/src/pid/PID_GTFS.zip" "https://data.pid.cz/PID_GTFS.zip"
+curl -fsSL -o "$W/src/kordis_gtfs.zip" "https://kordis-jmk.cz/gtfs/gtfs.zip" || true
 if [ ! -s "$W/src/osm/cz.osm.pbf" ] || [ -n "${OSM_REFRESH:-}" ]; then
   curl -fsSL -o "$W/src/osm/cz.osm.pbf" "https://download.geofabrik.de/europe/czech-republic-latest.osm.pbf" \
   || curl -fsSL -o "$W/src/osm/cz.osm.pbf" "https://download.openstreetmap.fr/extracts/europe/czech_republic-latest.osm.pbf"
@@ -38,6 +39,7 @@ rm -f "$W/seg_cache.pkl"
 python3 "$P/shapes.py" "$W" "$W/vh/config.json" "$W/src/pid/PID_GTFS.zip"
 python3 "$P/packs.py" "$W" "$W/out"
 python3 "$P/netmerge.py" "$W/out"
+if [ -s "$W/src/kordis_gtfs.zip" ]; then python3 "$P/kordis_stops.py" "$W/src/kordis_gtfs.zip" "$W/out"; fi
 if [ -z "${SKIP_BEDEKR:-}" ]; then python3 "$P/bedekr.py" "$W" "$W/out" || echo "bedekr přeskočen"; fi
 echo "== kopíruji do data/"
 mkdir -p "$ROOT/data/okres"

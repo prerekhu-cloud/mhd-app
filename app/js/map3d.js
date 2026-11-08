@@ -19,6 +19,7 @@
   opt = opt || {};
   if (!MG.cfg.MAPBOX) { MG.toast('3D mapa potřebuje Mapbox token – zadej ho v Nastavení', 4200); MG.ui.settings(); return; }
   if (!(await waitLibs())) { MG.toast('3D knihovny se nepodařilo načíst'); return; }
+  MG.models.loadGLB();
   MG.ui.closeSheets();
   document.body.classList.add('m3d'); MG.mode3d = true;
   $('m-3d').classList.add('on'); $('m-2d').classList.remove('on');
@@ -111,6 +112,13 @@
   T.map.getSource('net3').setData(fc(lines)); T.map.getSource('st3').setData(fc(stops));
  };
  MG.on('pack', () => T.updData());
+ /* po načtení skutečných 3D modelů vyměnit vozidla v mapě */
+ MG.on('models', () => {
+  if (!tl) return;
+  for (const o of T.objs.values()) { const type = MG.models.typeOf(o.it.L); if (!MG.models.glb[type] || (o.g.userData && o.g.userData.glb)) continue; tl.scene.remove(o.g); o.g = MG.models.build(type, MG.models.livery(o.it.L)); tl.scene.add(o.g); }
+  if (R && R.obj && !(R.obj.userData && R.obj.userData.glb)) { const type = MG.models.typeOf(R.it.L); if (MG.models.glb[type]) { tl.scene.remove(R.obj); R.obj = MG.models.build(type, MG.models.livery(R.it.L)); tl.scene.add(R.obj); } }
+  if (R) rideHud(true);
+ });
  T.setSel = (pts, color, road) => {
   if (!T.ready) return;
   T.map.getSource('sel3').setData(fc(pts && pts.length > 1 ? [{type: 'Feature', properties: {c: color}, geometry: {type: 'LineString', coordinates: pts.map(q => [q[1], q[0]])}}] : []));
@@ -321,7 +329,7 @@
    }
    const t0 = D.shortName(D.plName(p.s[0]), city), t1 = D.shortName(D.plName(p.s[n - 1]), city);
    const ttl = R.done ? 'Konečná zastávka' : R.dwell > 0 ? 'Stojíme – zastávka' : 'Příští zastávka';
-   h.innerHTML = '<div class="rd-h">' + D.badge(L_, {text: MG.veh.label(it)}) + '<b>' + MG.h(t0) + ' → ' + MG.h(t1) + '<small>' + MG.h((MG.models.TYPES[MG.models.typeOf(it.L)] || '').split(' (')[0]) + (it.live ? ' · živě' + (it.delay != null ? (it.delay > .5 ? ' +' + Math.round(it.delay) + ' min' : ' včas') : '') : it.virt ? ' · ukázková jízda' : ' · podle jízdního řádu') + '</small></b></div>' +
+   h.innerHTML = '<div class="rd-h">' + D.badge(L_, {text: MG.veh.label(it)}) + '<b>' + MG.h(t0) + ' → ' + MG.h(t1) + '<small>' + MG.h(MG.models.label(it.L)) + (it.live ? ' · živě' + (it.delay != null ? (it.delay > .5 ? ' +' + Math.round(it.delay) + ' min' : ' včas') : '') : it.virt ? ' · ukázková jízda' : ' · podle jízdního řádu') + '</small></b></div>' +
     '<div class="rd-next"><small>' + ttl + '</small><div><b id="rd-nn">' + MG.h(D.shortName(D.plName(p.s[nk]), city)) + '</b><span id="rd-nd"></span></div><div class="rd-bar"><i id="rd-nb"></i></div></div>' +
     '<div class="rd-list" style="--lc:' + L_.c + '">' + rows.join('') + '</div>';
   }
