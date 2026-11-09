@@ -38,7 +38,7 @@
 
 <div id="app">
  <header id="hdr" class="glass">
-  <div class="brand"><div class="brand-ic" id="brand" title="O aplikaci mhdGO">@LOGO@</div><div class="brand-tt"><div class="brand-tx" id="brand-tx">mhd<b>GO</b></div><button id="okres-chip" type="button" title="Vybrat okres"><span id="okres-name">Načítám…</span><i class="fa-solid fa-chevron-down"></i></button></div></div>
+  <div class="brand"><div class="brand-ic" id="brand" title="O aplikaci mhdGO">@LOGO@</div><div class="brand-tt"><div class="brand-tx" id="brand-tx">mhd<b>GO</b></div><button id="hdr-wx" type="button" title="Počasí" hidden></button></div></div>
   <div class="hdr-sp"></div>
   <nav class="hdr-btns" aria-label="Funkce">
    <button class="rb" data-a="search" title="Hledat zastávku, adresu nebo spojení"><i class="fa-solid fa-magnifying-glass"></i></button>
@@ -46,7 +46,8 @@
    <button class="rb" data-a="bedekr" title="Bedekr – památky a zajímavosti"><i class="fa-solid fa-landmark"></i><em>Bedekr</em></button>
    <button class="rb" data-a="info" title="O aplikaci"><i class="ri">i</i><em>Info</em></button>
    <button class="rb" data-a="dark" title="Tmavý režim"><i class="fa-solid fa-moon"></i><em>Tmavý</em></button>
-   <button class="rb" data-a="net" title="Dopravní síť – všechny linky a jejich trasy"><i class="fa-solid fa-route"></i><em>Síť</em></button>
+   <button class="rb" data-a="ai" title="Rádce – zeptej se na cestu"><i class="fa-solid fa-wand-magic-sparkles"></i><em>Rádce</em></button>
+   <button class="rb" data-a="wx" title="Počasí"><i class="fa-solid fa-cloud-sun"></i><em>Počasí</em></button>
    <span class="hb-sep"></span>
    <button class="rb tg" data-a="regio" title="Regionální linky"><i class="fa-solid fa-bus-simple"></i><em>Regio</em></button>
    <button class="rb tg" data-a="vlak" title="Vlaky"><i class="fa-solid fa-train"></i><em>Vlak</em></button>
@@ -54,7 +55,6 @@
   <div class="mode-sw" role="tablist" aria-label="Režim mapy">
    <button id="m-2d" class="on" title="Mapa 2D"><i class="fa-regular fa-map"></i><span>Mapa 2D</span></button>
    <button id="m-3d" title="Model 3D"><i class="fa-solid fa-cube"></i><span>Model 3D</span></button>
-   <button id="m-ride" title="Jízda vozidlem ve 3D"><i class="fa-solid fa-cubes"></i><span>Jízda 3D</span><sup>+</sup></button>
   </div>
  </header>
  <main id="mapwrap">
@@ -71,8 +71,9 @@
     <button class="lay" data-l="sat"><span id="lay-sat"></span><em>Letecká</em></button>
    </div>
    <div class="fx3d">
-    <div class="seg glass" id="fx-time"><button data-v="dawn" title="Svítání"><i class="fa-solid fa-sun"></i><i class="fa-solid fa-arrow-up" style="font-size:8px;margin-left:-3px"></i></button><button data-v="day" title="Den"><i class="fa-solid fa-sun"></i></button><button data-v="dusk" title="Soumrak"><i class="fa-solid fa-sun"></i><i class="fa-solid fa-arrow-down" style="font-size:8px;margin-left:-3px"></i></button><button data-v="night" title="Noc"><i class="fa-solid fa-moon"></i></button></div>
-    <div class="seg glass" id="fx-wx"><button data-v="none" title="Jasno"><i class="fa-solid fa-sun"></i></button><button data-v="cloud" title="Oblačno"><i class="fa-solid fa-cloud"></i></button><button data-v="rain" title="Déšť"><i class="fa-solid fa-cloud-showers-heavy"></i></button><button data-v="snow" title="Sníh"><i class="fa-regular fa-snowflake"></i></button></div>
+    <button class="hbtn" id="ride-go" title="Jízda vozidlem ve 3D"><i class="fa-solid fa-cubes"></i><span>Jízda vozidlem</span></button>
+    <div class="seg glass" id="fx-time"><button data-v="auto" title="Podle skutečnosti"><i class="fa-solid fa-clock-rotate-left"></i></button><button data-v="dawn" title="Svítání"><i class="fa-solid fa-sun"></i><i class="fa-solid fa-arrow-up" style="font-size:8px;margin-left:-3px"></i></button><button data-v="day" title="Den"><i class="fa-solid fa-sun"></i></button><button data-v="dusk" title="Soumrak"><i class="fa-solid fa-sun"></i><i class="fa-solid fa-arrow-down" style="font-size:8px;margin-left:-3px"></i></button><button data-v="night" title="Noc"><i class="fa-solid fa-moon"></i></button></div>
+    <div class="seg glass" id="fx-wx"><button data-v="auto" title="Skutečné počasí"><i class="fa-solid fa-satellite-dish"></i></button><button data-v="none" title="Jasno"><i class="fa-solid fa-sun"></i></button><button data-v="cloud" title="Oblačno"><i class="fa-solid fa-cloud"></i></button><button data-v="rain" title="Déšť"><i class="fa-solid fa-cloud-showers-heavy"></i></button><button data-v="snow" title="Sníh"><i class="fa-regular fa-snowflake"></i></button></div>
    </div>
   </div>
   <div class="hud hud-bl">
@@ -80,7 +81,7 @@
    <div class="hbtn" id="scale"><span class="sc-tx">1 km</span><span class="sc-bar" style="width:60px"></span></div>
    <button class="hbtn sq" id="compass" title="Sever nahoru"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i></button>
    <button class="hbtn sq" id="legend-btn" title="Legenda"><i class="fa-solid fa-list"></i></button>
-   <button class="hbtn" id="live-btn" title="Živé polohy"><i class="fa-solid fa-tower-broadcast"></i><span id="live-n"></span></button>
+   <button class="hbtn sq" id="live-btn" title="Živé polohy"><i class="fa-solid fa-tower-broadcast"></i></button>
    <button class="hbtn" id="weather" title="Počasí" hidden></button>
   </div>
   <div class="hud hud-br">
@@ -102,8 +103,8 @@
 <nav id="tabs" class="glass" aria-label="Hlavní nabídka">
  <button data-t="search"><i class="fa-solid fa-magnifying-glass"></i><span>Hledat</span></button>
  <button data-t="dep"><i class="fa-regular fa-clock"></i><span>Odjezdy</span></button>
- <button data-t="net"><i class="fa-solid fa-bus"></i><span>Síť</span></button>
- <button data-t="ride"><i class="fa-solid fa-route"></i><span>Jízda</span><sup class="b3d">3D</sup></button>
+ <button data-t="ai" class="ai-tab"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Rádce</span></button>
+ <button data-t="wx"><i class="fa-solid fa-cloud-sun"></i><span>Počasí</span></button>
  <button data-t="bedekr" class="tb-x"><i class="fa-solid fa-landmark"></i><span>Bedekr</span></button>
  <button data-t="info" class="tb-x"><i class="ri">i</i><span>Info</span></button>
  <button data-t="dark" class="tb-x"><i class="fa-solid fa-moon"></i><span>Tmavý</span></button>
@@ -114,9 +115,9 @@
 
 <section class="sheet" id="sh-search" aria-hidden="true"></section>
 <section class="sheet" id="sh-dep" aria-hidden="true"></section>
-<section class="sheet" id="sh-net" aria-hidden="true"></section>
+<section class="sheet" id="sh-ai" aria-hidden="true"></section>
+<section class="sheet" id="sh-wx" aria-hidden="true"></section>
 <section class="sheet" id="sh-more" aria-hidden="true"></section>
-<section class="sheet" id="sh-okres" aria-hidden="true"></section>
 <section class="sheet" id="sh-misc" aria-hidden="true"></section>
 <section id="vcard" aria-hidden="true"></section>
 <section class="sheet" id="bedekr" aria-hidden="true"></section>

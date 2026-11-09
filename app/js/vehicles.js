@@ -4,13 +4,8 @@
  const V = MG.veh = {mk: new Map(), insts: [], byKey: new Map(), sel: null, liveMap: new Map(), extra: [], cap: 420};
  let simPats = null;
  MG.on('pack', () => { simPats = null; });
- function buildSim() {
-  simPats = []; const seen = new Set();
-  for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) {
-   const L_ = D.ln.get(li); if (!L_) continue;
-   for (const p of L_.pats) { if (seen.has(p.i)) continue; seen.add(p.i); simPats.push(p); }
-  }
- }
+ function buildSim() { simPats = [...D.pt.values()]; }
+ MG.on('shapes', () => { if (MG.mode3d || (MG.map.m && MG.map.m.getZoom() >= 12)) V.tick(true); });
  function bbox(p) {
   if (p._bb) return p._bb;
   let a = 90, b = 180, c = -90, d = -180;
@@ -89,15 +84,17 @@
   const L_ = it.L, dc = dCls(it.delay), train = L_.k === 'vlak';
   const ic = train ? '<i class="fa-solid fa-train"></i>' : '';
   const d = it.live ? '<span class="veh-d ' + dc + '"' + (it.delayEst ? ' title="odhad podle polohy"' : '') + '>' + (it.delay == null ? '<i class="fa-solid fa-tower-broadcast" style="font-size:7px"></i>' : (it.delayEst && it.delay > .5 ? '~' : '') + dTxt(it.delay)) + '</span>' : '';
-  return '<div class="veh' + (train ? ' train' : '') + cls + '" style="--c:' + L_.c + ';--t:' + L_.tc + '"><span class="veh-arr" style="transform:translate(-50%,-50%) rotate(' + Math.round(it.hd || 0) + 'deg) translateY(-17px)"></span><span class="veh-l">' + ic + MG.h(V.label(it)) + '</span>' + d + '</div>';
+  return '<div class="veh' + (train ? ' train' : '') + cls + '" style="--c:' + L_.c + ';--t:' + L_.tc + '"><span class="veh-l">' + ic + MG.h(V.label(it)) + '</span>' + d + '</div>';
  }
  let lastFull = 0;
  V.tick = (force) => {
   const map = MG.map.m; if (!map || !D.core) return;
-  if (MG.mode3d) { V.insts = V.active(MG.m3d.bounds()); V.insts.forEach(V.place); MG.m3d.syncVehicles(V.insts); updCard(); return; }
+  if (MG.mode3d) { V.insts = V.active(MG.m3d.bounds()); for (const it of V.insts) if (!it.p.g) D.wantShape(it.p); V.insts.forEach(V.place); MG.m3d.syncVehicles(V.insts); updCard(); return; }
   const z = map.getZoom(), b = map.getBounds().pad(.12);
   const bounds = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()];
   let insts = V.active(bounds, {trainsOnly: z < 9.5});
+  /* skutečné trasy (silnice, koleje) dotáhnout pro vozidla ve výřezu až při přiblížení */
+  if (z >= 12) for (const it of insts) if (!it.p.g) D.wantShape(it.p);
   insts.forEach(V.place);
   insts = insts.filter(it => it.lat >= bounds[0] && it.lat <= bounds[2] && it.lon >= bounds[1] && it.lon <= bounds[3]);
   const c = map.getCenter();

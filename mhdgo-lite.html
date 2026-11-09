@@ -569,14 +569,40 @@ MG.jtsk = function(ex, ny, H){
  D.dataValid = () => { const d = D.dayIdx(); return d >= 0 && d < D.core.nd; };
  /* ---------- balíčky ---------- */
  D.loadOkres = (oi) => {
-  if (D.loaded.has(oi)) return Promise.resolve(true);
+  if (D.all || D.loaded.has(oi)) return D.all ? Promise.resolve(true) : Promise.resolve(true);
   if (D.loading.has(oi)) return D.loading.get(oi);
   const p = MG.fetchJSON('okres/' + oi + '.json').then(pk => { D.merge(pk, oi); D.loaded.add(oi); D.loading.delete(oi); MG.emit('pack', oi); return true; })
    .catch(e => { D.loading.delete(oi); throw e; });
   D.loading.set(oi, p);
   return p;
  };
+ /* celá ČR najednou: jízdní řády bez geometrií (cz.json); trasy se dotahují po dlaždicích (shp/<id>.json) */
+ D.loadAll = () => {
+  if (D.all) return Promise.resolve(true);
+  if (D._allP) return D._allP;
+  D._allP = MG.fetchJSON('cz.json?v=' + (D.core && D.core.d0 || '')).then(pk => {
+   D.merge(pk, -1);
+   for (const l of pk.ln) { const L_ = D.ln.get(l.i); if (L_ && l.o) for (const o of l.o) L_.okresy.add(o); }
+   D.all = true; D.dalkove = true; D.okresy.forEach((_, i) => D.loaded.add(i));
+   MG.emit('pack', -1); return true;
+  }).catch(e => { D._allP = null; throw e; });
+  return D._allP;
+ };
+ D.shpLoaded = new Set(); D.shpLoading = new Map();
+ D.loadShapes = (t) => {
+  if (t == null || t < 0 || D.shpLoaded.has(t)) return Promise.resolve(true);
+  if (D.shpLoading.has(t)) return D.shpLoading.get(t);
+  const pr = MG.fetchJSON('shp/' + t + '.json').then(j => {
+   for (const k in j) { const p = D.pt.get(+k); if (p && !p.g) { p.g = j[k][0]; p.x = j[k][1]; delete p._geo; } }
+   D.shpLoaded.add(t); D.shpLoading.delete(t); MG.emit('shapes', t); return true;
+  }).catch(e => { D.shpLoading.delete(t); D.shpLoaded.add(t); MG.err('shp', e); return false; });
+  D.shpLoading.set(t, pr); return pr;
+ };
+ /* geometrie vzoru: hned vrátí, co je (případně přímky mezi zastávkami), a v pozadí dotáhne skutečnou trasu */
+ D.wantShape = (p) => { if (!p.g && p.gt != null && p.gt >= 0 && !D.shpLoaded.has(p.gt)) D.loadShapes(p.gt); };
+ D.shapeOf = async (p) => { if (!p.g && p.gt != null && p.gt >= 0) await D.loadShapes(p.gt); return D.geo3(p); };
  D.loadDalkove = () => {
+  if (D.all) return Promise.resolve(true);
   if (D.dalkove) return Promise.resolve(true);
   if (D._dalP) return D._dalP;
   D._dalP = MG.fetchJSON('dalkove.json').then(pk => { D.merge(pk, -1); D.dalkove = true; return true; });
@@ -620,9 +646,12 @@ MG.jtsk = function(ex, ny, H){
   let pts, x;
   if (p.g) { pts = MG.decode(p.g); x = p.x; }
   else { pts = p.s.map(g => { const q = D.pl.get(g); return [q.lat, q.lon]; }); x = p.s.map((_, i) => i); }
+  const tmp = !p.g && p.gt != null && p.gt >= 0 && !D.shpLoaded.has(p.gt);
   const n = pts.length, lat = new Float64Array(n), lon = new Float64Array(n), cd = new Float64Array(n);
   for (let i = 0; i < n; i++) { lat[i] = pts[i][0]; lon[i] = pts[i][1]; if (i) cd[i] = cd[i - 1] + MG.dist(lat[i - 1], lon[i - 1], lat[i], lon[i]); }
-  return (p._geo = {lat, lon, cd, x, pts});
+  const G = {lat, lon, cd, x, pts, tmp};
+  if (!tmp) p._geo = G;
+  return G;
  };
  D.pointAt = (g, d) => {
   const cd = g.cd; let lo = 0, hi = cd.length - 1;
@@ -764,7 +793,7 @@ MG.jtsk = function(ex, ny, H){
   • Správa železnic – polohy všech osobních vlaků v ČR se zpožděním (veřejné API, CORS povolen)
   • IDS JMK (Brno a Jihomoravský kraj) – otevřený stream poloh data.brno.cz (KORDIS JMK, CC BY 4.0), přímo z prohlížeče
   • worker mhdGO (worker/mhdgo-worker.js) – PID, celostátní GTFS-RT regionálních autobusů a MHD (IDOL, JIKORD, ODIS, IDZK,
-    DÚK, DPMD…), ODIS přes proxy OpavaGO
+    DÚK, DPMD…), ODIS přes proxy OpavaGO, IREDO (Královéhradecký a Pardubický kraj), MHD Hradec Králové
   • záložně ODIS přímo přes proxy OpavaGO */
 (function(){
  const D = MG.D;
@@ -791,7 +820,15 @@ MG.jtsk = function(ex, ny, H){
   } catch (e) { LV.st.sz = 'err'; LV.err.sz = String(e.message || e); }
  }
  /* ---------- ODIS (proxy) ---------- */
- const needOdis = () => { for (const oi of D.loaded) { const k = D.kraje[D.okresy[oi].kraj]; if (k && k.code === 'MSK') return true; } return false; };
+ /* zdroje vázané na kraj se stahují, jen když je kraj v zorném poli (celá ČR je načtená najednou) */
+ const krajBox = {};
+ const needKraj = (code) => {
+  const b = LV.bounds(.2); if (!b || !D.okresy) return false;
+  let kb = krajBox[code];
+  if (!kb) { kb = [90, 180, -90, -180]; D.okresy.forEach(o => { const k = D.kraje[o.kraj]; if (!k || k.code !== code) return; kb[0] = Math.min(kb[0], o.bbox[1]); kb[1] = Math.min(kb[1], o.bbox[0]); kb[2] = Math.max(kb[2], o.bbox[3]); kb[3] = Math.max(kb[3], o.bbox[2]); }); krajBox[code] = kb; }
+  return !(b[2] < kb[0] || b[0] > kb[2] || b[3] < kb[1] || b[1] > kb[3]);
+ };
+ const needOdis = () => needKraj('MSK');
  async function fetchOdis() {
   if (!MG.cfg.ODIS || !needOdis()) { LV.st.odis = ''; return; }
   try {
@@ -836,7 +873,7 @@ MG.jtsk = function(ex, ny, H){
  /* ---------- IDS JMK: otevřený stream poloh (data.brno.cz) ---------- */
  const JMK = LV.jmk = {ws: null, veh: new Map(), names: null, filt: '', next: 0};
  const JMK_URL = 'wss://gis.brno.cz/geoevent/ws/services/Kordis_stream/StreamServer/subscribe';
- const needJmk = () => { for (const oi of D.loaded) { const k = D.kraje[D.okresy[oi].kraj]; if (k && k.code === 'JHM') return true; } return false; };
+ const needJmk = () => needKraj('JHM');
  function jmkFilter() {
   const ws = JMK.ws; if (!ws || ws.readyState !== 1) return;
   const bb = LV.bounds(.35); if (!bb) return;
@@ -880,16 +917,17 @@ MG.jtsk = function(ex, ny, H){
  LV.matchBus = (insts) => {
   const res = new Map();
   const bus = LV.allBus(); if (!bus.length) return {res, extra: []};
-  const byCis = new Map(), byShort = new Map(), byPid = new Map();
+  const byCis = new Map(), byShort = new Map(), byPid = new Map(), byCity = new Map();
   for (const it of insts) {
    const L_ = it.L; if (!L_ || L_.k === 'vlak') continue;
    if (it.spoj) for (const c of (L_.cis || [])) byCis.set(c + ':' + it.spoj, it);
+   if (it.spoj && L_.city) byCity.set(L_.city + ':' + L_.n + ':' + it.spoj, it);
    if (L_.sys === 'PID' && it.spoj) byPid.set(L_.n + ':' + it.spoj, it);
    (byShort.get(L_.n) || byShort.set(L_.n, []).get(L_.n)).push(it);
   }
   const used = new Set(), rest = [], extra = [];
   for (const v of bus) {
-   const it = v.cis && v.spoj ? byCis.get(v.cis + ':' + v.spoj) : (v.src === 'PID' && v.spoj ? byPid.get(v.line + ':' + v.spoj) : null);
+   const it = v.cis && v.spoj ? byCis.get(v.cis + ':' + v.spoj) : (v.src === 'PID' && v.spoj ? byPid.get(v.line + ':' + v.spoj) : v.city && v.spoj ? byCity.get(v.city + ':' + v.line + ':' + v.spoj) : null);
    if (it && !used.has(it.key)) { used.add(it.key); res.set(it.key, v); }
    else if (v.cis && v.spoj) extra.push(v);         /* přesný klíč bez spoje v datech – nehádat */
    else rest.push(v);
@@ -930,12 +968,12 @@ MG.jtsk = function(ex, ny, H){
  function updBtn() {
   const b = MG.$('live-btn'); if (!b) return;
   b.classList.remove('ok', 'warn', 'off');
-  if (!LV.on) { b.classList.add('off'); MG.$('live-n').textContent = ''; b.title = 'Živé polohy vypnuty'; return; }
+  if (!LV.on) { b.classList.add('off'); b.title = 'Živé polohy vypnuty'; return; }
   const ok = LV.st.sz === 'ok' || LV.st.odis === 'ok' || LV.st.worker === 'ok' || LV.st.jmk === 'ok';
   const err = LV.st.sz === 'err' && (LV.st.odis === 'err' || !LV.st.odis);
   b.classList.add(ok ? 'ok' : err ? 'warn' : 'off');
-  MG.$('live-n').textContent = LV.liveCount ? String(LV.liveCount) : '';
-  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO ' + Object.keys(LV.wStats || {}).filter(k => k !== 'alerts').map(k => ({jdf: 'regionální GTFS-RT', pid: 'PID', sz: 'SŽ', odis: 'ODIS'})[k] || k).join(', ') : '') + (LV.st.odis ? ', ODIS ' + LV.st.odis : '') + (LV.st.jmk ? ', IDS JMK ' + LV.st.jmk : '');
+  const ln = MG.$('live-n'); if (ln) ln.textContent = '';
+  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO ' + Object.keys(LV.wStats || {}).filter(k => k !== 'alerts').map(k => ({jdf: 'regionální GTFS-RT', pid: 'PID', sz: 'SŽ', odis: 'ODIS', iredo: 'IREDO', dpmhk: 'MHD Hradec Králové'})[k] || k).join(', ') : '') + (LV.st.odis ? ', ODIS ' + LV.st.odis : '') + (LV.st.jmk ? ', IDS JMK ' + LV.st.jmk : '');
  }
  LV.updBtn = updBtn;
  LV.toggle = (on) => { LV.on = on; MG.store.set('live', on); if (on) { tSZ = tB = 0; LV.tick(); } else { LV.trains = new Map(); LV.busOdis = []; LV.busWorker = []; jmkSync(); MG.emit('live'); } updBtn(); };
@@ -1116,6 +1154,243 @@ MG.jtsk = function(ex, ny, H){
  };
 })();
 
+/* ---- assist.js ---- */
+/* ===== mhdGO – sdílené jádro pro velkou aplikaci i verzi bez mapy =====
+ Hledání zastávek a adres, živé zpoždění spojů (odjezdy i spojení), plánování, pěší trasy, počasí, Moje místa.
+ Hostitel (aplikace) nastaví C.me() – poloha uživatele, C.locate() – zjištění polohy a C.ctx() – co má otevřené. */
+(function(){
+ const D = MG.D, LV = MG.live;
+ const C = MG.core = {me: () => null, locate: async () => null, ctx: () => ({})};
+ C.clk = () => { const P = MG.pragueParts(MG.now()); return {P, ymd: P.ymd, day: D.dayIdx(P.ymd), m: P.h * 60 + P.mi + P.s / 60, s: (P.h * 60 + P.mi) * 60 + P.s}; };
+ C.fmtDur = m => { m = Math.round(m); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : ''); };
+ C.walkMin = d => Math.max(1, Math.round(d * 1.25 / 75));
+ C.mePoint = async () => { const me = C.me() || await C.locate(); return me ? {kind: 'me', name: 'Moje poloha', lat: me.lat, lon: me.lon} : null; };
+ C.refPt = () => { const m = C.me(); if (m) return m; const c = C.ctx().center; return c || {lat: 49.8, lon: 15.5}; };
+
+ /* ---------- Moje místa (sdílená s mapovou verzí: klíč favs) ---------- */
+ C.FAV_IC = {'Domů': 'fa-house', 'Práce': 'fa-briefcase', 'Škola': 'fa-graduation-cap'};
+ C.favs = () => MG.store.get('favs', []) || [];
+ C.saveFavs = F => { MG.store.set('favs', F); MG.emit('favs'); };
+ C.addFav = (pt, label) => {
+  const F = C.favs(); label = (label || pt.name || 'Místo').trim();
+  const o = {label, name: pt.name, lat: +(+pt.lat).toFixed(6), lon: +(+pt.lon).toFixed(6), icon: C.FAV_IC[label] || pt.icon || 'fa-star'};
+  if (pt.st != null) o.st = pt.st;
+  const i = F.findIndex(f => f.label === label); if (i >= 0) F[i] = o; else F.push(o);
+  C.saveFavs(F); MG.toast('Uloženo do Mých míst: ' + label);
+ };
+
+ /* ---------- zastávky a adresy ---------- */
+ C.findStops = async (q, n) => {
+  const idx = await D.loadIdx(); const f = MG.fold(q); if (!f) return [];
+  const words = f.split(' '), ref = C.refPt(), out = [];
+  for (const s of idx) {
+   let sc = 0; const last = s.f.split(' ').slice(-words.length).join(' ');
+   if (s.f === f || last === f) sc = 7; else if (s.f.startsWith(f)) sc = 6; else if (s.f.includes(' ' + f)) sc = 4; else if (words.every(w => s.f.includes(w))) sc = 2; else continue;
+   if (s.m & 1) sc += .5; if (s.m & 6) sc += .4;
+   out.push([sc - MG.dist(ref.lat, ref.lon, s.lat, s.lon) / 120000, s]);
+  }
+  out.sort((a, b) => b[0] - a[0]);
+  return out.slice(0, n || 8).map(x => x[1]);
+ };
+ C.geocode = async (q, n) => {
+  try {
+   const ref = C.refPt();
+   const r = await fetch(MG.cfg.PHOTON + '?q=' + encodeURIComponent(q) + '&limit=' + (n || 5) + '&lang=de&lat=' + ref.lat.toFixed(4) + '&lon=' + ref.lon.toFixed(4) + '&bbox=12.09,48.55,18.86,51.06');
+   const j = await r.json();
+   return (j.features || []).map(f => { const p = f.properties || {}; const street = p.street ? p.street + (p.housenumber ? ' ' + p.housenumber : '') : ''; const name = p.name || street || p.city || ''; return {kind: 'addr', addr: true, name, sub: [p.name && street ? street : '', p.district || '', p.city || p.town || p.village || ''].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i && x !== name).join(', '), lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0]}; }).filter(x => x.name);
+  } catch (_) { return []; }
+ };
+ C.nearestStops = async (lat, lon, n, maxD) => {
+  const idx = await D.loadIdx(); const out = [];
+  for (const s of idx) { if (Math.abs(s.lat - lat) > .03) continue; const d = MG.dist(lat, lon, s.lat, s.lon); if (d < (maxD || 1500)) out.push([d, s]); }
+  out.sort((a, b) => a[0] - b[0]); return out.slice(0, n || 6);
+ };
+
+ /* ---------- živé polohy: instance spojů, párování, zpoždění ---------- */
+ C.mkInst = (p, j, day) => {
+  const c = C.clk(), start = p.T[3 * j], prof = p.T[3 * j + 1], L_ = D.ln.get(p.l), n = p.dep[prof].length;
+  const m = c.m + (c.day - day) * 1440, end = start + p.arr[prof][n - 1];
+  const it = {key: p.i + ':' + j + ':' + day, p, j, day, prof, start, m, L: L_, spoj: p.c ? p.c[j] : 0, num: p.n ? p.n[j] : '', head: D.headsign(p, j), end};
+  const pos = D.tripPos(p, prof, m - start); it.lat = pos.lat; it.lon = pos.lon;
+  it.running = m >= start - 3 && m <= end + 25;
+  return it;
+ };
+ C.liveOf = (insts) => {
+  const out = new Map(); if (!LV.on) return out;
+  /* mapová verze už má spárováno vše, co je na mapě */
+  if (MG.veh && MG.veh.liveMap) for (const it of insts) { const v = MG.veh.liveMap.get(it.key); if (v) out.set(it.key, v); }
+  const run = insts.filter(it => it.running && it.L && !out.has(it.key));
+  for (const it of run) if (it.L.k === 'vlak' && it.num) { const t = LV.trains.get(String(it.num)); if (t) out.set(it.key, t); }
+  const bus = run.filter(it => it.L.k !== 'vlak');
+  if (bus.length) { try { const {res} = LV.matchBus(bus); for (const [k, v] of res) out.set(k, v); } catch (e) { MG.err('match', e); } }
+  return out;
+ };
+ C.delayOf = (it, v) => {
+  if (!v) return null;
+  if (v.delay != null && isFinite(v.delay)) return {d: +v.delay, est: false, v};
+  if (isFinite(v.lat)) { if (v._estK !== it.key || Date.now() - (v._estAt || 0) > 15000) { v._est = D.estDelay(it, v.lat, v.lon); v._estAt = Date.now(); v._estK = it.key; } if (v._est != null) return {d: v._est, est: true, v}; }
+  return {d: null, est: false, v};
+ };
+ C.dlBadge = (x) => {
+  if (!x) return '';
+  if (x.d == null) return '<span class="dl on" title="vozidlo je na trase, zpoždění zdroj nehlásí"><i class="fa-solid fa-tower-broadcast"></i> živě</span>';
+  const d = x.d, t = x.est ? '~' : '', ti = x.est ? ' title="odhad podle polohy vozidla"' : ' title="hlášené zpoždění (' + MG.h(x.v.src || 'živě') + ')"';
+  if (d < -1.5) return '<span class="dl ok"' + ti + '>' + t + Math.round(d) + ' min</span>';
+  return d <= .5 ? '<span class="dl ok"' + ti + '>' + t + 'včas</span>' : '<span class="dl ' + (d <= 3 ? 'mid' : 'bad') + '"' + ti + '>' + t + '+' + Math.round(d) + ' min</span>';
+ };
+ C.depItems = (g, opt) => {
+  opt = opt || {}; const c = C.clk();
+  const ymd = opt.ymd || c.ymd, from = opt.from != null ? opt.from : c.m, today = ymd === c.ymd;
+  const deps = D.departures(g, {ymd, from: from - 1, horizon: opt.horizon || (opt.from == null ? 300 : 480), limit: opt.limit || 60, lines: opt.lines, platform: opt.platform});
+  const insts = today ? deps.map(d => C.mkInst(d.p, d.j, d.day)) : [];
+  const live = today ? C.liveOf(insts) : new Map();
+  return deps.map((d, i) => { const it = insts[i]; const x = it ? C.delayOf(it, live.get(it.key)) : null; const dl = x && x.d > 0 ? x.d : 0; return {d, it, x, exp: d.t + dl, dl}; });
+ };
+
+ /* ---------- spojení ---------- */
+ C.planTrip = async (from, to, ymd, t, count) => {
+  const r = await MG.raptor.search(from, to, ymd, t, {count: count || 5});
+  if (r.err) return r;
+  r.ymd = ymd; r.t = t; r.from = from; r.to = to;
+  return r;
+ };
+ C.legTimes = (res, l) => { const st0 = l.p.T[3 * l.j] + (l.day - res.qday) * 1440; return {dep: st0 + l.p.dep[l.prof][l.bi], arr: st0 + l.p.arr[l.prof][l.ai]}; };
+ C.connTimes = (res, c) => { const rides = c.legs.filter(l => !l.walk); const t1 = C.legTimes(res, rides[0]); return {dep: t1.dep - (c.acc[1] || 0), arr: c.arr, rides}; };
+ C.connLive = (res, c) => {
+  const rides = c.legs.filter(l => !l.walk);
+  const today = (res.ymd || C.clk().ymd) === C.clk().ymd;
+  const insts = today ? rides.map(l => C.mkInst(l.p, l.j, l.day)) : [];
+  const live = today ? C.liveOf(insts) : new Map();
+  const out = rides.map((l, i) => { const it = insts[i]; return {l, t: C.legTimes(res, l), x: it ? C.delayOf(it, live.get(it.key)) : null}; });
+  for (let i = 1; i < out.length; i++) {
+   const a = out[i - 1], b = out[i];
+   const da = a.x && a.x.d > 0 ? a.x.d : 0, db = b.x && b.x.d > 0 ? b.x.d : 0;
+   const walk = c.legs.slice(c.legs.indexOf(a.l) + 1, c.legs.indexOf(b.l)).filter(l => l.walk).reduce((s, l) => s + l.dur, 0);
+   const slack = (b.t.dep + db) - (a.t.arr + da) - walk;
+   b.slack = slack; b.risk = da > 0 && slack < 1;
+  }
+  return out;
+ };
+ /* posun jedné jízdy na předchozí / další spoj mezi stejnými zastávkami (jako OpavaGO); ostatní jízdy zůstanou */
+ C.shiftLeg = (res, c, li, dir) => {
+  const l = c.legs[li]; if (!l || l.walk) return null;
+  const n = res.n, bs = l.from, as = l.to, t0 = C.legTimes(res, l);
+  const cand = [];
+  for (const code of n.stPats[bs]) {
+   const q = n.pats[(code / 1024) | 0], i = code % 1024, p = q.p;
+   if (!D.canBoard(p, i)) continue;
+   let k = -1; for (let x = i + 1; x < q.seq.length; x++) if (q.seq[x] === as && D.canAlight(p, x)) { k = x; break; }
+   if (k < 0) continue;
+   for (let dd = -1; dd <= 1; dd++) {
+    const d = res.qday + dd;
+    for (let j = 0; j < p.nt; j++) {
+     const st = p.T[3 * j], prof = p.T[3 * j + 1];
+     if (!D.svcOn(p.T[3 * j + 2], d)) continue;
+     const dep = st + dd * 1440 + p.dep[prof][i], arr = st + dd * 1440 + p.arr[prof][k];
+     cand.push({p, j, day: d, prof, bi: i, ai: k, dep, arr});
+    }
+   }
+  }
+  cand.sort((a, b) => a.dep - b.dep || a.arr - b.arr);
+  const pick = dir > 0 ? cand.find(x => x.dep > t0.dep + .01) : [...cand].reverse().find(x => x.dep < t0.dep - .01);
+  if (!pick) return null;
+  const legs = c.legs.map((x, i) => i === li ? Object.assign({}, x, {p: pick.p, j: pick.j, day: pick.day, prof: pick.prof, bi: pick.bi, ai: pick.ai}) : x);
+  const nc = Object.assign({}, c, {legs, shifted: true});
+  const rides = legs.filter(x => !x.walk), last = rides[rides.length - 1];
+  nc.arr = C.legTimes(res, last).arr + (c.egress || 0);
+  return nc;
+ };
+ /* návaznost přestupů po posunu: false = některý přestup nejde stihnout */
+ C.connOk = (res, c) => {
+  let prev = null, walk = 0;
+  for (const l of c.legs) {
+   if (l.walk) { if (prev) walk += l.dur || 0; continue; }
+   const t = C.legTimes(res, l);
+   if (prev && t.dep < C.legTimes(res, prev).arr + walk + 1 - .01) return false;
+   prev = l; walk = 0;
+  }
+  return true;
+ };
+
+ /* ---------- pěší trasy (Valhalla nad OpenStreetMap – chodníky, přechody, schody) ---------- */
+ const dec6 = (s) => { const out = []; let i = 0, la = 0, lo = 0; while (i < s.length) { for (let w = 0; w < 2; w++) { let sh = 0, r = 0, b; do { b = s.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5 } while (b >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if (w) lo += d; else la += d } out.push([la / 1e6, lo / 1e6]) } return out; };
+ const walkCache = new Map();
+ C.walkRoute = async (a, b) => {
+  const key = [a.lat, a.lon, b.lat, b.lon].map(x => (+x).toFixed(5)).join(',');
+  if (walkCache.has(key)) return walkCache.get(key);
+  const q = {locations: [{lat: a.lat, lon: a.lon}, {lat: b.lat, lon: b.lon}], costing: 'pedestrian', directions_options: {language: 'cs-CZ', units: 'kilometers'}};
+  const r = await fetch('https://valhalla1.openstreetmap.de/route?json=' + encodeURIComponent(JSON.stringify(q)));
+  if (!r.ok) throw Error('HTTP ' + r.status);
+  const j = await r.json(); const leg = j.trip.legs[0];
+  const pts = dec6(leg.shape), cd = [0]; for (let i = 1; i < pts.length; i++) cd.push(cd[i - 1] + MG.dist(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]));
+  const out = {pts, cd, len: j.trip.summary.length * 1000, time: j.trip.summary.time / 60, man: leg.maneuvers.map(m => ({t: m.instruction, i: m.begin_shape_index, len: m.length * 1000, type: m.type}))};
+  if (walkCache.size > 60) walkCache.clear();
+  walkCache.set(key, out); return out;
+ };
+
+ /* ---------- počasí (Open-Meteo) ---------- */
+ const WX = C.WX = {0: ['fa-sun', 'jasno', 'fa-moon'], 1: ['fa-cloud-sun', 'skoro jasno', 'fa-cloud-moon'], 2: ['fa-cloud-sun', 'polojasno', 'fa-cloud-moon'], 3: ['fa-cloud', 'zataženo'], 45: ['fa-smog', 'mlha'], 48: ['fa-smog', 'mlha s námrazou'], 51: ['fa-cloud-rain', 'slabé mrholení'], 53: ['fa-cloud-rain', 'mrholení'], 55: ['fa-cloud-rain', 'silné mrholení'], 56: ['fa-icicles', 'mrznoucí mrholení'], 57: ['fa-icicles', 'mrznoucí mrholení'], 61: ['fa-cloud-rain', 'slabý déšť'], 63: ['fa-cloud-rain', 'déšť'], 65: ['fa-cloud-showers-heavy', 'silný déšť'], 66: ['fa-icicles', 'mrznoucí déšť'], 67: ['fa-icicles', 'mrznoucí déšť'], 71: ['fa-snowflake', 'slabé sněžení'], 73: ['fa-snowflake', 'sněžení'], 75: ['fa-snowflake', 'silné sněžení'], 77: ['fa-snowflake', 'sněhová zrna'], 80: ['fa-cloud-sun-rain', 'přeháňky'], 81: ['fa-cloud-showers-heavy', 'přeháňky'], 82: ['fa-cloud-showers-heavy', 'prudké přeháňky'], 85: ['fa-snowflake', 'sněhové přeháňky'], 86: ['fa-snowflake', 'sněhové přeháňky'], 95: ['fa-cloud-bolt', 'bouřka'], 96: ['fa-cloud-bolt', 'bouřka s kroupami'], 99: ['fa-cloud-bolt', 'bouřka s kroupami']};
+ C.wxIc = (code, day) => { const w = WX[code] || ['fa-cloud', '']; return day === 0 && w[2] ? w[2] : w[0]; };
+ C.wxText = code => (WX[code] || ['', 'neznámé'])[1];
+ /* druh počasí pro 3D: none / cloud / fog / rain / snow */
+ C.wxKind = code => code == null ? 'none' : [45, 48].includes(code) ? 'fog' : (code >= 71 && code <= 77) || code === 85 || code === 86 ? 'snow' : code >= 51 ? 'rain' : code >= 3 ? 'cloud' : 'none';
+ C.windDir = d => ['S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ'][Math.round(((d % 360) + 360) % 360 / 45) % 8];
+ const wxCache = new Map();
+ C.weather = async (lat, lon) => {
+  const key = lat.toFixed(2) + ',' + lon.toFixed(2), hit = wxCache.get(key);
+  if (hit && Date.now() - hit._at < 10 * 60000) return hit;
+  const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat.toFixed(3) + '&longitude=' + lon.toFixed(3) +
+   '&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day' +
+   '&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,wind_speed_10m,is_day' +
+   '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset,uv_index_max,wind_speed_10m_max,wind_gusts_10m_max' +
+   '&timezone=Europe%2FPrague&forecast_days=7';
+  const r = await fetch(u); if (!r.ok) throw Error('HTTP ' + r.status);
+  const j = await r.json(); j._at = Date.now(); j._lat = lat; j._lon = lon;
+  wxCache.set(key, j); return j;
+ };
+ C.wxAdvice = (j) => {
+  const out = [], c = j.current, hh = j.hourly; if (!c) return out;
+  const nowI = Math.max(0, hh.time.findIndex(t => t >= j.current.time.slice(0, 13)));
+  const next3 = [0, 1, 2, 3].map(k => nowI + k).filter(i => i < hh.time.length);
+  const pmax = Math.max(...next3.map(i => hh.precipitation_probability[i] || 0)), psum = next3.reduce((s, i) => s + (hh.precipitation[i] || 0), 0);
+  if (c.precipitation > .1) out.push(['fa-umbrella', 'Teď ' + (c.temperature_2m < 1 ? 'sněží nebo mrzne' : 'prší') + ' – vezmi si deštník, na zastávce hledej přístřešek.']);
+  else if (pmax >= 60 || psum > .8) out.push(['fa-umbrella', 'Během 3 hodin pravděpodobně zaprší (' + pmax + ' %). Deštník se hodí.']);
+  if (c.temperature_2m <= 1 && (c.precipitation > 0 || pmax > 40)) out.push(['fa-person-falling', 'Kolem nuly a vlhko – na chodnících a zastávkách může klouzat.']);
+  if (c.wind_gusts_10m >= 60) out.push(['fa-wind', 'Silné nárazy větru (' + Math.round(c.wind_gusts_10m) + ' km/h) – možné komplikace v dopravě.']);
+  if (c.apparent_temperature <= -8) out.push(['fa-temperature-low', 'Velká zima, pocitově ' + Math.round(c.apparent_temperature) + ' °C – nečekej na zastávce zbytečně dlouho, sleduj odjezd živě.']);
+  if (c.temperature_2m >= 30) out.push(['fa-temperature-high', 'Horko – vezmi si vodu, v klimatizovaných vozech bývá příjemněji.']);
+  if ([95, 96, 99].includes(c.weather_code)) out.push(['fa-cloud-bolt', 'Bouřka – na cestu raději počkej.']);
+  if (!out.length) out.push(['fa-circle-check', 'Počasí cestování neztěžuje.']);
+  return out;
+ };
+ /* HTML panelu počasí (verze bez mapy i velká aplikace) */
+ const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+ C.wxHTML = (j, openDay) => {
+  const c = j.current, d = j.daily, hh = j.hourly, H = MG.h;
+  const nowI = Math.max(0, hh.time.findIndex(t => t >= c.time.slice(0, 13)));
+  let h = '<div class="wx-hero"><i class="fa-solid ' + C.wxIc(c.weather_code, c.is_day) + ' wx-big"></i><div><b class="wx-t">' + Math.round(c.temperature_2m) + '°</b><div class="wx-tx">' + H(cap(C.wxText(c.weather_code))) + '</div><small>pocitově ' + Math.round(c.apparent_temperature) + '° · ' + Math.round(d.temperature_2m_min[0]) + '° / ' + Math.round(d.temperature_2m_max[0]) + '°</small></div></div>';
+  h += '<div class="wx-adv">' + C.wxAdvice(j).map(([i, t]) => '<div><i class="fa-solid ' + i + '"></i><span>' + H(t) + '</span></div>').join('') + '</div>';
+  h += '<div class="wx-grid">' + [['fa-wind', 'Vítr', Math.round(c.wind_speed_10m) + ' km/h ' + C.windDir(c.wind_direction_10m)], ['fa-wind', 'Nárazy', Math.round(c.wind_gusts_10m) + ' km/h'], ['fa-droplet', 'Vlhkost', c.relative_humidity_2m + ' %'], ['fa-umbrella', 'Srážky dnes', (d.precipitation_sum[0] || 0).toFixed(1).replace('.', ',') + ' mm'], ['fa-gauge', 'Tlak', Math.round(c.pressure_msl) + ' hPa'], ['fa-sun', 'UV index', d.uv_index_max[0] != null ? Math.round(d.uv_index_max[0]) : '–'], ['fa-arrow-up', 'Východ', d.sunrise[0].slice(11, 16)], ['fa-arrow-down', 'Západ', d.sunset[0].slice(11, 16)]].map(([i, l, v]) => '<div class="wg"><i class="fa-solid ' + i + '"></i><small>' + l + '</small><b>' + v + '</b></div>').join('') + '</div>';
+  h += '<div class="sec-t">Příštích 24 hodin</div><div class="wx-hours">';
+  for (let i = nowI; i < Math.min(hh.time.length, nowI + 24); i++) h += '<div class="wh"><small>' + (i === nowI ? 'teď' : hh.time[i].slice(11, 13)) + '</small><i class="fa-solid ' + C.wxIc(hh.weather_code[i], hh.is_day[i]) + '"></i><b>' + Math.round(hh.temperature_2m[i]) + '°</b><span class="pp' + (hh.precipitation_probability[i] >= 50 ? ' hi' : '') + '">' + (hh.precipitation_probability[i] || 0) + ' %</span></div>';
+  h += '</div><div class="sec-t">7 dní <small>klepni pro hodinový detail</small></div><div class="wx-days">';
+  const tmin = Math.min(...d.temperature_2m_min), tmax = Math.max(...d.temperature_2m_max);
+  d.time.forEach((day, k) => {
+   const op = openDay === k;
+   const l = (d.temperature_2m_min[k] - tmin) / ((tmax - tmin) || 1) * 100, w = (d.temperature_2m_max[k] - d.temperature_2m_min[k]) / ((tmax - tmin) || 1) * 100;
+   h += '<div class="wd' + (op ? ' open' : '') + '"><button type="button" class="wd-h" data-wd="' + k + '"><span class="wd-n">' + (k === 0 ? 'Dnes' : k === 1 ? 'Zítra' : cap(MG.dowName(day)).slice(0, 2) + ' ' + +day.slice(8) + '. ' + +day.slice(5, 7) + '.') + '</span><i class="fa-solid ' + C.wxIc(d.weather_code[k], 1) + '"></i><span class="wd-p">' + (d.precipitation_probability_max[k] >= 20 ? '<i class="fa-solid fa-droplet"></i>' + d.precipitation_probability_max[k] + ' %' : '') + '</span><span class="wd-lo">' + Math.round(d.temperature_2m_min[k]) + '°</span><span class="wd-bar"><i style="left:' + l.toFixed(0) + '%;width:' + Math.max(6, w).toFixed(0) + '%"></i></span><span class="wd-hi">' + Math.round(d.temperature_2m_max[k]) + '°</span><i class="fa-solid fa-chevron-down chev"></i></button>';
+   if (op) {
+    h += '<div class="wd-b"><div class="wd-sum">' + H(cap(C.wxText(d.weather_code[k]))) + ' · srážky ' + (d.precipitation_sum[k] || 0).toFixed(1).replace('.', ',') + ' mm · vítr až ' + Math.round(d.wind_gusts_10m_max[k]) + ' km/h · slunce ' + d.sunrise[k].slice(11, 16) + '–' + d.sunset[k].slice(11, 16) + '</div><div class="wd-rows">';
+    for (let i = 0; i < hh.time.length; i++) if (hh.time[i].startsWith(day) && +hh.time[i].slice(11, 13) % 3 === 0) h += '<div class="wr"><span>' + hh.time[i].slice(11, 16) + '</span><i class="fa-solid ' + C.wxIc(hh.weather_code[i], hh.is_day[i]) + '"></i><b>' + Math.round(hh.temperature_2m[i]) + '°</b><small>pocitově ' + Math.round(hh.apparent_temperature[i]) + '°</small><span class="pp' + (hh.precipitation_probability[i] >= 50 ? ' hi' : '') + '"><i class="fa-solid fa-droplet"></i>' + (hh.precipitation_probability[i] || 0) + ' %</span><small>' + Math.round(hh.wind_speed_10m[i]) + ' km/h</small></div>';
+    h += '</div></div>';
+   }
+   h += '</div>';
+  });
+  h += '</div><div class="pl-note">Předpověď: Open-Meteo (modely ICON, ECMWF a další). Aktualizováno ' + MG.hm2(MG.nowMin() - (Date.now() - j._at) / 60000) + '.</div>';
+  return h;
+ };
+})();
+
 /* ---- tickets.js ---- */
 /* ===== mhdGO – jízdné: integrované systémy krajů, ceníky a nákup =====
  Konkrétní ceny uvádíme jen tam, kde se shodují oficiální tarif a další zdroje (s datem platnosti).
@@ -1189,11 +1464,9 @@ MG.jtsk = function(ex, ny, H){
  MG.app = MG.app || {}; /* sdílené moduly čtou MG.app.hideTrains apod. */
 
  /* ---------- drobnosti ---------- */
- const clk = () => { const P = MG.pragueParts(MG.now()); return {P, ymd: P.ymd, day: D.dayIdx(P.ymd), m: P.h * 60 + P.mi + P.s / 60, s: (P.h * 60 + P.mi) * 60 + P.s}; };
- const fmtDur = m => { m = Math.round(m); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : ''); };
+ const K = MG.core, clk = K.clk, fmtDur = K.fmtDur, walkMin = K.walkMin;
  const czN = (n, a, b, c) => n === 1 ? a : n >= 2 && n <= 4 ? b : c;
  const stIcon = m => m & 1 ? 'fa-train' : m & 4 ? 'fa-train-subway' : m & 2 ? 'fa-train-tram' : 'fa-bus-simple';
- const walkMin = d => Math.max(1, Math.round(d * 1.25 / 75));
  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
  A.fmtDur = fmtDur;
  const okName = oi => D.okresy && D.okresy[oi] ? D.okresy[oi].name : '';
@@ -1206,55 +1479,22 @@ MG.jtsk = function(ex, ny, H){
  });
  function setMe(p) {
   const c = p.coords, had = !!A.me; A.me = {lat: c.latitude, lon: c.longitude, acc: c.accuracy, t: Date.now()}; A.perm = 'granted';
-  if (!had) { startWatch(); const oi = D.okresAt(A.me.lat, A.me.lon); if (oi >= 0) D.loadOkres(oi).then(() => MG.emit('me', A.me)).catch(() => {}); }
+  if (!had) startWatch();
   MG.emit('me', A.me);
  }
  let watchId = null;
  function startWatch() { if (watchId != null || !navigator.geolocation) return; try { watchId = navigator.geolocation.watchPosition(p => { const c = p.coords; A.me = {lat: c.latitude, lon: c.longitude, acc: c.accuracy, hd: c.heading, t: Date.now()}; MG.emit('mepos', A.me); }, () => {}, {enableHighAccuracy: true, maximumAge: 5000}); } catch (_) {} }
- A.ensureAt = async (lat, lon) => { const oi = D.okresAt(lat, lon); if (oi >= 0 && !D.loaded.has(oi)) { busy(true, 'Načítám jízdní řády okresu ' + okName(oi) + '…'); try { await D.loadOkres(oi); } catch (e) { MG.err('okres', e); } busy(false); } return oi; };
+ A.ensureAt = async (lat, lon) => { await D.loadAll().catch(() => {}); return D.okresAt(lat, lon); };
  function busy(on, txt) { const b = $('busy'); if (!b) return; b.hidden = !on; if (txt) $('busy-t').textContent = txt; }
  A.busy = busy;
 
  /* ---------- Moje místa ---------- */
- const FAV_IC = {'Domů': 'fa-house', 'Práce': 'fa-briefcase', 'Škola': 'fa-graduation-cap'};
- A.favs = () => MG.store.get('favs', []) || [];
- A.saveFavs = F => { MG.store.set('favs', F); MG.emit('favs'); };
- A.addFav = (pt, label) => {
-  const F = A.favs(); label = (label || pt.name || 'Místo').trim();
-  const o = {label, name: pt.name, lat: +pt.lat.toFixed(6), lon: +pt.lon.toFixed(6), icon: FAV_IC[label] || pt.icon || 'fa-star'};
-  if (pt.st != null) o.st = pt.st;
-  const i = F.findIndex(f => f.label === label); if (i >= 0) F[i] = o; else F.push(o);
-  A.saveFavs(F); MG.toast('Uloženo do Mých míst: ' + label);
- };
+ const FAV_IC = K.FAV_IC;
+ A.favs = K.favs; A.saveFavs = K.saveFavs; A.addFav = K.addFav;
  A.isFav = (st) => A.favs().some(f => f.st === st);
 
  /* ---------- hledání zastávek a míst ---------- */
- A.findStops = async (q, n) => {
-  const idx = await D.loadIdx(); const f = MG.fold(q); if (!f) return [];
-  const words = f.split(' '), ref = A.me || A.focusPt() || {lat: 49.8, lon: 15.5};
-  const out = [];
-  for (const s of idx) {
-   let sc = 0; const last = s.f.split(' ').slice(-words.length).join(' ');
-   if (s.f === f || last === f) sc = 7; else if (s.f.startsWith(f)) sc = 6; else if (s.f.includes(' ' + f)) sc = 4; else if (words.every(w => s.f.includes(w))) sc = 2; else continue;
-   if (s.m & 1) sc += .5; if (s.m & 6) sc += .4;
-   out.push([sc - MG.dist(ref.lat, ref.lon, s.lat, s.lon) / 120000, s]);
-  }
-  out.sort((a, b) => b[0] - a[0]);
-  return out.slice(0, n || 8).map(x => x[1]);
- };
- A.geocode = async (q, n) => {
-  try {
-   const ref = A.me || A.focusPt() || {lat: 49.8, lon: 15.5};
-   const r = await fetch(MG.cfg.PHOTON + '?q=' + encodeURIComponent(q) + '&limit=' + (n || 5) + '&lang=de&lat=' + ref.lat.toFixed(4) + '&lon=' + ref.lon.toFixed(4) + '&bbox=12.09,48.55,18.86,51.06');
-   const j = await r.json();
-   return (j.features || []).map(f => { const p = f.properties || {}; const street = p.street ? p.street + (p.housenumber ? ' ' + p.housenumber : '') : ''; const name = p.name || street || p.city || ''; return {kind: 'addr', name, sub: [p.name && street ? street : '', p.district || '', p.city || p.town || p.village || ''].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i && x !== name).join(', '), lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0]}; }).filter(x => x.name);
-  } catch (_) { return []; }
- };
- A.nearestStops = async (lat, lon, n, maxD) => {
-  const idx = await D.loadIdx(); const out = [];
-  for (const s of idx) { if (Math.abs(s.lat - lat) > .03) continue; const d = MG.dist(lat, lon, s.lat, s.lon); if (d < (maxD || 1500)) out.push([d, s]); }
-  out.sort((a, b) => a[0] - b[0]); return out.slice(0, n || 6);
- };
+ A.findStops = K.findStops; A.geocode = K.geocode; A.nearestStops = K.nearestStops;
  async function suggest(q, opt) {
   opt = opt || {}; const out = [], f = MG.fold(q), F = A.favs();
   if (!f) {
@@ -1298,39 +1538,13 @@ MG.jtsk = function(ex, ny, H){
   return {close};
  };
  /* "Moje poloha" → bod */
- A.mePoint = async () => { const me = A.me || await A.locate(false); return me ? {kind: 'me', name: 'Moje poloha', lat: me.lat, lon: me.lon} : null; };
+ A.mePoint = K.mePoint;
+ K.me = () => A.me; K.locate = () => A.locate(false);
+ K.ctx = () => ({stop: A.st, conn: A.conn, center: A.focusPt()});
+ K.wxPlace = () => A.wxPlace();
 
  /* ---------- živé polohy: instance spojů a párování ---------- */
- A.mkInst = (p, j, day) => {
-  const c = clk(), start = p.T[3 * j], prof = p.T[3 * j + 1], L_ = D.ln.get(p.l), n = p.dep[prof].length;
-  const m = c.m + (c.day - day) * 1440, end = start + p.arr[prof][n - 1];
-  const it = {key: p.i + ':' + j + ':' + day, p, j, day, prof, start, m, L: L_, spoj: p.c ? p.c[j] : 0, num: p.n ? p.n[j] : '', head: D.headsign(p, j), end};
-  const pos = D.tripPos(p, prof, m - start); it.lat = pos.lat; it.lon = pos.lon;
-  it.running = m >= start - 3 && m <= end + 25;
-  return it;
- };
- A.liveOf = (insts) => {
-  const out = new Map(); if (!LV.on) return out;
-  const run = insts.filter(it => it.running && it.L);
-  for (const it of run) if (it.L.k === 'vlak' && it.num) { const t = LV.trains.get(String(it.num)); if (t) out.set(it.key, t); }
-  const bus = run.filter(it => it.L.k !== 'vlak');
-  if (bus.length) { try { const {res} = LV.matchBus(bus); for (const [k, v] of res) out.set(k, v); } catch (e) { MG.err('match', e); } }
-  return out;
- };
- /* zpoždění: hlášené zdrojem, jinak odhad z polohy proti jízdnímu řádu */
- A.delayOf = (it, v) => {
-  if (!v) return null;
-  if (v.delay != null && isFinite(v.delay)) return {d: +v.delay, est: false, v};
-  if (isFinite(v.lat)) { if (v._estK !== it.key || Date.now() - (v._estAt || 0) > 15000) { v._est = D.estDelay(it, v.lat, v.lon); v._estAt = Date.now(); v._estK = it.key; } if (v._est != null) return {d: v._est, est: true, v}; }
-  return {d: null, est: false, v};
- };
- A.dlBadge = (x) => {
-  if (!x) return '';
-  if (x.d == null) return '<span class="dl on" title="vozidlo je na trase, zpoždění zdroj nehlásí"><i class="fa-solid fa-tower-broadcast"></i> živě</span>';
-  const d = x.d, t = x.est ? '~' : '', ti = x.est ? ' title="odhad podle polohy vozidla"' : ' title="hlášené zpoždění (' + H(x.v.src || 'živě') + ')"';
-  if (d < -1.5) return '<span class="dl ok"' + ti + '>' + t + Math.round(d) + ' min</span>';
-  return d <= .5 ? '<span class="dl ok"' + ti + '>' + t + 'včas</span>' : '<span class="dl ' + (d <= 3 ? 'mid' : 'bad') + '"' + ti + '>' + t + '+' + Math.round(d) + ' min</span>';
- };
+ A.mkInst = K.mkInst; A.liveOf = K.liveOf; A.delayOf = K.delayOf; A.dlBadge = K.dlBadge;
  /* oblast pro worker a stream IDS JMK: okolí vybraných míst */
  A.focusPt = () => { const f = A.focus[0]; if (f) return {lat: f[0], lon: f[1]}; return A.me ? {lat: A.me.lat, lon: A.me.lon} : null; };
  MG.liveBounds = (pad) => {
@@ -1351,7 +1565,7 @@ MG.jtsk = function(ex, ny, H){
   if (!D.st.has(g)) {
    const idx = await D.loadIdx(); const x = idx.find(s => s.g === g);
    if (ok == null || ok < 0) ok = x ? x.ok : -1;
-   if (ok >= 0 && !D.loaded.has(ok)) { busy(true, 'Načítám jízdní řády okresu ' + okName(ok) + '…'); try { await D.loadOkres(ok); } catch (e) { MG.err('okres', e); } busy(false); }
+   await D.loadAll().catch(() => {});
   }
   if (!D.st.has(g)) { MG.toast('Zastávku se nepodařilo načíst'); return; }
   A.st = g; A.dep.lines = null; A.dep.plat = null; A.dep.open = null;
@@ -1464,14 +1678,7 @@ MG.jtsk = function(ex, ny, H){
  }
  A.renderDep = renderDep;
  const cdTxt = (t, nowS) => { const s = Math.round(t * 60 - nowS); if (s <= 20) return 'teď'; if (s >= 600) return ''; return Math.floor(s / 60) + ':' + MG.pad(s % 60); };
- A.depItems = (g, opt) => {
-  opt = opt || {}; const c = clk();
-  const ymd = opt.ymd || c.ymd, from = opt.from != null ? opt.from : c.m, today = ymd === c.ymd;
-  const deps = D.departures(g, {ymd, from: from - 1, horizon: opt.horizon || (opt.from == null ? 300 : 480), limit: opt.limit || 60, lines: opt.lines, platform: opt.platform});
-  const insts = today ? deps.map(d => A.mkInst(d.p, d.j, d.day)) : [];
-  const live = today ? A.liveOf(insts) : new Map();
-  return deps.map((d, i) => { const it = insts[i]; const x = it ? A.delayOf(it, live.get(it.key)) : null; const dl = x && x.d > 0 ? x.d : 0; return {d, it, x, exp: d.t + dl, dl}; });
- };
+ A.depItems = K.depItems;
  function renderDepList() {
   const box = $('dep-list'); if (!box || A.st == null) return;
   const c = clk(), ymd = A.dep.ymd || c.ymd, today = ymd === c.ymd && A.dep.when == null;
@@ -1555,12 +1762,7 @@ MG.jtsk = function(ex, ny, H){
  }
  function renderConnFavs() { const box = $('c-favs'); if (!box) return; box.innerHTML = favStrip('conn'); bindFavs(box, async f => { C.to = {kind: 'fav', name: f.label, lat: f.lat, lon: f.lon, st: f.st}; if (!C.from) C.from = await A.mePoint(); paintOD(); if (C.from) A.findConn(); }); }
  /* hledání; vrací i data pro AI rádce */
- A.planTrip = async (from, to, ymd, t, count) => {
-  const r = await MG.raptor.search(from, to, ymd, t, {count: count || 5});
-  if (r.err) return r;
-  r.ymd = ymd; r.t = t; r.from = from; r.to = to;
-  return r;
- };
+ A.planTrip = K.planTrip;
  A.findConn = async (tOverride) => {
   if (!C.from || !C.to) { $('c-st').textContent = 'Vyber, odkud a kam.'; return; }
   if (MG.dist(C.from.lat, C.from.lon, C.to.lat, C.to.lon) < 120) { $('c-st').textContent = 'Cíl je hned vedle – už jsi na místě.'; $('c-res').innerHTML = ''; C.res = null; return; }
@@ -1568,8 +1770,7 @@ MG.jtsk = function(ex, ny, H){
   $('c-st').innerHTML = '<span class="spin"></span> Hledám spojení…'; $('c-res').innerHTML = '';
   C.busy = true; await MG.sleep(20);
   try {
-   busy(true, 'Načítám jízdní řády…');
-   const r = await A.planTrip(C.from, C.to, ymd, t, 6); busy(false);
+   const r = await A.planTrip(C.from, C.to, ymd, t, 6);
    C.busy = false;
    if (r.err) { $('c-st').textContent = r.err; return; }
    C.res = r; C.sel = 0;
@@ -1577,25 +1778,10 @@ MG.jtsk = function(ex, ny, H){
    connFocus(); renderConn(); LV.tick();
   } catch (e) { busy(false); C.busy = false; MG.err('raptor', e); $('c-st').textContent = 'Při hledání nastala chyba.'; }
  };
- A.legTimes = (res, l) => { const st0 = l.p.T[3 * l.j] + (l.day - res.qday) * 1440; return {dep: st0 + l.p.dep[l.prof][l.bi], arr: st0 + l.p.arr[l.prof][l.ai]}; };
- A.connTimes = (res, c) => { const rides = c.legs.filter(l => !l.walk); const t1 = A.legTimes(res, rides[0]); return {dep: t1.dep - (c.acc[1] || 0), arr: c.arr, rides}; };
+ A.legTimes = K.legTimes; A.connTimes = K.connTimes;
  function connFocus() { const r = C.res; if (!r) return; const pts = []; for (const c of r.results) for (const l of c.legs) if (!l.walk) { const pl = D.pl.get(l.p.s[l.bi]); if (pl) pts.push([pl.lat, pl.lon]); } setFocus(pts.slice(0, 40)); }
  /* živé info pro spojení: zpoždění jednotlivých jízd a ohrožené přestupy */
- A.connLive = (res, c) => {
-  const rides = c.legs.filter(l => !l.walk);
-  const today = res.ymd === clk().ymd;
-  const insts = today ? rides.map(l => A.mkInst(l.p, l.j, l.day)) : [];
-  const live = today ? A.liveOf(insts) : new Map();
-  const out = rides.map((l, i) => { const it = insts[i]; return {l, t: A.legTimes(res, l), x: it ? A.delayOf(it, live.get(it.key)) : null}; });
-  for (let i = 1; i < out.length; i++) {
-   const a = out[i - 1], b = out[i];
-   const da = a.x && a.x.d > 0 ? a.x.d : 0, db = b.x && b.x.d > 0 ? b.x.d : 0;
-   const walk = c.legs.slice(c.legs.indexOf(a.l) + 1, c.legs.indexOf(b.l)).filter(l => l.walk).reduce((s, l) => s + l.dur, 0);
-   const slack = (b.t.dep + db) - (a.t.arr + da) - walk;
-   b.slack = slack; b.risk = da > 0 && slack < 1;
-  }
-  return out;
- };
+ A.connLive = K.connLive;
  const legChip = l => { const L_ = D.ln.get(l.p.l); return D.badge(L_, {text: legLabel(L_, l.p, l.j)}); };
  function renderConn() {
   const box = $('c-res'); if (!box) return;
@@ -1659,15 +1845,7 @@ MG.jtsk = function(ex, ny, H){
   NAVIGACE NA ZASTÁVKU (pěšky, bez mapy: šipka, vzdálenost, pokyny, náčrtek trasy)
  ===================================================================== */
  const NV = A.navState = {dest: null, route: null, at: 0, heading: null, reAt: 0};
- const dec6 = (s) => { const out = []; let i = 0, la = 0, lo = 0; while (i < s.length) { for (let w = 0; w < 2; w++) { let sh = 0, r = 0, b; do { b = s.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5 } while (b >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if (w) lo += d; else la += d } out.push([la / 1e6, lo / 1e6]) } return out; };
- A.walkRoute = async (a, b) => {
-  const q = {locations: [{lat: a.lat, lon: a.lon}, {lat: b.lat, lon: b.lon}], costing: 'pedestrian', directions_options: {language: 'cs-CZ', units: 'kilometers'}};
-  const r = await fetch('https://valhalla1.openstreetmap.de/route?json=' + encodeURIComponent(JSON.stringify(q)));
-  if (!r.ok) throw Error('HTTP ' + r.status);
-  const j = await r.json(); const leg = j.trip.legs[0];
-  const pts = dec6(leg.shape), cd = [0]; for (let i = 1; i < pts.length; i++) cd.push(cd[i - 1] + MG.dist(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]));
-  return {pts, cd, len: j.trip.summary.length * 1000, time: j.trip.summary.time / 60, man: leg.maneuvers.map(m => ({t: m.instruction, i: m.begin_shape_index, len: m.length * 1000, type: m.type}))};
- };
+ A.walkRoute = K.walkRoute;
  const manIcon = t => ({1: 'fa-play', 4: 'fa-flag-checkered', 5: 'fa-flag-checkered', 6: 'fa-flag-checkered', 9: 'fa-arrow-turn-up fa-rotate-90', 10: 'fa-arrow-turn-up fa-rotate-90', 11: 'fa-arrow-right', 12: 'fa-rotate-left', 13: 'fa-rotate-left', 14: 'fa-arrow-left', 15: 'fa-arrow-left', 16: 'fa-arrow-turn-up fa-flip-horizontal', 26: 'fa-circle-notch', 27: 'fa-circle-notch'})[t] || 'fa-arrow-up';
  A.nav = async (dest) => {
   NV.dest = dest; NV.route = null; NV.at = 0; NV.far = 0;
@@ -1753,21 +1931,7 @@ MG.jtsk = function(ex, ny, H){
  /* =====================================================================
   POČASÍ (Open-Meteo)
  ===================================================================== */
- const WX = {0: ['fa-sun', 'jasno', 'fa-moon'], 1: ['fa-cloud-sun', 'skoro jasno', 'fa-cloud-moon'], 2: ['fa-cloud-sun', 'polojasno', 'fa-cloud-moon'], 3: ['fa-cloud', 'zataženo'], 45: ['fa-smog', 'mlha'], 48: ['fa-smog', 'mlha s námrazou'], 51: ['fa-cloud-rain', 'slabé mrholení'], 53: ['fa-cloud-rain', 'mrholení'], 55: ['fa-cloud-rain', 'silné mrholení'], 56: ['fa-icicles', 'mrznoucí mrholení'], 57: ['fa-icicles', 'mrznoucí mrholení'], 61: ['fa-cloud-rain', 'slabý déšť'], 63: ['fa-cloud-rain', 'déšť'], 65: ['fa-cloud-showers-heavy', 'silný déšť'], 66: ['fa-icicles', 'mrznoucí déšť'], 67: ['fa-icicles', 'mrznoucí déšť'], 71: ['fa-snowflake', 'slabé sněžení'], 73: ['fa-snowflake', 'sněžení'], 75: ['fa-snowflake', 'silné sněžení'], 77: ['fa-snowflake', 'sněhová zrna'], 80: ['fa-cloud-sun-rain', 'přeháňky'], 81: ['fa-cloud-showers-heavy', 'přeháňky'], 82: ['fa-cloud-showers-heavy', 'prudké přeháňky'], 85: ['fa-snowflake', 'sněhové přeháňky'], 86: ['fa-snowflake', 'sněhové přeháňky'], 95: ['fa-cloud-bolt', 'bouřka'], 96: ['fa-cloud-bolt', 'bouřka s kroupami'], 99: ['fa-cloud-bolt', 'bouřka s kroupami']};
- const wxIc = (code, day) => { const w = WX[code] || ['fa-cloud', '']; return day === 0 && w[2] ? w[2] : w[0]; };
- const wxTx = code => (WX[code] || ['', 'neznámé'])[1];
- A.wxText = wxTx;
- const windDir = d => ['S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ'][Math.round(((d % 360) + 360) % 360 / 45) % 8];
- A.weather = async (lat, lon) => {
-  const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat.toFixed(3) + '&longitude=' + lon.toFixed(3) +
-   '&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day' +
-   '&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,wind_speed_10m,is_day' +
-   '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset,uv_index_max,wind_speed_10m_max,wind_gusts_10m_max' +
-   '&timezone=Europe%2FPrague&forecast_days=7';
-  const r = await fetch(u); if (!r.ok) throw Error('HTTP ' + r.status);
-  const j = await r.json(); j._at = Date.now(); j._lat = lat; j._lon = lon;
-  return j;
- };
+ const wxIc = K.wxIc, wxTx = K.wxText; A.wxText = K.wxText; A.weather = K.weather; A.wxAdvice = K.wxAdvice;
  A.wxPlace = () => A.wx.place || (A.st != null && D.st.get(A.st) ? {name: D.st.get(A.st).name, lat: D.st.get(A.st).lat, lon: D.st.get(A.st).lon} : A.me ? {name: 'Moje poloha', lat: A.me.lat, lon: A.me.lon} : {name: 'Praha', lat: 50.0875, lon: 14.4213});
  async function loadWx(force) {
   const p = A.wxPlace(), cur = A.wx.data;
@@ -1786,49 +1950,12 @@ MG.jtsk = function(ex, ny, H){
   b.hidden = false; b.innerHTML = '<i class="fa-solid ' + wxIc(j.current.weather_code, j.current.is_day) + '"></i><span>' + Math.round(j.current.temperature_2m) + '°</span>';
   b.title = 'Počasí: ' + wxTx(j.current.weather_code);
  }
- /* rada na cestu */
- A.wxAdvice = (j) => {
-  const out = [], c = j.current, hh = j.hourly; if (!c) return out;
-  const nowI = Math.max(0, hh.time.findIndex(t => t >= j.current.time.slice(0, 13)));
-  const next3 = [0, 1, 2, 3].map(k => nowI + k).filter(i => i < hh.time.length);
-  const pmax = Math.max(...next3.map(i => hh.precipitation_probability[i] || 0)), psum = next3.reduce((s, i) => s + (hh.precipitation[i] || 0), 0);
-  if (c.precipitation > .1) out.push(['fa-umbrella', 'Teď ' + (c.temperature_2m < 1 ? 'sněží nebo mrzne' : 'prší') + ' – vezmi si deštník, na zastávce hledej přístřešek.']);
-  else if (pmax >= 60 || psum > .8) out.push(['fa-umbrella', 'Během 3 hodin pravděpodobně zaprší (' + pmax + ' %). Deštník se hodí.']);
-  if (c.temperature_2m <= 1 && (c.precipitation > 0 || pmax > 40)) out.push(['fa-person-falling', 'Kolem nuly a vlhko – na chodnících a zastávkách může klouzat.']);
-  if (c.wind_gusts_10m >= 60) out.push(['fa-wind', 'Silné nárazy větru (' + Math.round(c.wind_gusts_10m) + ' km/h) – možné komplikace v dopravě.']);
-  if (c.apparent_temperature <= -8) out.push(['fa-temperature-low', 'Velká zima, pocitově ' + Math.round(c.apparent_temperature) + ' °C – nečekej na zastávce zbytečně dlouho, sleduj odjezd živě.']);
-  if (c.temperature_2m >= 30) out.push(['fa-temperature-high', 'Horko – vezmi si vodu, v klimatizovaných vozech bývá příjemněji.']);
-  if ([95, 96, 99].includes(c.weather_code)) out.push(['fa-cloud-bolt', 'Bouřka – na cestu raději počkej.']);
-  if (!out.length) out.push(['fa-circle-check', 'Počasí cestování neztěžuje.']);
-  return out;
- };
  function renderWx() {
   const el = $('wx-body'); if (!el) return;
   const j = A.wx.data, p = A.wxPlace();
   $('wx-place').textContent = p.name;
   if (!j || !j.current) { el.innerHTML = A.wx.err ? '<div class="empty"><i class="fa-solid fa-cloud"></i><p>Počasí se nepodařilo načíst.</p><button type="button" class="btn" id="wx-re">Zkusit znovu</button></div>' : '<div class="empty"><span class="spin"></span><p>Načítám počasí…</p></div>'; const x = $('wx-re'); if (x) x.onclick = () => loadWx(true); return; }
-  const c = j.current, d = j.daily, hh = j.hourly;
-  const nowI = Math.max(0, hh.time.findIndex(t => t >= c.time.slice(0, 13)));
-  let h = '<div class="wx-hero"><i class="fa-solid ' + wxIc(c.weather_code, c.is_day) + ' wx-big"></i><div><b class="wx-t">' + Math.round(c.temperature_2m) + '°</b><div class="wx-tx">' + H(cap(wxTx(c.weather_code))) + '</div><small>pocitově ' + Math.round(c.apparent_temperature) + '° · ' + Math.round(d.temperature_2m_min[0]) + '° / ' + Math.round(d.temperature_2m_max[0]) + '°</small></div></div>';
-  h += '<div class="wx-adv">' + A.wxAdvice(j).map(([i, t]) => '<div><i class="fa-solid ' + i + '"></i><span>' + H(t) + '</span></div>').join('') + '</div>';
-  h += '<div class="wx-grid">' + [['fa-wind', 'Vítr', Math.round(c.wind_speed_10m) + ' km/h ' + windDir(c.wind_direction_10m)], ['fa-wind', 'Nárazy', Math.round(c.wind_gusts_10m) + ' km/h'], ['fa-droplet', 'Vlhkost', c.relative_humidity_2m + ' %'], ['fa-umbrella', 'Srážky dnes', (d.precipitation_sum[0] || 0).toFixed(1).replace('.', ',') + ' mm'], ['fa-gauge', 'Tlak', Math.round(c.pressure_msl) + ' hPa'], ['fa-sun', 'UV index', d.uv_index_max[0] != null ? Math.round(d.uv_index_max[0]) : '–'], ['fa-arrow-up', 'Východ', d.sunrise[0].slice(11, 16)], ['fa-arrow-down', 'Západ', d.sunset[0].slice(11, 16)]].map(([i, l, v]) => '<div class="wg"><i class="fa-solid ' + i + '"></i><small>' + l + '</small><b>' + v + '</b></div>').join('') + '</div>';
-  h += '<div class="sec-t">Příštích 24 hodin</div><div class="wx-hours">';
-  for (let i = nowI; i < Math.min(hh.time.length, nowI + 24); i++) h += '<div class="wh"><small>' + (i === nowI ? 'teď' : hh.time[i].slice(11, 13)) + '</small><i class="fa-solid ' + wxIc(hh.weather_code[i], hh.is_day[i]) + '"></i><b>' + Math.round(hh.temperature_2m[i]) + '°</b><span class="pp' + (hh.precipitation_probability[i] >= 50 ? ' hi' : '') + '">' + (hh.precipitation_probability[i] || 0) + ' %</span></div>';
-  h += '</div><div class="sec-t">7 dní <small>klepni pro hodinový detail</small></div><div class="wx-days">';
-  const tmin = Math.min(...d.temperature_2m_min), tmax = Math.max(...d.temperature_2m_max);
-  d.time.forEach((day, k) => {
-   const op = A.wx.open === k;
-   const l = (d.temperature_2m_min[k] - tmin) / ((tmax - tmin) || 1) * 100, w = (d.temperature_2m_max[k] - d.temperature_2m_min[k]) / ((tmax - tmin) || 1) * 100;
-   h += '<div class="wd' + (op ? ' open' : '') + '"><button type="button" class="wd-h" data-wd="' + k + '"><span class="wd-n">' + (k === 0 ? 'Dnes' : k === 1 ? 'Zítra' : cap(MG.dowName(day)).slice(0, 2) + ' ' + +day.slice(8) + '. ' + +day.slice(5, 7) + '.') + '</span><i class="fa-solid ' + wxIc(d.weather_code[k], 1) + '"></i><span class="wd-p">' + (d.precipitation_probability_max[k] >= 20 ? '<i class="fa-solid fa-droplet"></i>' + d.precipitation_probability_max[k] + ' %' : '') + '</span><span class="wd-lo">' + Math.round(d.temperature_2m_min[k]) + '°</span><span class="wd-bar"><i style="left:' + l.toFixed(0) + '%;width:' + Math.max(6, w).toFixed(0) + '%"></i></span><span class="wd-hi">' + Math.round(d.temperature_2m_max[k]) + '°</span><i class="fa-solid fa-chevron-down chev"></i></button>';
-   if (op) {
-    h += '<div class="wd-b"><div class="wd-sum">' + H(cap(wxTx(d.weather_code[k]))) + ' · srážky ' + (d.precipitation_sum[k] || 0).toFixed(1).replace('.', ',') + ' mm · vítr až ' + Math.round(d.wind_gusts_10m_max[k]) + ' km/h · slunce ' + d.sunrise[k].slice(11, 16) + '–' + d.sunset[k].slice(11, 16) + '</div><div class="wd-rows">';
-    for (let i = 0; i < hh.time.length; i++) if (hh.time[i].startsWith(day) && +hh.time[i].slice(11, 13) % 3 === 0) h += '<div class="wr"><span>' + hh.time[i].slice(11, 16) + '</span><i class="fa-solid ' + wxIc(hh.weather_code[i], hh.is_day[i]) + '"></i><b>' + Math.round(hh.temperature_2m[i]) + '°</b><small>pocitově ' + Math.round(hh.apparent_temperature[i]) + '°</small><span class="pp' + (hh.precipitation_probability[i] >= 50 ? ' hi' : '') + '"><i class="fa-solid fa-droplet"></i>' + (hh.precipitation_probability[i] || 0) + ' %</span><small>' + Math.round(hh.wind_speed_10m[i]) + ' km/h</small></div>';
-    h += '</div></div>';
-   }
-   h += '</div>';
-  });
-  h += '</div><div class="pl-note">Předpověď: Open-Meteo (modely ICON, ECMWF a další). Aktualizováno ' + MG.hm2(MG.nowMin() - (Date.now() - j._at) / 60000) + '.</div>';
-  el.innerHTML = h;
+  el.innerHTML = K.wxHTML(j, A.wx.open);
   MG.qsa('[data-wd]', el).forEach(b => b.onclick = () => { const k = +b.dataset.wd; A.wx.open = A.wx.open === k ? null : k; renderWx(); });
  }
  function bindWxTop() {
@@ -1949,7 +2076,7 @@ MG.jtsk = function(ex, ny, H){
   $('wx-chip').onclick = () => A.go('wx');
   $('live-pill').onclick = () => A.settings();
   $('brand').onclick = () => { A.clearStop(); A.go('dep'); };
-  try { await Promise.all([D.loadCore(), D.loadGeo()]); }
+  try { await Promise.all([D.loadCore(), D.loadGeo()]); const sp = MG.qs('#splash .spin'); if (sp) sp.insertAdjacentHTML('afterend', '<small id="sp-t">Načítám jízdní řády celé ČR…</small>'); await D.loadAll(); }
   catch (e) { $('dep-body').innerHTML = '<div class="empty"><i class="fa-solid fa-wifi"></i><p>Data se nepodařilo načíst – zkontroluj připojení k internetu.</p><button type="button" class="btn pri" onclick="location.reload()">Zkusit znovu</button></div>'; MG.err('core', e); return; }
   if (!D.dataValid()) MG.toast('Pozor: jízdní řády jsou pro jiné období (' + D.core.d0 + ')', 6000);
   bindDepTop(); bindConnTop(); bindWxTop();
@@ -1980,7 +2107,7 @@ MG.jtsk = function(ex, ny, H){
  Nástroje běží v prohlížeči nad stejnými daty jako aplikace: odjezdy (se živým zpožděním), spojení,
  zastávky v okolí, počasí, jízdné, Moje místa a pěší trasa. Ceny může rádce dohledat i na oficiálních webech. */
 (function(){
- const A = MG.lite, D = MG.D, $ = MG.$, H = MG.h;
+ const A = MG.core, D = MG.D, $ = MG.$, H = MG.h;
  const SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.2.0/+esm';
  const MODELS = [['claude-opus-5-5', 'Claude Opus 5.5', 'nejchytřejší'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5', 'rychlejší a levnější'], ['claude-haiku-5-5', 'Claude Haiku 5.5', 'nejrychlejší a nejlevnější']];
  const WEB_DOMAINS = ['pid.cz', 'idsjmk.cz', 'dpmb.cz', 'odis.cz', 'kodis.cz', 'dpo.cz', 'iidol.cz', 'dpmlj.cz', 'dopravauk.cz', 'dpmul.cz', 'iredo.info', 'dpmhk.cz', 'dpmp.cz', 'idsok.cz', 'dpmo.cz', 'idzk.cz', 'dszo.cz', 'idpk.cz', 'pmdp.cz', 'dpmcb.cz', 'dpmj.cz', 'dpkv.cz', 'cd.cz', 'regiojet.cz', 'leoexpress.com', 'arriva.cz', 'idos.cz', 'spravazeleznic.cz', 'md.gov.cz'];
@@ -1997,14 +2124,15 @@ MG.jtsk = function(ex, ny, H){
  AI.sdk = sdk;
  async function client() {
   const Anthropic = await sdk();
-  if (AI.cfg.mode === 'worker') return new Anthropic({apiKey: AI.cfg.code, baseURL: workerBase() + 'ai', dangerouslyAllowBrowser: true, maxRetries: 1});
+  if (AI.cfg.mode !== 'key') return new Anthropic({apiKey: AI.cfg.code || 'mhdgo-open', baseURL: workerBase() + 'ai', dangerouslyAllowBrowser: true, maxRetries: 1});
   return new Anthropic({apiKey: AI.cfg.key, dangerouslyAllowBrowser: true, maxRetries: 1});
  }
- const ready = () => (AI.cfg.mode === 'worker' && AI.cfg.code) || (AI.cfg.mode === 'key' && /^sk-ant-/.test(AI.cfg.key || ''));
+ /* připraveno: vlastní klíč, nebo worker (otevřený rádce bez kódu, případně s přístupovým kódem) */
+ const ready = () => (AI.cfg.mode === 'key' && /^sk-ant-/.test(AI.cfg.key || '')) || (AI.cfg.mode !== 'key' && !!AI.status && AI.status.enabled && (AI.status.open || !!AI.cfg.code));
  async function workerStatus() {
   if (AI.status) return AI.status;
-  try { const r = await fetch(workerBase() + 'ai/status', {cache: 'no-store'}); const j = await r.json(); AI.status = {enabled: j && j.enabled === true}; }
-  catch (_) { AI.status = {enabled: false}; }
+  try { const r = await fetch(workerBase() + 'ai/status', {cache: 'no-store'}); const j = await r.json(); AI.status = {enabled: !!j && j.enabled === true, open: !!j && j.open === true, model: j && j.model}; }
+  catch (_) { AI.status = {enabled: false, open: false}; }
   return AI.status;
  }
 
@@ -2096,7 +2224,7 @@ MG.jtsk = function(ex, ny, H){
   },
   async nearby_stops(i) {
    const p = i.place ? await resolvePlace(i.place) : await A.mePoint(); if (!p) throw Error('Poloha uživatele není dostupná.');
-   await A.ensureAt(p.lat, p.lon);
+   await D.loadAll().catch(() => {});
    const near = await A.nearestStops(p.lat, p.lon, 5, 1500), nowM = MG.nowMin();
    return {place: p.name, stops: near.map(([d, x]) => ({name: x.name, distance_m: Math.round(d), walk_min: Math.max(1, Math.round(d * 1.25 / 75)),
     next: D.st.has(x.g) ? A.depItems(x.g, {limit: 4, horizon: 60}).map(({d: q, exp, x: lx}) => ({line: lineName(q.L, q.p, q.j), direction: D.headsign(q.p, q.j), in_min: Math.round(exp - nowM), delay_min: lx && lx.d != null ? Math.round(lx.d) : undefined})) : undefined}))};
@@ -2108,10 +2236,10 @@ MG.jtsk = function(ex, ny, H){
    if (to.st != null && D.st.has(to.st)) { const s = D.st.get(to.st); tgt = {name: s.name, lat: s.lat, lon: s.lon}; }
    if (MG.dist(from.lat, from.lon, tgt.lat, tgt.lon) > 15000) return {error: 'Cíl je přes 15 km daleko – pěšky to nedává smysl, použij plan_trip.'};
    const r = await A.walkRoute(from, tgt);
-   return {from: from.name, to: tgt.name, distance_m: Math.round(r.len), minutes: Math.round(r.time), steps: r.man.slice(0, 14).map(m => m.t), tip: 'V aplikaci lze spustit navigaci (Odjezdy → Navigovat sem).'};
+   return {from: from.name, to: tgt.name, distance_m: Math.round(r.len), minutes: Math.round(r.time), steps: r.man.slice(0, 14).map(m => m.t), tip: 'V aplikaci lze spustit pěší navigaci k zastávce.'};
   },
   async get_weather(i) {
-   const p = i.place ? await resolvePlace(i.place) : A.wxPlace();
+   const p = i.place ? await resolvePlace(i.place) : (A.wxPlace ? A.wxPlace() : await A.mePoint()) || {name: 'Praha', lat: 50.0875, lon: 14.4213};
    const j = await A.weather(p.lat, p.lon), c = j.current, hh = j.hourly, dd = j.daily;
    const n = Math.max(0, hh.time.findIndex(t => t >= c.time.slice(0, 13)));
    const WXT = A.wxText || (x => x);
@@ -2121,7 +2249,7 @@ MG.jtsk = function(ex, ny, H){
     travel_advice: A.wxAdvice(j).map(x => x[1]), source: 'Open-Meteo'};
   },
   async get_ticket_info(i) {
-   const p = i.place ? await resolvePlace(i.place) : (A.me ? {lat: A.me.lat, lon: A.me.lon, name: 'Moje poloha'} : null);
+   const me = A.me(); const p = i.place ? await resolvePlace(i.place) : (me ? {lat: me.lat, lon: me.lon, name: 'Moje poloha'} : null);
    if (!p) return {error: 'Neznám místo – zeptej se, ve kterém městě nebo kraji uživatel jede.', systems: MG.tickets.SYS.map(s => s.name + ' (' + s.kraje.join(', ') + ')')};
    const s = MG.tickets.forPoint(p.lat, p.lon), oi = D.okresAt(p.lat, p.lon);
    return {place: p.name, district: oi >= 0 ? D.okresy[oi].name : null, region: oi >= 0 ? D.kraj(oi).name : null, system: MG.tickets.summary(s),
@@ -2153,13 +2281,14 @@ MG.jtsk = function(ex, ny, H){
  async function contextText() {
   const p = MG.pragueParts(MG.now()), out = [];
   out.push('Dnes je ' + MG.dowName(p.ymd) + ' ' + p.d + '. ' + p.mo + '. ' + p.y + ', ' + MG.pad(p.h) + ':' + MG.pad(p.mi) + ' (Praha).');
-  if (A.me) {
-   const oi = D.okresAt(A.me.lat, A.me.lon); let near = '';
-   try { const n = await A.nearestStops(A.me.lat, A.me.lon, 1, 1500); if (n.length) near = ', nejbližší zastávka ' + n[0][1].name + ' (' + Math.round(n[0][0]) + ' m)'; } catch (_) {}
+  const me = A.me(), cx = A.ctx() || {};
+  if (me) {
+   const oi = D.okresAt(me.lat, me.lon); let near = '';
+   try { const n = await A.nearestStops(me.lat, me.lon, 1, 1500); if (n.length) near = ', nejbližší zastávka ' + n[0][1].name + ' (' + Math.round(n[0][0]) + ' m)'; } catch (_) {}
    out.push('Poloha uživatele je známá: okres ' + (oi >= 0 ? D.okresy[oi].name + ', ' + D.kraj(oi).name : 'mimo ČR') + near + '.');
   } else out.push('Poloha uživatele není známá.');
-  if (A.st != null && D.st.get(A.st)) out.push('V aplikaci má otevřené odjezdy ze zastávky ' + D.st.get(A.st).name + '.');
-  if (A.conn.from && A.conn.to) out.push('Naposledy hledal spojení ' + A.conn.from.name + ' → ' + A.conn.to.name + '.');
+  if (cx.stop != null && D.st.get(cx.stop)) out.push('V aplikaci má otevřené odjezdy ze zastávky ' + D.st.get(cx.stop).name + '.');
+  if (cx.conn && cx.conn.from && cx.conn.to) out.push('Naposledy hledal spojení ' + cx.conn.from.name + ' → ' + cx.conn.to.name + '.');
   const F = A.favs(); out.push(F.length ? 'Moje místa: ' + F.map(f => f.label + (f.name && f.name !== f.label ? ' (' + f.name + ')' : '')).join('; ') + '.' : 'Moje místa: zatím žádná.');
   if (D.core) out.push('Jízdní řády v aplikaci platí ' + D.core.d0 + ' až ' + MG.ymdAdd(D.core.d0, D.core.nd - 1) + '.');
   return '[Kontext z aplikace, doplněný automaticky]\n' + out.join('\n');
@@ -2176,7 +2305,7 @@ MG.jtsk = function(ex, ny, H){
  /* ---------- konverzace ---------- */
  AI.send = async (text) => {
   text = String(text || '').trim(); if (!text || AI.busy) return;
-  if (!ready()) { AI.show(true); return; }
+  if (!ready()) { await workerStatus(); if (!ready()) { AI.show(true); return; } }
   const Anthropic = await sdk().catch(() => null);
   if (!Anthropic) { pushLog({r: 'err', t: 'Knihovnu rádce se nepodařilo načíst – zkontroluj připojení.'}); return; }
   AI.busy = true; paintInput();
@@ -2264,10 +2393,11 @@ MG.jtsk = function(ex, ny, H){
  const SUGG = [['fa-house', 'Jak se dostanu domů?'], ['fa-clock', 'Co mi jede z nejbližší zastávky?'], ['fa-umbrella', 'Budu dnes potřebovat deštník?'], ['fa-ticket', 'Kolik stojí jízdenka a kde ji koupím?'], ['fa-person-walking', 'Jak daleko je to pěšky na zastávku?']];
  AI.show = async (forceSet) => {
   const el = $('ai-body'); if (!el) return;
+  if (!AI.status) { el.innerHTML = '<div class="ai-empty"><span class="spin"></span></div>'; await workerStatus(); }
   if (forceSet || !ready()) return setup(el);
   el.innerHTML = '<div class="ai-chat"><div class="ai-log" id="ai-log">' + (AI.log.length ? AI.log.map(x => { const c = Object.assign({}, x); delete c._el; return bubble(c); }).join('') : '<div class="ai-empty" id="ai-empty"><div class="ai-hi"><i class="fa-solid fa-wand-magic-sparkles"></i></div><b>Ahoj, jsem Rádce mhdGO</b><p>Najdu ti spojení, odjezdy se zpožděním, cestu pěšky na zastávku, počasí na cestu i informace o jízdném.</p><div class="ai-sug">' + SUGG.map(s => '<button type="button" class="chip" data-q="' + H(s[1]) + '"><i class="fa-solid ' + s[0] + '"></i> ' + H(s[1]) + '</button>').join('') + '</div></div>') + '</div>' +
    '<div class="ai-bar"><button type="button" class="ib" id="ai-new" title="Nová konverzace"><i class="fa-solid fa-rotate-left"></i></button><textarea id="ai-in" rows="1" placeholder="Zeptej se na cestu, odjezd, počasí…" enterkeyhint="send"></textarea><button type="button" class="sendb" id="ai-send" title="Odeslat"><i class="fa-solid fa-arrow-up"></i></button></div>' +
-   '<div class="ai-foot"><span>' + H((MODELS.find(m => m[0] === AI.cfg.model) || MODELS[0])[1]) + ' · ' + (AI.cfg.mode === 'worker' ? 'přes worker mhdGO' : 'vlastní klíč') + '</span><button type="button" class="lnk" id="ai-set">Nastavení rádce</button></div></div>';
+   '<div class="ai-foot"><span>' + H((MODELS.find(m => m[0] === AI.cfg.model) || MODELS[0])[1]) + ' · ' + (AI.cfg.mode !== 'key' ? 'přes worker mhdGO' : 'vlastní klíč') + '</span><button type="button" class="lnk" id="ai-set">Nastavení rádce</button></div></div>';
   AI.log.forEach(x => x._el = null);
   const kids = MG.qsa('#ai-log > .msg'); AI.log.forEach((x, k) => { x._el = kids[k] || null; });
   const inp = $('ai-in');
@@ -2284,9 +2414,10 @@ MG.jtsk = function(ex, ny, H){
  async function setup(el) {
   const st = await workerStatus(), c = AI.cfg;
   const mode = c.mode || (st.enabled ? 'worker' : 'key');
+  const open = st.enabled && st.open;
   el.innerHTML = '<div class="ai-setup"><div class="ai-hi"><i class="fa-solid fa-wand-magic-sparkles"></i></div><h2>Rádce mhdGO</h2><p>Chytrý pomocník s cestou: „Jak se dostanu domů?“, „Stihnu přestup?“, „Vezmu si deštník?“. Odpovídá podle stejných jízdních řádů a živých dat jako aplikace. Běží na modelu Claude od společnosti Anthropic.</p>' +
    '<div class="seg wide"><button type="button" data-m="worker" class="' + (mode === 'worker' ? 'on' : '') + '">Přes worker mhdGO</button><button type="button" data-m="key" class="' + (mode === 'key' ? 'on' : '') + '">Vlastní API klíč</button></div>' +
-   '<div id="ai-m-worker"' + (mode === 'worker' ? '' : ' hidden') + '><p class="mut">' + (st.enabled ? 'Worker má rádce zapnutý. Zadej přístupový kód od správce aplikace.' : 'Worker ' + H(workerBase() || '(není nastaven)') + ' rádce zatím nemá. Správce ho zapne tajemstvími ANTHROPIC_API_KEY a AI_CODE (viz worker/mhdgo-worker.js).') + '</p><label class="lab">Přístupový kód</label><input class="inp" id="ai-code" type="password" autocomplete="off" value="' + H(c.code || '') + '"></div>' +
+   '<div id="ai-m-worker"' + (mode === 'worker' ? '' : ' hidden') + '><p class="mut">' + (open ? 'Rádce je na workeru mhdGO zapnutý pro všechny – nic dalšího zadávat nemusíš.' : st.enabled ? 'Worker má rádce zapnutý. Zadej přístupový kód od správce aplikace.' : 'Worker ' + H(workerBase() || '(není nastaven)') + ' rádce zatím nemá. Zapne se tajemstvím ANTHROPIC_API_KEY ve workeru (návod v README, kapitola o workeru). Do té doby můžeš použít vlastní API klíč.') + '</p>' + (open ? '<input type="hidden" id="ai-code" value="">' : '<label class="lab">Přístupový kód</label><input class="inp" id="ai-code" type="password" autocomplete="off" value="' + H(c.code || '') + '">') + '</div>' +
    '<div id="ai-m-key"' + (mode === 'key' ? '' : ' hidden') + '><p class="mut">Klíč z console.anthropic.com se uloží jen v tomto zařízení a posílá se přímo do Anthropic API. Používej klíč s nastaveným limitem útraty; útratu platíš ty.</p><label class="lab">Anthropic API klíč</label><input class="inp" id="ai-key" type="password" autocomplete="off" placeholder="sk-ant-…" value="' + H(c.key || '') + '"></div>' +
    '<label class="lab">Model</label><div class="mlist">' + MODELS.map(m => '<label class="mopt"><input type="radio" name="aim" value="' + m[0] + '"' + (c.model === m[0] ? ' checked' : '') + '><span><b>' + m[1] + '</b><small>' + m[2] + '</small></span></label>').join('') + '</div>' +
    '<div class="set-row"><span><b>Hledat ceny na oficiálních webech</b><small>webové hledání jen na stránkách dopravců a koordinátorů</small></span><label class="sw"><input type="checkbox" id="ai-web"' + (c.web ? ' checked' : '') + '><i></i></label></div>' +
@@ -2297,7 +2428,7 @@ MG.jtsk = function(ex, ny, H){
   $('ai-ok').onclick = () => {
    const key = $('ai-key').value.trim(), code = $('ai-code').value.trim();
    if (m === 'key' && !/^sk-ant-/.test(key)) return MG.toast('Zadej platný API klíč (začíná sk-ant-)');
-   if (m === 'worker' && !code) return MG.toast('Zadej přístupový kód');
+   if (m === 'worker' && !code && !open) return MG.toast(st.enabled ? 'Zadej přístupový kód' : 'Rádce na workeru zatím není zapnutý');
    Object.assign(AI.cfg, {mode: m, key: m === 'key' ? key : AI.cfg.key, code: m === 'worker' ? code : AI.cfg.code, model: (MG.qs('input[name=aim]:checked', el) || {}).value || 'claude-opus-5-5', web: $('ai-web').checked});
    AI.noWeb = false; saveCfg(); AI.show();
   };

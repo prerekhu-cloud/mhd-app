@@ -31,14 +31,40 @@
  D.dataValid = () => { const d = D.dayIdx(); return d >= 0 && d < D.core.nd; };
  /* ---------- balíčky ---------- */
  D.loadOkres = (oi) => {
-  if (D.loaded.has(oi)) return Promise.resolve(true);
+  if (D.all || D.loaded.has(oi)) return D.all ? Promise.resolve(true) : Promise.resolve(true);
   if (D.loading.has(oi)) return D.loading.get(oi);
   const p = MG.fetchJSON('okres/' + oi + '.json').then(pk => { D.merge(pk, oi); D.loaded.add(oi); D.loading.delete(oi); MG.emit('pack', oi); return true; })
    .catch(e => { D.loading.delete(oi); throw e; });
   D.loading.set(oi, p);
   return p;
  };
+ /* celá ČR najednou: jízdní řády bez geometrií (cz.json); trasy se dotahují po dlaždicích (shp/<id>.json) */
+ D.loadAll = () => {
+  if (D.all) return Promise.resolve(true);
+  if (D._allP) return D._allP;
+  D._allP = MG.fetchJSON('cz.json?v=' + (D.core && D.core.d0 || '')).then(pk => {
+   D.merge(pk, -1);
+   for (const l of pk.ln) { const L_ = D.ln.get(l.i); if (L_ && l.o) for (const o of l.o) L_.okresy.add(o); }
+   D.all = true; D.dalkove = true; D.okresy.forEach((_, i) => D.loaded.add(i));
+   MG.emit('pack', -1); return true;
+  }).catch(e => { D._allP = null; throw e; });
+  return D._allP;
+ };
+ D.shpLoaded = new Set(); D.shpLoading = new Map();
+ D.loadShapes = (t) => {
+  if (t == null || t < 0 || D.shpLoaded.has(t)) return Promise.resolve(true);
+  if (D.shpLoading.has(t)) return D.shpLoading.get(t);
+  const pr = MG.fetchJSON('shp/' + t + '.json').then(j => {
+   for (const k in j) { const p = D.pt.get(+k); if (p && !p.g) { p.g = j[k][0]; p.x = j[k][1]; delete p._geo; } }
+   D.shpLoaded.add(t); D.shpLoading.delete(t); MG.emit('shapes', t); return true;
+  }).catch(e => { D.shpLoading.delete(t); D.shpLoaded.add(t); MG.err('shp', e); return false; });
+  D.shpLoading.set(t, pr); return pr;
+ };
+ /* geometrie vzoru: hned vrátí, co je (případně přímky mezi zastávkami), a v pozadí dotáhne skutečnou trasu */
+ D.wantShape = (p) => { if (!p.g && p.gt != null && p.gt >= 0 && !D.shpLoaded.has(p.gt)) D.loadShapes(p.gt); };
+ D.shapeOf = async (p) => { if (!p.g && p.gt != null && p.gt >= 0) await D.loadShapes(p.gt); return D.geo3(p); };
  D.loadDalkove = () => {
+  if (D.all) return Promise.resolve(true);
   if (D.dalkove) return Promise.resolve(true);
   if (D._dalP) return D._dalP;
   D._dalP = MG.fetchJSON('dalkove.json').then(pk => { D.merge(pk, -1); D.dalkove = true; return true; });
@@ -82,9 +108,12 @@
   let pts, x;
   if (p.g) { pts = MG.decode(p.g); x = p.x; }
   else { pts = p.s.map(g => { const q = D.pl.get(g); return [q.lat, q.lon]; }); x = p.s.map((_, i) => i); }
+  const tmp = !p.g && p.gt != null && p.gt >= 0 && !D.shpLoaded.has(p.gt);
   const n = pts.length, lat = new Float64Array(n), lon = new Float64Array(n), cd = new Float64Array(n);
   for (let i = 0; i < n; i++) { lat[i] = pts[i][0]; lon[i] = pts[i][1]; if (i) cd[i] = cd[i - 1] + MG.dist(lat[i - 1], lon[i - 1], lat[i], lon[i]); }
-  return (p._geo = {lat, lon, cd, x, pts});
+  const G = {lat, lon, cd, x, pts, tmp};
+  if (!tmp) p._geo = G;
+  return G;
  };
  D.pointAt = (g, d) => {
   const cd = g.cd; let lo = 0, hi = cd.length - 1;

@@ -28,46 +28,43 @@ Stejné jízdní řády a živá data jako mapová verze, ale bez mapy – jen t
 - **Rádce (AI)** – ptáš se běžnou řečí („Jak se dostanu domů?“, „Stihnu přestup?“, „Budu potřebovat deštník?“). Rádce používá
   model Claude od Anthropicu přes oficiální SDK a odpovídá z nástrojů nad daty aplikace (spojení, odjezdy se zpožděním,
   zastávky v okolí, pěší trasa, počasí, jízdné, Moje místa); ceny umí dohledat na oficiálních webech dopravců.
-  Zapnutí – v aplikaci **Rádce → Nastavení rádce**, jedna ze dvou možností:
-  - **přes worker mhdGO** (doporučeno): na workeru nastav tajemství `ANTHROPIC_API_KEY` a `AI_CODE` (heslo pro aplikaci),
-    v aplikaci zadej jen přístupový kód – klíč Anthropic zůstane na serveru;
-  - **vlastní API klíč** z console.anthropic.com – uloží se jen v daném zařízení (doporučený je klíč s limitem útraty).
+  Zapnutí:
+  - **přes worker mhdGO** (doporučeno): na workeru nastav tajemství `ANTHROPIC_API_KEY` (návod v kapitole o workeru) – rádce pak
+    funguje všem rovnou, bez nastavování v aplikaci; s tajemstvím `AI_CODE` jen pro ty, kdo znají přístupový kód;
+  - **vlastní API klíč** z console.anthropic.com (Rádce → Nastavení rádce) – uloží se jen v daném zařízení.
 
 ## Funkce
 
-- **Start v tvém okrese** – podle polohy; bez povolení polohy se vybere náhodný okres a po povolení se mapa přepne na tvůj okres.
-- **Celá ČR / Vycentrovat** – pohled na celou republiku s hranicemi okresů (klepnutím okres otevřeš), návrat na tvůj okres
-  (bez polohy na celou ČR). Ve 3D Vycentrovat vrací pohled na centrum tvé obce (bez polohy na centrum náhodného okresního města).
-- **Dopravní síť okresu** – linky podle druhu (metro, tramvaje, trolejbusy, MHD, regionální, meziregionální, vlaky), rozbalení linky
-  ukáže trasu po silnicích/kolejích se zastávkami, **Otočit směr**, varianty tras, přestupy a odkaz na oficiální jízdní řád.
-- **Zastávky a nástupiště** – každá zastávka má svá skutečná nástupiště (zobrazí se po přiblížení, s označením a směrem); žádná se nevymýšlejí.
+- **Celá republika najednou** – po startu se načtou jízdní řády celé ČR (bez výběru okresu), mapa se přiblíží na tvou polohu,
+  bez polohy ukáže celou ČR. Skutečné trasy vozidel (po silnicích a kolejích) se dotahují podle výřezu mapy.
 - **Vozidla** – všechny spoje jezdí na mapě podle jízdního řádu; kde jsou živá data, ukazuje se skutečná poloha a zpoždění
-  (✓ včas, +N min). Karta vozidla: linka, směr, zpoždění, 4 příští zastávky s časy a trasa do cílové zastávky.
-- **Odjezdy** z libovolné zastávky v ČR (i na jiný den a čas), filtr linek a nástupišť, živá zpoždění.
-- **Hledání** jako v OpavaGO: našeptávač (Moje místa, linky, zastávky celé ČR s linkami, adresy), „Hledané místo“ a karty nejbližších zastávek;
-  **vyhledání spojení** (RAPTOR) s přestupy, pěšími přesuny a vlaky mezi okresy – řádky spojů (odjezd–příjezd, linky, doba), dřívější/další spoje a detail s časovou osou.
-- **Barvy linek** – MHD v každém městě má vlastní barvy (stejný princip jako OpavaGO – Opava má přesně původní barvy),
-  regionální a meziregionální linky mají podobnou barvu s odstínem podle okresu, každý vlak má vlastní barvu.
-- **3D mapa** (Mapbox Standard s 3D budovami) s procedurálními 3D modely vozidel v barvách dopravců
-  (autobus 12 m, kloubový, midibus, trolejbusy, regionální a dálkové autobusy, tramvaje, metro, osobní vlaky, rychlíky, dálkové vlaky),
-  denní doba, déšť a sníh a **Jízda vozidlem** jako v OpavaGO: vozidlo plynule jede po trase spoje (rychlost podle jízdního řádu, zastavuje na zastávkách),
-  kamera je za ním, trasa je vyznačená pásem šíře vozovky, panel s příští zastávkou a časy, tlačítko 2× rychleji. Spustíš ji v záložce Jízda
-  (výběr linky) nebo v bublině vozidla tlačítkem Jízda 3D.
-- **Bedekr** – nejlepší památky a zajímavosti Česka; lišta krajů → to nejlepší v kraji → lišta okresů → místa v okrese
-  (včetně méně známých). Fotografie z Wikimedia Commons, text z Wikipedie, galerie, „Jak se tam dostanu“.
-- **Budík před výstupem** – v kartě vozidla (Budík → klepni na zastávku) nebo u každé jízdy ve vyhledaném spojení;
-  upozorní zvukem, vibrací a oznámením na příští zastávku a při výstupu.
-- **Pěší navigace k zastávce** (okno zastávky → chodec, karta nejbližší zastávky v Hledání, nebo „navigovat“ ve spojení) s pokyny v češtině.
-- **Živé polohy** – vlaky celé ČR (Správa železnic), Brno a Jihomoravský kraj (otevřený stream data.brno.cz, KORDIS JMK),
-  Praha a Středočeský kraj (PID), regionální autobusy a část MHD v Libereckém, Jihočeském, Zlínském, Moravskoslezském a Ústeckém kraji
-  (celostátní GTFS-RT projektu Oběhy: IDOL, JIKORD, IDZK, ODIS, DÚK, DPMD Děčín, Arriva Express). Kde zdroj neudává zpoždění,
-  mhdGO ho odhadne z polohy vozidla proti jízdnímu řádu (zobrazeno s vlnovkou ~). Bez živých dat zatím MHD Plzeň, Olomouc,
-  Hradec Králové, Pardubice, Zlín, Liberec, Jihlava, Karlovy Vary a autobusy v Plzeňském, Karlovarském, Královéhradeckém,
-  Pardubickém, Olomouckém kraji a na Vysočině.
-- **Mimořádnosti a výluky** – IDS JMK přímo, PID přes worker; ⚠ u linek v Síti, v odjezdech, na mapě a v seznamu (Info → Mimořádnosti, na telefonu Více → Mimořádnosti).
-- **Offline a instalace na plochu** – otevřené okresy se ukládají (až 8) a fungují i bez připojení; manifest a service worker
-  (`manifest.webmanifest`, `sw.js`) pro instalaci, když je aplikace na webu (např. GitHub Pages).
-- Měřítko, hodiny, kompas, legenda, počasí, tmavý režim, Moje místa; funguje na mobilu na výšku i na šířku i na počítači.
+  (✓ včas, +N min) – bez šipky směru, jen zpoždění. Klepnutím na vozidlo se ukáže jeho trasa do cíle („proudící“ jako v OpavaGO),
+  karta vozidla má příští zastávky s časy. Dopravní síť ani trasy všech linek se nekreslí.
+- **Odjezdy** z libovolné zastávky v ČR (i na jiný den a čas), filtr linek, živá zpoždění i u spojů mimo výřez mapy.
+  Nástupiště se nevypisují (data o nich nejsou všude spolehlivá).
+- **Hledání** jako v OpavaGO: našeptávač (Moje místa, zastávky celé ČR s linkami, adresy), „Hledané místo“ a karty nejbližších zastávek;
+  **vyhledání spojení** (RAPTOR) s přestupy, pěšími přesuny a vlaky – řádky spojů, dřívější/další spoje a detail s časovou osou.
+  U každé jízdy šipky **« »** posunou jízdu na předchozí / další spoj mezi stejnými zastávkami (aplikace upozorní, když přestup nenavazuje).
+  Trasa spojení na mapě „proudí“ ve směru jízdy, pěší úseky na zastávku a ze zastávky vedou po chodnících (Valhalla / OSM).
+- **Rádce (AI)** – odpovídá na otázky o cestě („Jak se dostanu domů?“, „Stihnu přestup?“, „Budu potřebovat deštník?“) z jízdních řádů,
+  živých dat, počasí a jízdného (viz kapitola o verzi bez mapy a o workeru).
+- **Počasí** – v hlavičce teplota, panel s radou na cestu, 24 hodinami a 7 dny (den se rozbalí na průběh po 3 hodinách), počasí i jinde.
+- **3D mapa** (Mapbox Standard s 3D budovami): vozidla s 3D modely z OpavaGO (trolejbusy Škoda 26Tr/32Tr/36Tr, autobusy SOR, Iveco,
+  Irisbus, Z-Group, vlaky RegioNova, RegioShark, motorák 810) a modely Tatra T3 a ČD 810; ostatní druhy procedurálně.
+  **Denní doba a počasí podle skutečnosti** (východ a západ slunce, déšť, sníh, mlha, oblačnost z Open-Meteo), ručně lze přepnout.
+  Ve 3D není výběr mapových podkladů ani trasy sítě. Tlačítko **Jízda vozidlem** je přímo na 3D mapě: vozidlo jede po trase spoje,
+  kamera je za ním, panel s příští zastávkou, 2× rychleji; ovládání denní doby a počasí zůstává vidět i při jízdě.
+- **Tmavý režim** – podklad „Světlá“ se v tmavém režimu jmenuje „Tmavá“ a náhledy podkladů jsou tmavé.
+- **Bedekr** – nejlepší památky a zajímavosti Česka po krajích a okresech (fotografie z Wikimedia Commons, text z Wikipedie).
+- **Budík před výstupem**, **pěší navigace k zastávce**, **Moje místa**, **mimořádnosti a výluky** (IDS JMK, PID).
+- **Živé polohy** – vlaky celé ČR (Správa železnic), Brno a Jihomoravský kraj (otevřený stream data.brno.cz), Praha a Středočeský kraj (PID),
+  Liberecký, Jihočeský, Zlínský, Moravskoslezský a Ústecký kraj (celostátní GTFS-RT projektu Oběhy: IDOL, JIKORD, IDZK, ODIS, DÚK,
+  DPMD Děčín, Arriva Express), **Královéhradecký a Pardubický kraj** (veřejná mapa IREDO – autobusy i vlaky) a **MHD Hradec Králové**
+  (veřejná mapa DPmHK). Kde zdroj neudává zpoždění, mhdGO ho odhadne z polohy vozidla (s vlnovkou ~).
+  Bez veřejného zdroje zatím: MHD Plzeň, Olomouc, Pardubice (jejich mapa je chráněná podpisem, ten aplikace neobchází), Liberec, Zlín,
+  Jihlava, Karlovy Vary, autobusy v Plzeňském, Karlovarském a Olomouckém kraji a na Vysočině (kraj má mapu mapavdv.kr-vysocina.cz bez
+  zveřejněného rozhraní).
+- Měřítko, hodiny, kompas, legenda; funguje na mobilu na výšku i na šířku i na počítači; instalace na plochu (PWA).
 
 ## Data
 
@@ -85,8 +82,9 @@ Struktura `data/`:
 - `core.json` – kraje, okresy, kalendáře (bitové masky dní), metadata
 - `geo.json` – zjednodušené hranice okresů, krajů a ČR
 - `stops.json` – index všech ~40 tis. zastávek pro hledání
-- `okres/<id>.json` – balíček okresu: zastávky, nástupiště, linky, vzory tras s geometrií, jízdní řády, obce
-- `dalkove.json` – všechny vlaky a meziregionální linky (pro hledání spojení mezi okresy)
+- `cz.json` – **celá ČR najednou**: zastávky, nástupiště, linky, vzory tras a jízdní řády (bez geometrií; ~24 MB, zabalené ~5 MB)
+- `shp/<dlaždice>.json` – geometrie tras po dlaždicích 0,25° × 0,4° (načítají se podle potřeby)
+- `okres/<id>.json`, `dalkove.json` – původní balíčky okresů (vstup pro `pipeline/national.py`, aplikace je už nepoužívá)
 - `bedekr.json` – památky a místa po okresech
 
 ## Mapbox token
@@ -99,25 +97,30 @@ Token se dá zadat:
 - jednorázově v adrese: `mhdgo.html#mapbox=pk.…`, nebo
 - při sestavení: `MAPBOX_TOKEN=pk.… python3 app/build.py` vytvoří `dist/mhdgo.html` s vloženým tokenem (není v gitu).
 
-## Živé polohy pro další systémy (worker)
+## Živé polohy a AI rádce (worker)
 
-[`worker/mhdgo-worker.js`](worker/mhdgo-worker.js) je Cloudflare Worker, který sjednocuje polohy:
-ODIS (celý Moravskoslezský kraj, záloha přes stávající proxy OpavaGO), **PID** z veřejné mapy mapa.pid.cz
-(přesné párování podle čísla spoje; volitelně Golemio přes `GOLEMIO_TOKEN`), **mimořádnosti a výluky PID** (RSS pid.cz),
-IDS JMK (`IDSJMK_URL` – jen s oficiálním přístupem, veřejná mapa IDS JMK je chráněná klíčem), vlaky SŽ a další portály CHAPS (`MPVNET_PORTALS`).
+[`worker/mhdgo-worker.js`](worker/mhdgo-worker.js) je Cloudflare Worker, který sjednocuje živé polohy (PID, celostátní GTFS-RT Oběhy,
+ODIS, IREDO, MHD Hradec Králové, vlaky SŽ, mimořádnosti PID) a slouží jako bezpečná proxy pro AI rádce – klíč Anthropic zůstává
+jen ve workeru, do aplikace (veřejného HTML) se nikdy nedostane.
 
-```bash
-cd worker
-npx wrangler deploy
-npx wrangler secret put GOLEMIO_TOKEN       # volitelně, token zdarma na api.golemio.cz
-npx wrangler secret put ANTHROPIC_API_KEY   # volitelně: AI rádce ve verzi bez mapy
-npx wrangler secret put AI_CODE             # přístupový kód k rádci (bez něj je proxy vypnutá)
-```
+**Nasazení přes web Cloudflare (bez instalace):**
 
-Worker má i proxy pro AI rádce (`POST /ai/v1/messages`, stav `GET /ai/status`): pustí jen streamované dotazy rádce
-s přístupovým kódem, s povolenými modely a omezeným počtem tokenů.
+1. dash.cloudflare.com → **Workers & Pages** → worker **mhdgo-live** (nebo *Create → Worker*, název `mhdgo-live`) → **Edit code**.
+2. Smaž obsah editoru a vlož celý soubor `worker/mhdgo-worker.js` → **Deploy**.
+3. **Settings → Variables and Secrets → Add**: typ **Secret**, název `ANTHROPIC_API_KEY`, hodnota = klíč z console.anthropic.com → **Deploy**.
+   Tím je rádce zapnutý pro všechny uživatele aplikace (bez dalšího nastavení v aplikaci).
+4. Volitelně: Secret `AI_CODE` (heslo) – pak rádce funguje jen s tímto kódem (zadá se v aplikaci → Rádce → Nastavení rádce);
+   proměnná `AI_MODEL` (např. `claude-sonnet-5-5` pro nižší náklady), `AI_IP_LIMIT` (dotazů za 10 min na IP, výchozí 40),
+   `AI_HOUR_LIMIT` (dotazů za hodinu, výchozí 600).
+5. **Doporučeno:** v console.anthropic.com → *Limits* nastav měsíční limit útraty – v otevřeném režimu může rádce použít každý,
+   kdo má aplikaci.
 
-Adresu workeru pak vlož v aplikaci: **Více → Nastavení → Živé polohy a worker**.
+Ověření: `https://mhdgo-live.<účet>.workers.dev/ai/status` vrátí `{"enabled":true,"open":true,...}`.
+
+Přes příkazovou řádku: `cd worker && npx wrangler deploy && npx wrangler secret put ANTHROPIC_API_KEY`
+(volitelně `npx wrangler secret put GOLEMIO_TOKEN` pro PID přes Golemio a `npx wrangler secret put AI_CODE`).
+
+Proxy rádce propustí jen streamované dotazy s výzvou a nástroji rádce mhdGO, s povolenými modely a omezeným počtem tokenů.
 
 ## Aktualizace jízdních řádů
 
@@ -132,8 +135,8 @@ Pipeline (Python 3.12+, `pip install osmium shapely numpy scipy pandas pyvalhall
 3. `regions.py` – kraje, okresy, obce, přiřazení zastávek
 4. `platforms.py` – rozdělení zastávek na nástupiště podle směru jen tam, kde jsou skutečné sloupky v OSM
 5. `shapes.py` – geometrie tras (PID, koleje, Valhalla: celá trasa vzoru, přichycení zastávek na hlavní silnici, odstranění háčků; ladění na výřezu: `SHAPES_TEST=s,w,n,e`)
-6. `packs.py` – výstupní balíčky (barvy linek, klasifikace MHD/regio/meziregio/vlak)
-   a `netmerge.py` – sloučení souběžných tras do jedné čáry (síť jako v OpavaGO)
+6. `packs.py` – výstupní balíčky (barvy linek, klasifikace MHD/regio/meziregio/vlak), `netmerge.py` – sloučení souběžných tras
+   a `national.py` – celostátní `cz.json` a dlaždice tras `shp/`
 7. `bedekr.py` – památky z Wikidat
 8. `app/build.py` – sestavení `mhdgo.html` a `mhdgo-lite.html` z `app/` (CSS, JS, ikona a logo)
 

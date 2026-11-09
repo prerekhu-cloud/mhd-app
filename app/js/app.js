@@ -1,87 +1,66 @@
-/* ===== mhdGO – start aplikace, okres, poloha ===== */
+/* ===== mhdGO – start aplikace, poloha, počasí (celá ČR najednou, bez dělení na okresy) ===== */
 (function(){
  const D = MG.D, $ = MG.$;
  const A = MG.app = {cur: -1, me: null, home: -1, perm: 'unknown', rnd: -1, hideTrains: MG.store.get('hidetrains', false), hideRegio: MG.store.get('hideregio', false)};
- A.toggleTrains = () => { A.hideTrains = !A.hideTrains; MG.store.set('hidetrains', A.hideTrains); MG.map.drawNet(); MG.veh.tick(); MG.m3d.updData && MG.m3d.updData(); MG.ui.syncToggles(); MG.toast(A.hideTrains ? 'Vlaky skryty' : 'Vlaky zobrazeny'); };
- A.toggleRegio = () => { A.hideRegio = !A.hideRegio; MG.store.set('hideregio', A.hideRegio); MG.map.drawNet(); MG.veh.tick(); MG.m3d.updData && MG.m3d.updData(); MG.ui.syncToggles(); MG.toast(A.hideRegio ? 'Regionální linky skryty' : 'Regionální linky zobrazeny'); };
+ A.toggleTrains = () => { A.hideTrains = !A.hideTrains; MG.store.set('hidetrains', A.hideTrains); MG.veh.tick(); MG.m3d.updData && MG.m3d.updData(); MG.ui.syncToggles(); MG.toast(A.hideTrains ? 'Vlaky skryty' : 'Vlaky zobrazeny'); };
+ A.toggleRegio = () => { A.hideRegio = !A.hideRegio; MG.store.set('hideregio', A.hideRegio); MG.veh.tick(); MG.m3d.updData && MG.m3d.updData(); MG.ui.syncToggles(); MG.toast(A.hideRegio ? 'Regionální linky skryty' : 'Regionální linky zobrazeny'); };
  const stage = t => { const e = $('sp-stage'); if (e) e.textContent = t; };
  const loadbar = (t) => { const b = $('loadbar'); if (!t) { b.hidden = true; return; } $('loadbar-t').textContent = t; b.hidden = false; };
  A.loadbar = loadbar;
  A.setDark = (on) => {
   document.body.classList.toggle('dark', on); MG.store.set('dark', on);
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = on ? '#1d1a18' : '#f4ebe2';
-  if (MG.map.m) { MG.map.retheme(); MG.map.drawNet(); MG.map.drawOkresy(A.cur); }
+  if (MG.map.m) { MG.map.retheme(); MG.map.refreshStops(); }
   MG.m3d && MG.m3d.retheme && MG.m3d.retheme();
   MG.ui && MG.ui.syncToggles && MG.ui.syncToggles();
  };
- A.selectOkres = async (oi, opt) => {
-  opt = opt || {};
-  if (oi < 0 || oi >= D.okresy.length) return;
-  const prev = A.cur; A.cur = oi;
-  $('okres-name').textContent = D.okresy[oi].name;
-  MG.store.set('okres', oi);
-  if (!opt.keepView) MG.map.fitOkres(oi, {fly: opt.fly});
-  if (!D.loaded.has(oi)) {
-   loadbar('Načítám okres ' + D.okresy[oi].name + '…');
-   try { await D.loadOkres(oi); } catch (e) { loadbar(); MG.toast('Data okresu se nepodařilo načíst. Zkontroluj připojení.'); A.cur = prev; return; }
-   loadbar();
-  }
-  MG.map.drawOkresy(oi); MG.map.drawNet();
-  MG.emit('okres', oi);
-  MG.veh.tick();
-  if (MG.ui.cur === 'sh-net' && MG.net.open == null) MG.net.render();
- };
- /* automatické načtení okresu pod středem mapy */
- const autoLoad = MG.debounce(() => {
-  if (!D.geo || MG.mode3d) return;
-  /* při prohlížení linky, spojení nebo vozidla okres neměnit (panel by se překreslil) */
-  if (MG.map.selKind || MG.veh.sel || (MG.ui.cur && MG.ui.cur !== 'sh-dep')) return;
-  const m = MG.map.m; if (m.getZoom() < 11) return;
-  const c = m.getCenter(), oi = D.okresAt(c.lat, c.lng);
-  if (oi >= 0 && oi !== A.cur) A.selectOkres(oi, {keepView: true});
- }, 700);
- A.showCZ = () => { if (MG.mode3d) MG.m3d.close(); MG.map.fitCZ(); MG.map.drawOkresy(A.cur); };
+ /* kompatibilita se staršími voláními – okres se už nevybírá, jen se přeletí na oblast */
+ A.selectOkres = (oi, opt) => { if (oi >= 0 && D.okresy[oi] && !(opt && opt.keepView)) MG.map.fitOkres(oi, {fly: true}); };
+ A.showCZ = () => { if (MG.mode3d) MG.m3d.close(); MG.map.fitCZ(); };
  A.center = () => {
   if (MG.mode3d) return MG.m3d.recenter();
-  if (A.me && A.home >= 0) { if (A.cur !== A.home) A.selectOkres(A.home, {fly: true}); else MG.map.fitOkres(A.home, {fly: true}); }
-  else if (A.perm !== 'denied') { A.locate(true); }
+  if (A.me) MG.map.m.flyTo([A.me.lat, A.me.lon], Math.max(MG.map.m.getZoom(), 15), {duration: .9});
+  else if (A.perm !== 'denied') A.locate(true);
   else { MG.toast('Poloha není povolena – zobrazuji celou ČR'); A.showCZ(); }
  };
+ /* okres pod středem mapy – jen informativně (počasí, jízdné, výchozí místo 3D) */
+ const updCur = () => { if (!D.geo || !MG.map.m) return; const c = MG.map.m.getCenter(); const oi = D.okresAt(c.lat, c.lng); if (oi >= 0) A.cur = oi; };
  /* ---------- poloha ---------- */
  let watching = false;
  A.locate = (fly) => new Promise(res => {
   if (!navigator.geolocation) { A.perm = 'denied'; if (fly) A.showCZ(); return res(null); }
-  navigator.geolocation.getCurrentPosition(pos => { onPos(pos, true); if (fly && A.home >= 0) A.selectOkres(A.home, {fly: true}); res(A.me); watch(); },
+  navigator.geolocation.getCurrentPosition(pos => { onPos(pos, true); if (fly && A.me) MG.map.m.flyTo([A.me.lat, A.me.lon], 15, {duration: .9}); res(A.me); watch(); },
    err => { if (err.code === 1) A.perm = 'denied'; if (fly) { MG.toast(err.code === 1 ? 'Přístup k poloze není povolen – zobrazuji celou ČR' : 'Polohu se nepodařilo zjistit'); A.showCZ(); } res(null); },
    {enableHighAccuracy: true, timeout: 12000, maximumAge: 60000});
  });
  function watch() { if (watching || !navigator.geolocation) return; watching = true; navigator.geolocation.watchPosition(p => onPos(p), () => {}, {enableHighAccuracy: true, maximumAge: 15000}); }
- function onPos(pos, first) {
-  const c = pos.coords; const had = !!A.me;
+ function onPos(pos) {
+  const c = pos.coords, had = !!A.me;
   A.me = {lat: c.latitude, lon: c.longitude, acc: c.accuracy}; A.perm = 'granted';
   MG.map.setMe(A.me.lat, A.me.lon, A.me.acc);
-  const oi = D.okresAt(A.me.lat, A.me.lon);
-  if (oi >= 0) A.home = oi;
-  if (!had && A.started && oi >= 0 && A.autoSwitch && A.cur !== oi) { A.autoSwitch = false; MG.toast('Poloha povolena – přepínám na okres ' + D.okresy[oi].name); A.selectOkres(oi, {fly: true}); }
+  const oi = D.okresAt(A.me.lat, A.me.lon); if (oi >= 0) A.home = oi;
+  /* první poloha po startu bez povolení: přeletět k uživateli */
+  if (!had && A.started && A.waitMe && !MG.mode3d) { A.waitMe = false; MG.map.m.flyTo([A.me.lat, A.me.lon], 15, {duration: 1}); }
   MG.emit('me', A.me);
  }
- /* ---------- hodiny a počasí ---------- */
+ /* ---------- hodiny a počasí (sdílené jádro MG.core) ---------- */
  function clock() { const p = MG.pragueParts(MG.now()); $('clock').textContent = MG.pad(p.h) + ':' + MG.pad(p.mi) + ':' + MG.pad(p.s); }
- const WX = {0: ['fa-sun', 'jasno'], 1: ['fa-cloud-sun', 'skoro jasno'], 2: ['fa-cloud-sun', 'polojasno'], 3: ['fa-cloud', 'zataženo'], 45: ['fa-smog', 'mlha'], 48: ['fa-smog', 'mlha'], 51: ['fa-cloud-rain', 'mrholení'], 53: ['fa-cloud-rain', 'mrholení'], 55: ['fa-cloud-rain', 'mrholení'], 61: ['fa-cloud-rain', 'déšť'], 63: ['fa-cloud-rain', 'déšť'], 65: ['fa-cloud-showers-heavy', 'silný déšť'], 71: ['fa-snowflake', 'sněžení'], 73: ['fa-snowflake', 'sněžení'], 75: ['fa-snowflake', 'silné sněžení'], 77: ['fa-snowflake', 'sníh'], 80: ['fa-cloud-showers-heavy', 'přeháňky'], 81: ['fa-cloud-showers-heavy', 'přeháňky'], 82: ['fa-cloud-showers-heavy', 'přeháňky'], 85: ['fa-snowflake', 'sněhové přeháňky'], 86: ['fa-snowflake', 'sněhové přeháňky'], 95: ['fa-cloud-bolt', 'bouřka'], 96: ['fa-cloud-bolt', 'bouřka'], 99: ['fa-cloud-bolt', 'bouřka']};
- A.wx = null;
- async function weather() {
+ A.wx = null; A.wxData = null;
+ A.wxPoint = () => { if (A.wxPlace) return A.wxPlace; if (A.me) return {name: 'Moje poloha', lat: A.me.lat, lon: A.me.lon}; const c = MG.mode3d && MG.m3d.center ? MG.m3d.center() : MG.map.m.getCenter(); return {name: A.cur >= 0 ? 'okolí – okres ' + D.okresy[A.cur].name : 'střed mapy', lat: c.lat, lon: c.lng != null ? c.lng : c.lon}; };
+ async function weather(force) {
   try {
-   const c = MG.map.m.getCenter();
-   const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + c.lat.toFixed(3) + '&longitude=' + c.lng.toFixed(3) + '&current=temperature_2m,weather_code,is_day,precipitation&hourly=precipitation&forecast_hours=12&timezone=Europe%2FPrague');
-   const j = await r.json(); const cur = j.current; if (!cur) return;
-   const w = WX[cur.weather_code] || ['fa-cloud', ''];
+   const p = A.wxPoint(), C = MG.core;
+   const j = await C.weather(p.lat, p.lon); const cur = j.current; if (!cur) return;
+   A.wxData = j; A.wxData._name = p.name;
    let rain = '';
-   try { const hp = (j.hourly && j.hourly.precipitation) || []; const now = (cur.precipitation || 0) > 0.05; let k = hp.findIndex(x => x > 0.1); if (now) { let e = hp.findIndex(x => x <= 0.05); rain = e > 0 ? 'srážky ještě ~' + e + ' h' : 'prší'; } else rain = k < 0 ? '12 h bez srážek' : k <= 0 ? 'brzy srážky' : k + ' h bez srážek'; } catch (_) {}
-   A.wx = {t: Math.round(cur.temperature_2m), code: cur.weather_code, txt: w[1], ic: w[0], rain};
-   const b = $('weather'); b.hidden = false; b.innerHTML = '<i class="fa-solid ' + w[0] + '"></i>' + A.wx.t + ' °C'; b.title = 'Počasí: ' + w[1];
+   const adv = C.wxAdvice(j).find(x => x[0] === 'fa-umbrella'); if (adv) rain = cur.precipitation > .1 ? 'prší' : 'během 3 h asi zaprší';
+   A.wx = {t: Math.round(cur.temperature_2m), code: cur.weather_code, txt: C.wxText(cur.weather_code), ic: C.wxIc(cur.weather_code, cur.is_day), rain, kind: C.wxKind(cur.weather_code), isDay: cur.is_day, sunrise: j.daily && j.daily.sunrise[0], sunset: j.daily && j.daily.sunset[0]};
+   const b = $('weather'); b.hidden = false; b.innerHTML = '<i class="fa-solid ' + A.wx.ic + '"></i>' + A.wx.t + ' °C'; b.title = 'Počasí: ' + A.wx.txt;
+   const hc = $('hdr-wx'); if (hc) { hc.hidden = false; hc.innerHTML = '<i class="fa-solid ' + A.wx.ic + '"></i><span>' + A.wx.t + '°</span>'; hc.title = 'Počasí: ' + A.wx.txt; }
    MG.emit('wx', A.wx);
-  } catch (_) {}
+  } catch (e) { MG.err('wx', e); }
  }
+ A.weather = weather;
  /* ---------- start ---------- */
  A.boot = async () => {
   const t0 = performance.now();
@@ -89,38 +68,34 @@
   A.setDark(dark == null ? matchMedia('(prefers-color-scheme: dark)').matches : dark);
   stage('Připravuji mapu…');
   MG.map.init(); MG.ui.initTabs();
-  stage('Načítám okresy a kalendáře…');
+  /* sdílené jádro (rádce, počasí, spojení) ví, kde uživatel je a co má otevřené */
+  const C = MG.core;
+  C.me = () => A.me; C.locate = () => A.locate(false);
+  C.ctx = () => { const c = MG.map.m.getCenter(); return {stop: MG.dep.st, conn: MG.search && MG.search.from && MG.search.to ? {from: MG.search.from, to: MG.search.to} : null, center: {lat: c.lat, lon: c.lng}}; };
+  C.wxPlace = () => A.wxPoint();
+  stage('Načítám kalendáře…');
   try { await Promise.all([D.loadCore(), D.loadGeo()]); }
   catch (e) { stage('Data se nepodařilo načíst – zkontroluj připojení k internetu.'); MG.err('core', e); setTimeout(() => location.reload(), 15000); return; }
   if (!D.dataValid()) MG.toast('Pozor: jízdní řády v aplikaci jsou pro jiné období (' + D.core.d0 + ')', 6000);
-  MG.map.drawOkresy(-1);
-  /* stav oprávnění k poloze */
+  MG.map.drawOkresy();
   try { if (navigator.permissions) { const p = await navigator.permissions.query({name: 'geolocation'}); A.perm = p.state; p.onchange = () => { A.perm = p.state; if (p.state === 'granted') A.locate(false); }; } } catch (_) {}
-  let oi = -1;
-  if (A.perm === 'granted') {
-   stage('Zjišťuji tvou polohu…');
-   const me = await Promise.race([A.locate(false), MG.sleep(6000).then(() => null)]);
-   if (me && A.home >= 0) oi = A.home;
-  }
-  if (oi < 0) { oi = Math.floor(Math.random() * D.okresy.length); A.rnd = oi; A.autoSwitch = true; }
-  A.rndSeat = A.rnd >= 0 ? A.rnd : oi;
-  stage('Načítám okres ' + D.okresy[oi].name + '…');
-  A.cur = oi; $('okres-name').textContent = D.okresy[oi].name;
-  MG.map.fitOkres(oi);
-  try { await D.loadOkres(oi); } catch (e) { MG.err('okres', e); }
-  MG.map.drawOkresy(oi); MG.map.drawNet();
+  stage('Načítám jízdní řády celé ČR…');
+  const all = D.loadAll().catch(e => { MG.err('cz', e); return false; });
+  let me = null;
+  if (A.perm === 'granted') me = await Promise.race([A.locate(false), MG.sleep(6000).then(() => null)]);
+  if (!await all) { stage('Jízdní řády se nepodařilo načíst – zkontroluj připojení.'); setTimeout(() => location.reload(), 15000); return; }
+  if (me) MG.map.m.setView([me.lat, me.lon], 15); else { MG.map.m.fitBounds([[48.55, 12.09], [51.06, 18.86]], {padding: [10, 10]}); A.waitMe = true; }
+  updCur(); MG.map.refreshStops();
   A.started = true;
   MG.veh.start(); MG.live.start();
   clock(); setInterval(clock, 1000);
   weather(); setInterval(weather, 15 * 60000);
-  MG.map.m.on('moveend', autoLoad);
-  const wait = Math.max(0, 1900 - (performance.now() - t0));
+  MG.map.m.on('moveend', MG.debounce(() => { updCur(); if (!A.me && !A.wxPlace && A.wxData && MG.dist(A.wxData._lat, A.wxData._lon, MG.map.m.getCenter().lat, MG.map.m.getCenter().lng) > 25000) weather(); }, 600));
+  const wait = Math.max(0, 1600 - (performance.now() - t0));
   setTimeout(() => { const s = $('splash'); s.classList.add('out'); setTimeout(() => s.remove(), 700); }, wait);
-  /* bez povolení: zeptáme se na polohu (náhodný okres zůstane, dokud ji uživatel nepovolí) */
   if (A.perm !== 'granted' && A.perm !== 'denied') setTimeout(() => A.locate(false), 1500);
   else if (A.perm === 'granted') watch();
   D.loadIdx().catch(() => {});
-  setTimeout(() => D.loadDalkove().catch(() => {}), 4000);
   MG.emit('ready');
  };
  document.addEventListener('visibilitychange', () => { if (!document.hidden) { MG.veh.tick(); MG.live.tick(); } });

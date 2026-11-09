@@ -41,11 +41,13 @@ rm -f "$W/seg_cache.pkl"
 python3 "$P/shapes.py" "$W" "$W/vh/config.json" "$W/src/pid/PID_GTFS.zip"
 python3 "$P/packs.py" "$W" "$W/out"
 python3 "$P/netmerge.py" "$W/out"
+python3 "$P/national.py" "$W/out" "$W/out"   # celá ČR najednou: cz.json + dlaždice tras shp/
 if [ -s "$W/src/kordis_gtfs.zip" ]; then python3 "$P/kordis_stops.py" "$W/src/kordis_gtfs.zip" "$W/out"; fi
 if [ -z "${SKIP_BEDEKR:-}" ]; then python3 "$P/bedekr.py" "$W" "$W/out" || echo "bedekr přeskočen"; fi
 echo "== kopíruji do data/"
 mkdir -p "$ROOT/data/okres"
 cp "$W/out/"*.json "$ROOT/data/"
 cp "$W/out/okres/"*.json "$ROOT/data/okres/"
+rm -rf "$ROOT/data/shp" && cp -r "$W/out/shp" "$ROOT/data/shp"
 python3 "$ROOT/app/build.py"
 echo "hotovo"

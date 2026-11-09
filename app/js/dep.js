@@ -17,7 +17,7 @@
  const until = (t, nowM) => { const x = Math.round(t - nowM); return x <= 0 ? 'teď' : x < 60 ? 'za ' + x + ' min' : ''; };
  async function ensureStation(g, okres) {
   if (D.st.has(g)) return true;
-  if (okres >= 0) { MG.app.loadbar('Načítám okres ' + D.okresy[okres].name + '…'); try { await D.loadOkres(okres); } catch (_) {} MG.app.loadbar(); MG.map.drawNet(); }
+  try { await D.loadAll(); } catch (_) {}
   return D.st.has(g);
  }
  /* lišta Moje místa (jako fav41 v OpavaGO) */
@@ -51,23 +51,25 @@
   if (!s) { html += '<div id="dep-nearby"><div class="empty"><i class="fa-regular fa-clock"></i>Napiš název zastávky nebo klepni na zastávku na mapě.</div></div></div>'; el.innerHTML = html; bind(el); P.bindFav(el, f => { if (f.st != null) P.show(f.st, D.okresAt(f.lat, f.lon)); else P.nearestTo(f); }); nearby(); return; }
   const allLines = [...s.lines].map(i => D.ln.get(i)).filter(Boolean).filter(L_ => !(MG.app.hideTrains && L_.k === 'vlak')).sort((a, b) => D.kindOrder.indexOf(a.k) - D.kindOrder.indexOf(b.k) || String(D.lineText(a)).localeCompare(String(D.lineText(b)), 'cs', {numeric: true}));
   html += '<div class="chips"><button class="dep-lc all' + (!P.lines ? ' on' : '') + '" data-ln="all">Vše</button>' + allLines.map(L_ => '<button class="dep-lc' + (P.lines && P.lines.has(L_.i) ? ' on' : '') + '" data-ln="' + L_.i + '" style="--lc:' + L_.c + ';--lt:' + L_.tc + '">' + MG.h(D.lineText(L_)) + '</button>').join('') + '</div>';
-  if (s.pls.length > 1) html += '<div class="chips"><button class="chip' + (P.plat == null ? ' on' : '') + '" data-pl="all">Všechna nástupiště</button>' + s.pls.filter(g => D.pl.get(g) && D.pl.get(g).pats.length).map(g => { const pl = D.pl.get(g); return '<button class="chip' + (P.plat === g ? ' on' : '') + '" data-pl="' + g + '">' + (pl.lab ? MG.h(pl.lab) + ' · ' : '') + '→ ' + MG.h(D.shortName(D.plDir(g), '').split(',').pop().trim()) + '</button>'; }).join('') + '</div>';
+  /* nástupiště se nevypisují (data o nich nejsou všude spolehlivá) */
   const als = MG.alerts ? MG.alerts.forStation(P.st) : [];
   if (als.length) html += '<details class="alert-box"><summary><i class="fa-solid fa-triangle-exclamation"></i>' + als.length + ' ' + (als.length === 1 ? 'mimořádnost' : als.length < 5 ? 'mimořádnosti' : 'mimořádností') + ' na linkách této zastávky</summary>' + als.map(MG.alerts.card).join('') + '</details>';
   const deps = D.departures(P.st, {ymd, from: from - 1, horizon: P.when == null ? 300 : 480, limit: 70, lines: P.lines, platform: P.plat}).filter(d => !(MG.app.hideTrains && d.L.k === 'vlak'));
   if (!deps.length) html += '<div class="empty"><i class="fa-regular fa-calendar-xmark"></i>V tuto dobu odsud nic nejede.</div>';
   const nowS = (nowP.h * 60 + nowP.mi) * 60 + nowP.s, today = ymd === nowP.ymd && P.when == null;
-  for (const d of deps) {
+  const todayLive = ymd === nowP.ymd, insts = todayLive ? deps.map(d => MG.core.mkInst(d.p, d.j, d.day)) : [];
+  const coreLive = todayLive ? MG.core.liveOf(insts) : new Map();
+  for (let di = 0; di < deps.length; di++) { const d = deps[di];
    const L_ = d.L, cty = L_.city || '';
-   const lv = ymd === nowP.ymd ? P.liveFor(d) : null;
+   const it = insts[di], lv = it ? (coreLive.get(it.key) || P.liveFor(d)) : null, x = lv && it ? MG.core.delayOf(it, lv) : null;
    const hs = D.headsign(d.p, d.j);
    const pl = D.pl.get(d.pl);
-   const delay = lvDelay(lv) > 0 ? lvDelay(lv) : 0;
+   const delay = x && x.d > 0 ? x.d : 0;
    const k2 = d.p.i + ':' + d.j + ':' + d.day + ':' + d.k;
    const exp = d.t + delay, cd = today ? cdTxt(exp, nowS) : '';
    const op = P.open === k2, mins = Math.round((exp * 60 - nowS) / 60);
    const tb = today && mins <= 10 ? '<b class="cd" data-exp="' + exp + '">' + (cd || MG.hm2(exp)) + '</b><small>' + MG.hm2(exp) + '</small>' : '<b class="tm">' + MG.hm2(exp) + '</b><small class="za">' + (today && mins < 60 ? 'za ' + mins + ' min' : (delay >= 1 ? 'plán ' + MG.hm2(d.t) : '')) + '</small>';
-   html += '<div class="dep-card' + (op ? ' open' : '') + '"><div class="dep" data-k="' + k2 + '">' + D.badge(L_, {size: 'big', text: L_.k === 'vlak' ? D.trainLabel(L_, d.p.n && d.p.n[d.j]) : null}) + '<div class="d-tx"><b><i class="fa-solid fa-arrow-right"></i> ' + MG.h(D.shortName(hs, cty)) + '</b>' + (pl && pl.lab ? '<small>nástupiště ' + MG.h(pl.lab) + '</small>' : '') + '</div>' + dlHtml(lv) + '<div class="d-t">' + tb + '</div><i class="fa-solid fa-chevron-down chev"></i></div>' + (op ? expandTrip(d, delay) : '') + '</div>';
+   html += '<div class="dep-card' + (op ? ' open' : '') + '"><div class="dep" data-k="' + k2 + '">' + D.badge(L_, {size: 'big', text: L_.k === 'vlak' ? D.trainLabel(L_, d.p.n && d.p.n[d.j]) : null}) + '<div class="d-tx"><b><i class="fa-solid fa-arrow-right"></i> ' + MG.h(D.shortName(hs, cty)) + '</b>' + '</div>' + MG.core.dlBadge(x) + '<div class="d-t">' + tb + '</div><i class="fa-solid fa-chevron-down chev"></i></div>' + (op ? expandTrip(d, delay) : '') + '</div>';
   }
   const upd = MG.live.at && (MG.live.at.odis || MG.live.at.sz) ? new Date(Math.max(MG.live.at.odis || 0, MG.live.at.sz || 0, MG.live.at.worker || 0)) : null;
   html += '<div class="dep-foot"><span>' + (MG.live.on ? '<span class="dot-live"></span> Zpoždění živě' + (upd ? ' · ' + MG.pad(upd.getHours()) + ':' + MG.pad(upd.getMinutes()) : '') : 'Podle jízdního řádu') + '</span><a target="_blank" rel="noopener" href="https://idos.cz/vlakyautobusymhdvse/odjezdy/?f=' + encodeURIComponent(s.name) + '">Ověřit v IDOS <i class="fa-solid fa-arrow-up-right-from-square"></i></a></div></div>';
@@ -148,7 +150,7 @@
   const s = D.st.get(best.g);
   /* nejbližší nástupiště zastávky */
   let pl = null, pd = 1e12; if (s) for (const g of s.pls) { const q = D.pl.get(g); if (!q || !q.pats.length) continue; const d = MG.dist(me.lat, me.lon, q.lat, q.lon); if (d < pd) { pd = d; pl = q; } }
-  MG.walk.to({name: best.name + (pl && pl.lab ? ' (' + pl.lab + ')' : ''), lat: pl ? pl.lat : best.lat, lon: pl ? pl.lon : best.lon});
+  MG.walk.to({name: best.name, lat: pl ? pl.lat : best.lat, lon: pl ? pl.lon : best.lon});
  };
  /* ---------- okno zastávky na mapě ---------- */
  let pop = null;
@@ -167,8 +169,8 @@
   const type = grp.vlak.length && !grp.mhd.length ? 'Železniční stanice / zastávka' : grp.mhd.length ? 'Zastávka MHD ' + city : 'Zastávka regionálních linek';
   const sec = (t, ls) => ls.length ? '<div class="stp-sec">' + t + '</div><div class="stp-lns">' + ls.slice(0, 24).map(x => '<a data-ln="' + x.i + '">' + D.badge(x, {text: x.k === 'vlak' ? (x.lab || x.cat || 'Vlak') : null}) + '</a>').join('') + (ls.length > 24 ? '<span class="ln" style="--lc:var(--hover);--lt:var(--mut)">+' + (ls.length - 24) + '</span>' : '') + '</div>' : '';
   const h = '<div class="stp"><div class="stp-n">' + MG.h(D.shortName(s.name, seat)) + '</div>' +
-   '<div class="stp-chips">' + (rq ? '<span><i class="fa-solid fa-hand"></i>na znamení</span>' : '') + (wc ? '<span><i class="fa-solid fa-wheelchair"></i>bezbariérová</span>' : '') + (pl && pl.lab ? '<span>nástupiště ' + MG.h(pl.lab) + '</span>' : '') + '</div>' +
-   '<div class="stp-sub">' + MG.h(type) + (pl ? ' · směr ' + MG.h(D.shortName(D.plDir(plg), city)) : '') + '</div>' +
+   '<div class="stp-chips">' + (rq ? '<span><i class="fa-solid fa-hand"></i>na znamení</span>' : '') + (wc ? '<span><i class="fa-solid fa-wheelchair"></i>bezbariérová</span>' : '') + '' + '</div>' +
+   '<div class="stp-sub">' + MG.h(type) + '</div>' +
    sec('Linky MHD', grp.mhd) + sec('Regionální linky', grp.regio) + sec('Vlaky', grp.vlak) +
    '<div class="stp-acts"><button class="wide" id="pp-to" title="Spojení sem"><i class="fa-solid fa-route"></i>Spojení</button><button class="walk" id="pp-walk" title="Pěšky sem"><i class="fa-solid fa-person-walking-arrow-right"></i></button><button id="pp-dep" title="Odjezdy">' + MG.mi('clock') + '</button></div></div>';
   if (MG.mode3d) { MG.m3d.popup(lat, lon, h, g); } else {
@@ -179,7 +181,7 @@
    const b1 = $('pp-dep'), b2 = $('pp-to'), b3 = $('pp-walk');
    if (b1) b1.onclick = () => { cl(); P.show(g, s.ok); };
    if (b2) b2.onclick = () => { cl(); MG.search.routeTo({name: s.name, lat: s.lat, lon: s.lon, st: g}); };
-   if (b3) b3.onclick = () => { cl(); MG.walk.to({name: s.name + (pl && pl.lab ? ' (' + pl.lab + ')' : ''), lat, lon}); };
+   if (b3) b3.onclick = () => { cl(); MG.walk.to({name: s.name, lat, lon}); };
    MG.qsa('.stp [data-ln]').forEach(a2 => a2.onclick = () => { cl(); MG.net.openLine(+a2.dataset.ln); });
   }, 30);
  };

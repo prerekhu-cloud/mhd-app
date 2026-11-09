@@ -8,7 +8,7 @@
  S.findStops = async (q, n) => {
   const idx = await D.loadIdx(); const f = MG.fold(q); if (!f) return [];
   const words = f.split(' ');
-  const c = MG.map.m.getCenter(), cur = MG.app.cur;
+  const c = MG.app.me ? {lat: MG.app.me.lat, lng: MG.app.me.lon} : MG.map.m.getCenter(), cur = -2;
   const out = [];
   for (const s of idx) {
    let sc = 0;
@@ -46,7 +46,7 @@
    return out;
   }
   for (const x of F) if (MG.fold(x.label + ' ' + x.name).includes(f)) out.push({fav: true, icon: x.icon, name: x.label, sub: x.name, lat: x.lat, lon: x.lon, st: x.st});
-  if (!(opt && opt.noLines)) {
+  if (false) { /* linky se nehledají – dopravní síť se nezobrazuje */
    const lines = [];
    for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) { const L_ = D.ln.get(li); if (L_ && MG.fold(D.lineText(L_)) === f && !lines.includes(L_)) lines.push(L_); }
    for (const L_ of lines.slice(0, 4)) out.push({line: L_.i, name: (L_.k === 'vlak' ? 'Vlak ' : L_.city ? 'Linka MHD ' + L_.city + ' ' : 'Linka ') + D.lineText(L_), sub: L_.ln || ''});
@@ -147,9 +147,6 @@
   const near = idx.map(s => [MG.dist(r.lat, r.lon, s.lat, s.lon), s]).sort((x, y) => x[0] - y[0]).slice(0, 4);
   if (r.st != null) { const i = near.findIndex(x => x[1].g === r.st); if (i > 0) near.unshift(near.splice(i, 1)[0]); else if (i < 0) { const s = idx.find(x => x.g === r.st); if (s) near.unshift([0, s]); near.length = Math.min(near.length, 4); } }
   S.near = near;
-  const oi = D.okresAt(r.lat, r.lon);
-  if (oi >= 0 && !D.loaded.has(oi)) D.loadOkres(oi).then(() => { if (S.q === r) renderNear(); }).catch(() => {});
-  if (oi >= 0 && oi !== MG.app.cur) MG.app.selectOkres(oi, {keepView: true});
   if (MG.mode3d) MG.m3d.flyTo && MG.m3d.flyTo(r.lat, r.lon); else MG.map.m.flyTo([r.lat, r.lon], 16, {duration: .8});
   if (S.pin) MG.map.m.removeLayer(S.pin);
   S.pin = L.marker([r.lat, r.lon], {icon: L.divIcon({className: 'plat-ic', html: '<div class="pin41"><i class="fa-solid fa-location-dot"></i></div>', iconSize: [0, 0]}), pane: 'me'}).addTo(MG.map.m);
@@ -226,7 +223,7 @@
   await MG.sleep(30);
   try {
    const r = await MG.raptor.search(S.from, S.to, ymd, t, {count: 6});
-   S.res = r; S.sel = 0; S.qymd = ymd; S.qt = t;
+   S.res = r; S.sel = 0; S.qymd = ymd; S.qt = t; r.ymd = ymd;
    if (r.err) { $('c-st').textContent = r.err; return; }
    $('c-st').textContent = r.results.length || r.walkOnly ? '' : 'Spojení nenalezeno. Zkus jiný čas nebo bližší zastávku.';
    renderResults(); if (r.results.length) showConn(0);
@@ -257,51 +254,89 @@
   MG.qsa('[data-alarm]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const [key, k] = b.dataset.alarm.split('|'); MG.alarm.set(key, +k); b.classList.add('on'); });
   MG.qsa('[data-walkto]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); const [ll, nm] = b.dataset.walkto.split('|'); const [la, lo] = ll.split(',').map(Number); MG.walk.to({name: nm, lat: la, lon: lo}); });
   MG.qsa('[data-depst]', box).forEach(b => b.onclick = (e) => { e.stopPropagation(); MG.dep.show(+b.dataset.depst); });
+  /* « » posun jízdy na předchozí / další spoj mezi stejnými zastávkami (jako OpavaGO) */
+  MG.qsa('.sh41-b', box).forEach(b => b.onclick = (e) => {
+   e.preventDefault(); e.stopPropagation();
+   const c = r.results[S.sel], n = MG.core.shiftLeg(r, c, +b.dataset.k, +b.dataset.d);
+   if (!n) { b.classList.add('none'); b.title = 'Žádný další spoj'; setTimeout(() => b.classList.remove('none'), 900); return; }
+   r.results[S.sel] = n; const y = box.closest('.sh-body') ? box.closest('.sh-body').scrollTop : 0;
+   renderResults(); showConn(S.sel); const sb = box.closest('.sh-body'); if (sb) sb.scrollTop = y;
+  });
  }
  function plan(c) {
   const nm = i => D.stName(S.res.n.stArr[i]);
   const {dep, arr, rides} = connTimes(c);
-  let h = '<div class="plan41"><div class="plan41-head"><span>' + MG.h(S.from.name) + '</span><i class="fa-solid fa-arrow-right"></i><span>' + MG.h(S.to.name) + '</span><em>' + MG.hm(dep) + ' – ' + MG.hm(arr) + ' · ' + fmtDur(arr - dep) + '</em></div>';
+  const lv = MG.core.connLive(S.res, c), byL = new Map(lv.map(x => [x.l, x]));
+  const ok = MG.core.connOk(S.res, c);
+  let h = '<div class="plan41"><div class="plan41-head"><span>' + MG.h(S.from.name) + '</span><i class="fa-solid fa-arrow-right"></i><span>' + MG.h(S.to.name) + '</span><em>' + MG.hm(dep) + ' – ' + MG.hm(arr) + ' · ' + fmtDur(arr - dep) + (c.shifted ? ' · upraveno' : '') + '</em></div>';
+  if (!ok) h += '<div class="step41 xfer bad"><div class="step41-rail"></div><div class="step41-body"><span class="xf41-bad"><i class="fa-solid fa-triangle-exclamation"></i> Po posunu některý přestup nenavazuje.</span></div></div>';
   const firstRide = rides[0];
   const walkIn = c.acc[1] > 0 ? c.acc[1] : (c.legs[0].walk ? c.legs[0].dur : 0);
   if (walkIn > 0) { const pb = D.pl.get(firstRide.p.s[firstRide.bi]); h += '<div class="step41 walk"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-person-walking"></i> Pěšky ' + walkIn + ' min na zastávku ' + MG.h(D.stName(pb.st)) + ' <button type="button" class="step41-dep" data-walkto="' + pb.lat + ',' + pb.lon + '|' + MG.h(D.stName(pb.st)) + '"><i class="fa-solid fa-diamond-turn-right"></i> navigovat</button></div></div>'; }
-  let prev = null;
-  for (const l of c.legs) {
-   if (l.walk) { if (l.from >= 0 && l.dur > 0) h += '<div class="step41 xfer"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-person-walking"></i> Přestup pěšky ' + l.dur + ' min · ' + MG.h(nm(l.from)) + ' → ' + MG.h(nm(l.to)) + ' · ' + MG.fmtDist(l.dist) + '</div></div>'; continue; }
-   const L_ = D.ln.get(l.p.l), t = legTimes(l), pb = D.pl.get(l.p.s[l.bi]), pa = D.pl.get(l.p.s[l.ai]);
-   if (prev) { const wait = Math.round(t.dep - legTimes(prev).arr); h += '<div class="step41 xfer"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-arrow-right-arrow-left"></i> Přestup – ' + MG.h(D.stName(pb.st)) + (wait > 0 ? ' · čekání ' + wait + ' min' : '') + '</div></div>'; }
+  let prev = null, walkBetween = 0;
+  c.legs.forEach((l, li) => {
+   if (l.walk) { if (l.from >= 0 && l.dur > 0) { walkBetween += l.dur; h += '<div class="step41 xfer"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-person-walking"></i> Přestup pěšky ' + l.dur + ' min · ' + MG.h(nm(l.from)) + ' → ' + MG.h(nm(l.to)) + ' · ' + MG.fmtDist(l.dist) + '</div></div>'; } return; }
+   const L_ = D.ln.get(l.p.l), t = legTimes(l), pb = D.pl.get(l.p.s[l.bi]), pa = D.pl.get(l.p.s[l.ai]), info = byL.get(l) || {};
+   const dl = info.x && info.x.d > 0 ? info.x.d : 0;
+   if (prev) {
+    const pa0 = legTimes(prev).arr, wait = Math.round(t.dep - pa0 - walkBetween), bad = t.dep < pa0 + walkBetween + 1 - .01;
+    h += '<div class="step41 xfer' + (bad || info.risk ? ' bad' : '') + '"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-arrow-right-arrow-left"></i> Přestup – ' + MG.h(D.stName(pb.st)) + (wait > 0 ? ' · čekání ' + wait + ' min' : '') + (bad ? '<span class="xf41-bad">Přestup nenavazuje – posuň jízdu šipkami « »</span>' : info.risk ? '<span class="xf41-bad">Přestup je ohrožen zpožděním (rezerva ' + Math.round(info.slack) + ' min)</span>' : '') + '</div></div>';
+   }
+   walkBetween = 0;
    const mids = l.p.s.slice(l.bi + 1, l.ai).map(pg => { const pl = D.pl.get(pg); return pl ? D.stName(pl.st) : ''; });
-   h += '<div class="step41 ride" style="--lc:' + L_.c + '"><div class="step41-rail"></div><div class="step41-body"><div class="step41-top">' + legChip(l) + '<span class="step41-dir">směr ' + MG.h(D.headsign(l.p, l.j)) + '</span></div>' +
-    '<div class="step41-stop"><span class="t41">' + MG.hm2(t.dep) + '</span><strong>' + MG.h(D.stName(pb.st)) + '</strong>' + (pb.lab ? '<span class="pl41">' + MG.h(pb.lab) + '</span>' : '') + '<button type="button" class="step41-dep" data-depst="' + pb.st + '"><i class="fa-regular fa-clock"></i> odjezdy</button></div>' +
+   h += '<div class="step41 ride" style="--lc:' + L_.c + '"><div class="step41-rail"></div><div class="step41-body"><div class="step41-top">' + legChip(l) + '<span class="step41-dir">směr ' + MG.h(D.headsign(l.p, l.j)) + '</span>' + MG.core.dlBadge(info.x) +
+    '<span class="sh41"><button type="button" class="sh41-b" data-k="' + li + '" data-d="-1" title="Předchozí spoj odsud" aria-label="Předchozí spoj"><i class="fa-solid fa-angles-left"></i></button><button type="button" class="sh41-b" data-k="' + li + '" data-d="1" title="Následující spoj odsud" aria-label="Následující spoj"><i class="fa-solid fa-angles-right"></i></button></span></div>' +
+    '<div class="step41-stop"><span class="t41">' + (dl >= 1 ? '<s>' + MG.hm2(t.dep) + '</s> ' + MG.hm2(t.dep + dl) : MG.hm2(t.dep)) + '</span><strong>' + MG.h(D.stName(pb.st)) + '</strong><button type="button" class="step41-dep" data-depst="' + pb.st + '"><i class="fa-regular fa-clock"></i> odjezdy</button></div>' +
     (mids.length ? '<details class="step41-mid"><summary>' + czStops(l.ai - l.bi) + '</summary>' + mids.map(x => '<div>' + MG.h(x) + '</div>').join('') + '</details>' : '<div class="step41-mid plain">' + czStops(l.ai - l.bi) + '</div>') +
-    '<div class="step41-stop"><span class="t41">' + MG.hm2(t.arr) + '</span><strong>' + MG.h(D.stName(pa.st)) + '</strong><button type="button" class="step41-alight" data-alarm="' + l.p.i + ':' + l.j + ':' + l.day + '|' + l.ai + '" title="Upozornit, až se budu blížit k výstupu"><i class="fa-solid fa-bell"></i> Upozornit na výstup</button></div></div></div>';
+    '<div class="step41-stop"><span class="t41">' + (dl >= 1 ? '<s>' + MG.hm2(t.arr) + '</s> ' + MG.hm2(t.arr + dl) : MG.hm2(t.arr)) + '</span><strong>' + MG.h(D.stName(pa.st)) + '</strong><button type="button" class="step41-alight" data-alarm="' + l.p.i + ':' + l.j + ':' + l.day + '|' + l.ai + '" title="Upozornit, až se budu blížit k výstupu"><i class="fa-solid fa-bell"></i> Upozornit na výstup</button></div></div></div>';
    prev = l;
-  }
+  });
   if (c.egress > 0) h += '<div class="step41 walk"><div class="step41-rail"></div><div class="step41-body"><i class="fa-solid fa-flag-checkered"></i> Pěšky ' + c.egress + ' min do cíle ' + MG.h(S.to.name) + '</div></div>';
-  h += '<div class="plan41-note">Podle jízdního řádu CIS JŘ' + (MG.live.on ? ', zpoždění vozidel vidíš na mapě' : '') + '.</div><a class="idos41" target="_blank" rel="noopener" href="https://idos.cz/vlakyautobusymhdvse/spojeni/?f=' + encodeURIComponent(S.from.st != null ? D.stName(S.from.st) : S.from.name) + '&t=' + encodeURIComponent(S.to.st != null ? D.stName(S.to.st) : S.to.name) + '"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ověřit v IDOS</a></div>';
+  const sys = MG.tickets && MG.tickets.forPoint(S.from.lat, S.from.lon);
+  h += '<div class="plan41-note">Podle jízdního řádu CIS JŘ' + (MG.live.on ? '; zpoždění ze živých poloh (~ = odhad z polohy)' : '') + '.' + (sys ? ' Jízdné: ' + MG.h(sys.name) + '.' : '') + '</div><a class="idos41" target="_blank" rel="noopener" href="https://idos.cz/vlakyautobusymhdvse/spojeni/?f=' + encodeURIComponent(S.from.st != null ? D.stName(S.from.st) : S.from.name) + '&t=' + encodeURIComponent(S.to.st != null ? D.stName(S.to.st) : S.to.name) + '"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ověřit a koupit v IDOS</a></div>';
   return h;
  }
- function showConn(i) {
+ /* trasa spojení na mapě: barevné jízdy s „proudícími“ čárkami ve směru jízdy (jako OpavaGO), pěší úseky po chodnících */
+ let connTok = 0;
+ async function showConn(i) {
   const c = S.res.results[i]; if (!c) return;
-  const g = MG.map.gSel; g.clearLayers(); MG.map.dimNet(true); MG.map.selKind = 'conn';
-  const all = [];
-  const nmll = si => { const s = D.st.get(S.res.n.stArr[si]); return [s.lat, s.lon]; };
-  const firstRide = c.legs.find(l => !l.walk);
-  const a0 = nmll(c.legs[0].walk ? c.legs[0].to : firstRide.from);
-  const walkLine = (a, b) => L.polyline([a, b], {renderer: MG.map.rSel, color: '#2F6F4E', weight: 4, dashArray: '2 8', lineCap: 'round'}).addTo(g);
-  walkLine([S.from.lat, S.from.lon], a0);
-  for (const l of c.legs) {
-   if (l.walk) { if (l.from >= 0) walkLine(nmll(l.from), nmll(l.to)); continue; }
+  const tok = ++connTok;
+  MG.map.clearSel(); MG.map.selKind = 'conn';
+  const g = MG.map.gSel, all = [], walks = [];
+  const flow = (pts, walk) => L.polyline(pts, {renderer: MG.map.rFlow, color: '#ffffff', weight: walk ? 3 : 4, opacity: .95, dashArray: walk ? '7 10' : '10 14', lineCap: 'butt', interactive: false, className: walk ? 'flow41 walk' : 'flow41'}).addTo(g);
+  const walkLine = (a, b) => {
+   const base = L.polyline([a, b], {renderer: MG.map.rSel, color: '#2F6F4E', weight: 5, opacity: .85, dashArray: '2 9', lineCap: 'round', interactive: false}).addTo(g);
+   const fl = flow([a, b], true);
+   walks.push({a, b, base, fl});
+  };
+  const plPt = (l, k) => { const pl = D.pl.get(l.p.s[k]); return [pl.lat, pl.lon]; };
+  const rides = c.legs.filter(l => !l.walk);
+  walkLine([S.from.lat, S.from.lon], plPt(rides[0], rides[0].bi));
+  for (let k = 1; k < rides.length; k++) { const a = plPt(rides[k - 1], rides[k - 1].ai), b = plPt(rides[k], rides[k].bi); if (MG.dist(a[0], a[1], b[0], b[1]) > 25) walkLine(a, b); }
+  const lastR = rides[rides.length - 1]; walkLine(plPt(lastR, lastR.ai), [S.to.lat, S.to.lon]);
+  const drawRide = (l) => {
    const L_ = D.ln.get(l.p.l), geo = D.geo3(l.p), pts = geo.pts.slice(geo.x[l.bi], geo.x[l.ai] + 1);
-   all.push(...pts);
-   L.polyline(pts, {renderer: MG.map.rSel, color: '#fff', weight: 10, opacity: .95}).addTo(g);
-   L.polyline(pts, {renderer: MG.map.rSel, color: L_.c, weight: 6}).addTo(g);
-   for (const k of [l.bi, l.ai]) { const pl = D.pl.get(l.p.s[k]); L.circleMarker([pl.lat, pl.lon], {renderer: MG.map.rSel, radius: 6, color: L_.c, weight: 3, fillColor: '#fff', fillOpacity: 1}).bindTooltip(MG.h(D.stName(pl.st)), {className: 'stop-tip'}).addTo(g); }
-  }
-  const last = nmll(c.end); walkLine(last, [S.to.lat, S.to.lon]);
+   const ls = [L.polyline(pts, {renderer: MG.map.rSel, color: '#fff', weight: 10, opacity: .95, interactive: false}).addTo(g), L.polyline(pts, {renderer: MG.map.rSel, color: L_.c, weight: 6, interactive: false}).addTo(g), flow(pts, false)];
+   for (const k of [l.bi, l.ai]) { const pl = D.pl.get(l.p.s[k]); ls.push(L.circleMarker([pl.lat, pl.lon], {renderer: MG.map.rSel, radius: 6, color: L_.c, weight: 3, fillColor: '#fff', fillOpacity: 1}).bindTooltip(MG.h(D.stName(pl.st)), {className: 'stop-tip'}).addTo(g)); }
+   return {pts, ls};
+  };
+  const drawn = rides.map(l => { const d = drawRide(l); all.push(...d.pts); return d; });
   for (const [p, t] of [[S.from, 'A'], [S.to, 'B']]) L.marker([p.lat, p.lon], {icon: L.divIcon({className: 'rt41', html: '<span class="rt41-pin' + (t === 'B' ? ' b' : '') + '">' + t + '</span>', iconSize: [24, 24], iconAnchor: [12, 12]}), pane: 'me'}).addTo(g);
   all.push([S.from.lat, S.from.lon], [S.to.lat, S.to.lon]);
   MG.map.fitPad(L.latLngBounds(all));
+  if (MG.mode3d && MG.m3d.setConn) MG.m3d.setConn(c, S);
+  /* skutečné trasy jízd (dlaždice tras) a pěší úseky po chodnících (Valhalla) dotáhnout na pozadí */
+  rides.forEach(async (l, k) => {
+   if (l.p.g) return; await D.shapeOf(l.p); if (tok !== connTok || !MG.map.gSel.hasLayer(drawn[k].ls[0])) return;
+   for (const x of drawn[k].ls) g.removeLayer(x); drawn[k] = drawRide(l);
+  });
+  for (const w of walks) {
+   if (MG.dist(w.a[0], w.a[1], w.b[0], w.b[1]) < 30) continue;
+   MG.core.walkRoute({lat: w.a[0], lon: w.a[1]}, {lat: w.b[0], lon: w.b[1]}).then(r => {
+    if (tok !== connTok || !g.hasLayer(w.base) || !r.pts.length) return;
+    const pts = [w.a, ...r.pts, w.b]; w.base.setLatLngs(pts); w.fl.setLatLngs(pts);
+   }).catch(() => {});
+  }
  }
- MG.on('sheetclose', id => { if (id === 'sh-search' && MG.map.selKind === 'conn') MG.map.clearSel(); if (id === 'sh-search' && S.pin) { MG.map.m.removeLayer(S.pin); S.pin = null; } });
+ MG.on('sheetclose', id => { if (id === 'sh-search' && MG.map.selKind === 'conn') { connTok++; MG.map.clearSel(); } if (id === 'sh-search' && S.pin) { MG.map.m.removeLayer(S.pin); S.pin = null; } });
 })();

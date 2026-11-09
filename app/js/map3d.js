@@ -3,16 +3,14 @@
  const D = MG.D, $ = MG.$;
  const T = MG.m3d = {map: null, ready: false, objs: new Map(), ride: null, follow: null, light: null};
  const waitLibs = async () => { for (let i = 0; i < 100 && !(window.mapboxgl && window.THREE); i++) await MG.sleep(100); return !!(window.mapboxgl && window.THREE); };
- const presetNow = () => { const p = MG.pragueParts(MG.now()), h = p.h + p.mi / 60, mo = p.mo; const rise = 7.5 - 1.6 * Math.cos((mo - 0.5) / 12 * 2 * Math.PI) * 1.0, set = 16.5 + 2.2 * (1 - Math.cos((mo - 0.5) / 12 * 2 * Math.PI)) / 2 * 2; if (h < rise - .7 || h > set + 1) return 'night'; if (h < rise + .8) return 'dawn'; if (h > set - .5) return 'dusk'; return 'day'; };
+ const presetNow = () => { const p = MG.pragueParts(MG.now()), h = p.h + p.mi / 60, mo = p.mo, w = MG.app.wx; const hm = t => t ? +t.slice(11, 13) + +t.slice(14, 16) / 60 : null; let rise = 7.5 - 1.6 * Math.cos((mo - 0.5) / 12 * 2 * Math.PI) * 1.0, set = 16.5 + 2.2 * (1 - Math.cos((mo - 0.5) / 12 * 2 * Math.PI)) / 2 * 2; if (w && w.sunrise) { rise = hm(w.sunrise); set = hm(w.sunset); } if (h < rise - .7 || h > set + 1) return 'night'; if (h < rise + .8) return 'dawn'; if (h > set - .5) return 'dusk'; return 'day'; };
  /* střed 3D pohledu: centrum obce, kde uživatel je; bez polohy centrum (náhodně vybraného) okresního města */
  T.homeCenter = async () => {
   const me = MG.app.me;
-  if (me) {
-   const oi = D.okresAt(me.lat, me.lon);
-   if (oi >= 0) { try { await D.loadOkres(oi); } catch (_) {} const ob = D.obecAt(oi, me.lat, me.lon); if (ob) return {lat: ob.lat, lon: ob.lon, name: ob.name}; }
-   return {lat: me.lat, lon: me.lon, name: 'Moje poloha'};
-  }
-  const o = D.okresy[MG.app.rndSeat >= 0 ? MG.app.rndSeat : MG.app.cur];
+  if (me) return {lat: me.lat, lon: me.lon, name: 'Moje poloha'};
+  /* bez polohy: střed 2D mapy, je-li přiblížená, jinak centrum okresního města pod středem mapy */
+  const m = MG.map.m; if (m && m.getZoom() >= 12) { const c = m.getCenter(); return {lat: c.lat, lon: c.lng, name: 'střed mapy'}; }
+  const o = D.okresy[MG.app.cur >= 0 ? MG.app.cur : 0];
   return {lat: o.seatll[0], lon: o.seatll[1], name: o.seat};
  };
  T.open = async (opt) => {
@@ -23,7 +21,6 @@
   MG.ui.closeSheets();
   document.body.classList.add('m3d'); MG.mode3d = true;
   $('m-3d').classList.add('on'); $('m-2d').classList.remove('on');
-  MG.qs('#tabs button[data-t=ride]').classList.toggle('on', !!opt.ride);
   let c;
   if (opt.follow) { const it = opt.it || MG.veh.byKey.get(opt.follow) || MG.veh.findSel(); if (it) c = {lat: it.lat, lon: it.lon}; }
   if (!c && opt.it && opt.it.virt) { const q = D.pointAt(D.geo3(opt.it.p), 0); c = {lat: q[0], lon: q[1]}; }
@@ -41,41 +38,47 @@
   T.endRide();
   document.body.classList.remove('m3d'); MG.mode3d = false; T.follow = null;
   $('m-2d').classList.add('on'); $('m-3d').classList.remove('on');
-  MG.qs('#tabs button[data-t=ride]').classList.remove('on');
   T.closePopup();
   setTimeout(() => { MG.map.m.invalidateSize(); MG.veh.tick(); }, 50);
  };
- T.loadAround = (c) => { const oi = D.okresAt(c.lat, c.lon); if (oi >= 0 && !D.loaded.has(oi)) D.loadOkres(oi).then(() => { T.updData(); MG.map.drawNet(); }).catch(() => {}); };
+ T.loadAround = () => {};
+ T.center = () => { if (!T.map) return null; const c = T.map.getCenter(); return {lat: c.lat, lon: c.lng}; };
  T.recenter = async () => { T.endRide(); T.follow = null; const c = await T.homeCenter(); T.map.flyTo({center: [c.lon, c.lat], zoom: 15.6, pitch: 62, bearing: -18, duration: 1400}); MG.toast('Centrum: ' + c.name); };
  T.zoom = d => T.map && T.map.easeTo({zoom: T.map.getZoom() + d, duration: 300});
  T.north = () => T.map && T.map.easeTo({bearing: 0, pitch: T.map.getPitch(), duration: 500});
  T.bounds = () => { if (!T.map) return [0, 0, 0, 0]; const c = T.map.getCenter(), z = T.map.getZoom(), r = Math.min(.06, .9 / Math.pow(2, z - 10)); return [c.lat - r, c.lng - r * 1.5, c.lat + r, c.lng + r * 1.5]; };
  function init(c) {
   mapboxgl.accessToken = MG.cfg.MAPBOX;
-  T.light = presetNow();
+  T.lightMode = MG.store.get('fx-time', 'auto'); T.wxMode = MG.store.get('fx-wx', 'auto');
+  T.light = T.lightMode === 'auto' ? presetNow() : T.lightMode;
   const map = T.map = new mapboxgl.Map({container: 'map3d', style: 'mapbox://styles/mapbox/standard', config: {basemap: {lightPreset: T.light, show3dObjects: true, showPointOfInterestLabels: true, showTransitLabels: false}},
    center: [c.lon, c.lat], zoom: 15.6, pitch: 62, bearing: -18, antialias: true, maxPitch: 82, attributionControl: false, language: 'cs'});
   map.on('error', e => { const m = String((e && e.error && e.error.message) || ''); if (/token|401|403|access/i.test(m)) MG.toast('Mapbox odmítl přístup – zkontroluj token'); });
   map.on('style.load', () => {
    addLayers(); T.ready = true; T.updData(); setFx(); MG.veh.tick();
-   markSeg('fx-time', T.light);
+   markSeg('fx-time', T.lightMode);
   });
+  /* denní doba podle skutečnosti: každou minutu znovu */
+  setInterval(() => { if (T.lightMode === 'auto' && T.map && T.ready) { const v = presetNow(); if (v !== T.light) { T.light = v; try { T.map.setConfigProperty('basemap', 'lightPreset', v); } catch (_) {} lightModels(); } } }, 60000);
+  MG.on('wx', () => { if (!T.map || !T.ready) return; if (T.wxMode === 'auto') setFx(); if (T.lightMode === 'auto') { const v = presetNow(); if (v !== T.light) { T.light = v; try { T.map.setConfigProperty('basemap', 'lightPreset', v); } catch (_) {} lightModels(); } } });
   map.on('rotate', () => { const i = MG.qs('#compass i'); if (i) i.style.transform = 'rotate(' + (-45 - map.getBearing()) + 'deg)'; });
   map.on('moveend', () => { if (!T.ride) { const c2 = map.getCenter(); T.loadAround({lat: c2.lat, lon: c2.lng}); } MG.veh.tick(); });
   map.on('dragstart', () => { if (T.follow && !T.ride) T.follow = null; });
   new ResizeObserver(() => map.resize()).observe($('map3d'));
-  MG.qsa('#fx-time button').forEach(b => b.onclick = () => { T.light = b.dataset.v; try { map.setConfigProperty('basemap', 'lightPreset', T.light); } catch (_) {} markSeg('fx-time', T.light); lightModels(); });
-  MG.qsa('#fx-wx button').forEach(b => b.onclick = () => { T.wx = b.dataset.v; setFx(); markSeg('fx-wx', T.wx); });
+  MG.qsa('#fx-time button').forEach(b => b.onclick = () => { T.lightMode = b.dataset.v; MG.store.set('fx-time', T.lightMode); T.light = T.lightMode === 'auto' ? presetNow() : T.lightMode; try { map.setConfigProperty('basemap', 'lightPreset', T.light); } catch (_) {} markSeg('fx-time', T.lightMode); lightModels(); if (T.lightMode === 'auto') MG.toast('Denní doba podle skutečnosti'); });
+  MG.qsa('#fx-wx button').forEach(b => b.onclick = () => { T.wxMode = b.dataset.v; MG.store.set('fx-wx', T.wxMode); setFx(); if (T.wxMode === 'auto') MG.toast(MG.app.wx ? 'Skutečné počasí: ' + MG.app.wx.txt : 'Skutečné počasí se načítá'); });
  }
  function markSeg(id, v) { MG.qsa('#' + id + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); }
  function setFx() {
   const map = T.map; if (!map) return;
-  if (T.wx == null) { const w = MG.app.wx; T.wx = w && w.code >= 51 && w.code <= 67 || (w && w.code >= 80 && w.code <= 82) ? 'rain' : (w && (w.code >= 71 && w.code <= 77 || w.code === 85 || w.code === 86) ? 'snow' : (w && (w.code === 3 || w.code === 45 || w.code === 48) ? 'cloud' : 'none')); }
-  markSeg('fx-wx', T.wx);
+  /* auto = skutečné počasí z Open-Meteo pro místo na mapě (déšť, sníh, mlha, oblačno) */
+  if (T.wxMode == null) T.wxMode = MG.store.get('fx-wx', 'auto');
+  if (T.wxMode === 'auto') { const w = MG.app.wx; const k = w ? w.kind : 'none'; T.wx = k === 'fog' ? 'cloud' : k; T.fog = k === 'fog'; } else { T.wx = T.wxMode; T.fog = false; }
+  markSeg('fx-wx', T.wxMode);
   try {
    if (map.setRain) map.setRain(T.wx === 'rain' ? {density: .55, intensity: 1, color: '#a8adbc', opacity: .7, vignette: .9, 'vignette-color': '#464646', direction: [0, 80], 'droplet-size': [2.6, 18], 'distortion-strength': .6, 'center-thinning': 0} : null);
    if (map.setSnow) map.setSnow(T.wx === 'snow' ? {density: .85, intensity: 1, 'center-thinning': .1, direction: [0, 50], opacity: 1, color: '#ffffff', 'flake-size': .7, vignette: .3, 'vignette-color': '#ffffff'} : null);
-   if (map.setFog) map.setFog(T.wx === 'none' ? {} : {range: T.wx === 'cloud' ? [1.2, 9] : [0.8, 7], color: T.wx === 'snow' ? '#e9edf2' : T.wx === 'cloud' ? '#c9ccd2' : '#b9bec8', 'horizon-blend': .15});
+   if (map.setFog) map.setFog(T.wx === 'none' ? {} : {range: T.fog ? [0.3, 3.2] : T.wx === 'cloud' ? [1.2, 9] : [0.8, 7], color: T.wx === 'snow' ? '#e9edf2' : T.wx === 'cloud' ? '#c9ccd2' : '#b9bec8', 'horizon-blend': T.fog ? .35 : .15});
   } catch (_) {}
  }
  T.retheme = () => {};
@@ -99,24 +102,24 @@
   ['veh3-hit', 'st3'].forEach(id => { map.on('mouseenter', id, () => map.getCanvas().style.cursor = 'pointer'); map.on('mouseleave', id, () => map.getCanvas().style.cursor = ''); });
   map.addLayer(threeLayer(), 'veh3-hit');
  }
+ let stFC = null, stN = 0;
  T.updData = () => {
   if (!T.ready) return;
-  const lines = [], stops = [];
-  const seen = new Set();
-  for (const oi of D.loaded) for (const li of (D.okLines.get(oi) || [])) {
-   if (seen.has(li)) continue; seen.add(li); const L_ = D.ln.get(li); if (!L_ || (L_.k === 'vlak' && MG.app.hideTrains) || ((L_.k === 'regio' || L_.k === 'mezi') && MG.app.hideRegio)) continue;
-   const col = L_.k === 'vlak' ? '#4a4f5a' : L_.k === 'regio' ? '#d7a17d' : L_.k === 'mezi' ? '#5aa5ad' : (MG.map.colorNet || L_.k === 'metro' ? L_.c : '#C1784F');
-   for (const p of D.mainPats(L_).filter(Boolean)) lines.push({type: 'Feature', properties: {c: col}, geometry: {type: 'LineString', coordinates: D.geo3(p).pts.map(q => [q[1], q[0]])}});
+  /* dopravní síť se ve 3D nekreslí – trasa jen u vybraného vozidla, při jízdě a ve vyhledávání */
+  T.map.getSource('net3').setData(fc([]));
+  if (!stFC || stN !== D.st.size) {
+   stN = D.st.size; const stops = [];
+   for (const s of D.st.values()) { if (!s.lines.size) continue; const t = [...s.lines].some(l => (D.ln.get(l) || {}).k === 'vlak'); stops.push({type: 'Feature', properties: {g: s.g, n: D.shortName(s.name, ''), t}, geometry: {type: 'Point', coordinates: [s.lon, s.lat]}}); }
+   stFC = fc(stops);
   }
-  for (const oi of D.loaded) for (const g of (D.okSt.get(oi) || [])) { const s = D.st.get(g); if (!s) continue; const t = [...s.lines].some(l => (D.ln.get(l) || {}).k === 'vlak'); stops.push({type: 'Feature', properties: {g, n: D.shortName(s.name, ''), t}, geometry: {type: 'Point', coordinates: [s.lon, s.lat]}}); }
-  T.map.getSource('net3').setData(fc(lines)); T.map.getSource('st3').setData(fc(stops));
+  T.map.getSource('st3').setData(stFC);
  };
  MG.on('pack', () => T.updData());
  /* po načtení skutečných 3D modelů vyměnit vozidla v mapě */
  MG.on('models', () => {
   if (!tl) return;
-  for (const o of T.objs.values()) { const type = MG.models.typeOf(o.it.L); if (!MG.models.glb[type] || (o.g.userData && o.g.userData.glb)) continue; tl.scene.remove(o.g); o.g = MG.models.build(type, MG.models.livery(o.it.L)); tl.scene.add(o.g); }
-  if (R && R.obj && !(R.obj.userData && R.obj.userData.glb)) { const type = MG.models.typeOf(R.it.L); if (MG.models.glb[type]) { tl.scene.remove(R.obj); R.obj = MG.models.build(type, MG.models.livery(R.it.L)); tl.scene.add(R.obj); } }
+  for (const o of T.objs.values()) { if (o.g.userData && o.g.userData.glb) continue; if (!MG.models.forLine(o.it.L)) continue; tl.scene.remove(o.g); o.g = MG.models.build(MG.models.typeOf(o.it.L), MG.models.livery(o.it.L), o.it.L); tl.scene.add(o.g); }
+  if (R && R.obj && !(R.obj.userData && R.obj.userData.glb) && MG.models.forLine(R.it.L)) { tl.scene.remove(R.obj); R.obj = MG.models.build(MG.models.typeOf(R.it.L), MG.models.livery(R.it.L), R.it.L); tl.scene.add(R.obj); }
   if (R) rideHud(true);
  });
  T.setSel = (pts, color, road) => {
@@ -131,7 +134,7 @@
  };
  /* zrcadlení výběru z 2D */
  const sp = MG.map.showPattern, cs = MG.map.clearSel;
- MG.map.showPattern = function(p, opt) { const r = sp.apply(this, arguments); try { const g = D.geo3(p); let pts = g.pts; if (opt && opt.fromD != null) { const q = D.pointAt(g, opt.fromD); pts = [[q[0], q[1]], ...g.pts.slice(q[3] + 1)]; } T.setSel(pts, D.ln.get(p.l).c); } catch (_) {} return r; };
+ MG.map.showPattern = function(p, opt) { const r = sp.apply(this, arguments); if (MG.map.selKind === 'conn') return r; try { const g = D.geo3(p); let pts = g.pts; if (opt && opt.fromD != null) { const q = D.pointAt(g, opt.fromD); pts = [[q[0], q[1]], ...g.pts.slice(q[3] + 1)]; } T.setSel(pts, D.ln.get(p.l).c); } catch (_) {} return r; };
  MG.map.clearSel = function() { const r = cs.apply(this, arguments); T.setSel(null); return r; };
  /* ---------- three.js vrstva s vozidly ---------- */
  let tl = null;
@@ -190,7 +193,7 @@
    const tgt = [it.lat, it.lon, it.hd || 0];
    if (!o) {
     const type = MG.models.typeOf(it.L), liv = MG.models.livery(it.L);
-    const g = MG.models.build(type, liv); tl.scene.add(g);
+    const g = MG.models.build(type, liv, it.L); tl.scene.add(g);
     o = {g, a: tgt, b: tgt, t0: performance.now(), it}; T.objs.set(it.key, o);
    } else { o.a = o.cur || o.b; o.b = tgt; o.t0 = performance.now(); o.it = it; }
    feats.push({type: 'Feature', properties: {k: it.key, l: MG.veh.label(it), c: it.L.c}, geometry: {type: 'Point', coordinates: [it.lon, it.lat]}});
@@ -205,9 +208,13 @@
  const RIDE = {zoom: 19.1, pitch: 66};
  let R = null;
  T.pickRide = () => {
-  const oi = MG.app.cur; const ids = (D.okLines.get(oi) || []).map(i => D.ln.get(i)).filter(Boolean).filter(L_ => !L_.city || !D.okresy[oi] || true);
-  const o = D.okresy[oi]; const bb = o ? o.bbox : null;
-  const act = new Map(); for (const it of MG.veh.active(bb ? [bb[1], bb[0], bb[3], bb[2]] : null)) { MG.veh.place(it); (act.get(it.L.i) || act.set(it.L.i, []).get(it.L.i)).push(it); }
+  /* linky v okolí místa na 3D mapě (asi 12 km) – data nejsou dělená podle okresů */
+  const c0 = T.map ? T.map.getCenter() : MG.map.m.getCenter(), cla = c0.lat, clo = c0.lng, R0 = [cla - .11, clo - .17, cla + .11, clo + .17];
+  const idset = new Set(); for (const st of MG.map.stopsIn(R0[0], R0[1], R0[2], R0[3])) for (const li of st.lines) idset.add(li);
+  const ids = [...idset].map(i => D.ln.get(i)).filter(Boolean);
+  const cityN = new Map(); for (const L_ of ids) if (L_.city) cityN.set(L_.city, (cityN.get(L_.city) || 0) + 1);
+  const o = {seat: [...cityN].sort((a, b) => b[1] - a[1]).map(x => x[0])[0] || '', name: ''};
+  const act = new Map(); for (const it of MG.veh.active(R0)) { if (!idset.has(it.L.i)) continue; MG.veh.place(it); (act.get(it.L.i) || act.set(it.L.i, []).get(it.L.i)).push(it); }
   const num = s => { const m = /(\d+)/.exec(s || ''); return m ? +m[1] : 1e9; };
   const srt = ls => ls.sort((a, b) => num(D.lineText(a)) - num(D.lineText(b)) || String(D.lineText(a)).localeCompare(String(D.lineText(b))));
   const chips = ls => '<div class="lns">' + srt(ls).slice(0, 90).map(L_ => '<span class="ln' + (act.has(L_.i) ? '' : ' off') + '" data-rl="' + L_.i + '" style="--lc:' + L_.c + ';--lt:' + L_.tc + '" title="' + MG.h(L_.ln || '') + '">' + MG.h(D.lineText(L_)) + '</span>').join('') + '</div>';
@@ -221,7 +228,7 @@
   for (const [city, ls] of [...byCity].sort((a, b) => b[1].length - a[1].length)) h += '<div class="sec-t">MHD ' + MG.h(city) + '</div>' + chips(ls);
   for (const [k, t] of [['regio', 'Regionální autobusy'], ['mezi', 'Dálkové autobusy'], ['vlak', 'Vlaky']]) { const ls = ids.filter(L_ => L_.k === k); if (ls.length) h += '<div class="sec-t">' + t + '</div>' + chips(ls); }
   h += '<div class="status" style="margin-top:12px">Barevné linky právě jezdí – jízda začne tam, kde je vozidlo teď. U šedých linek začne na první zastávce.</div></div>';
-  const el = MG.ui.misc({eb: 'Jízda vozidlem', title: 'Vyber linku', sub: o ? 'Okres ' + MG.h(o.name) : ''}, h, true);
+  const el = MG.ui.misc({eb: 'Jízda vozidlem', title: 'Vyber linku', sub: o.seat ? 'Okolí – ' + MG.h(o.seat) : 'Linky v okolí'}, h, true);
   const go = (li) => {
    const its = act.get(li);
    MG.ui.close('sh-misc');
@@ -234,24 +241,25 @@
    T.open({ride: true, it: {key: 'v:' + pt.i, p: pt, L: L_, j: -1, virt: true}});
   };
   MG.qsa('[data-rl]', el).forEach(b => b.onclick = () => go(+b.dataset.rl));
-  $('rd-rnd').onclick = () => { const keys = [...act.keys()].filter(li => (D.ln.get(li) || {}).k !== 'vlak'); if (!keys.length) { MG.toast('V okrese teď nic nejede'); return; } go(keys[Math.floor(Math.random() * keys.length)]); };
+  $('rd-rnd').onclick = () => { const keys = [...act.keys()].filter(li => (D.ln.get(li) || {}).k !== 'vlak'); if (!keys.length) { MG.toast('V okolí teď nic nejede'); return; } go(keys[Math.floor(Math.random() * keys.length)]); };
  };
  const stopD = (g, k) => g.cd[g.x[k]];
- T.startRide = (key, it0) => {
+ T.startRide = async (key, it0) => {
   let it = it0 || (key ? (MG.veh.byKey.get(key) || MG.veh.findKey(key) || ((T.objs.get(key) || {}).it)) : null);
   if (!it) { T.pickRide(); return; }
   if (!tl || !T.ready) { setTimeout(() => T.startRide(key, it), 400); return; }
+  if (!it.p.g) { MG.app.loadbar('Načítám trasu…'); await D.shapeOf(it.p); MG.app.loadbar(); if (!it.virt) MG.veh.place(it); }
   T.endRide(true);
   if (!it.virt && !it.pos) MG.veh.place(it);
   const p = it.p, g = D.geo3(p), end = g.cd[g.cd.length - 1];
   let d = !it.virt && it.pos && isFinite(it.pos.d) ? it.pos.d : stopD(g, 0);
   if (d > end - 60) d = stopD(g, 0);
-  const obj = MG.models.build(MG.models.typeOf(it.L), MG.models.livery(it.L)); tl.scene.add(obj);
+  const obj = MG.models.build(MG.models.typeOf(it.L), MG.models.livery(it.L), it.L); tl.scene.add(obj);
   R = {it, p, g, d, end, mult: 1, dwell: 0, served: -1, sb: null, last: 0, obj, done: false, sig: ''};
   for (let k = 0; k < p.s.length; k++) if (stopD(g, k) <= d + 2) R.served = k;
   T.ride = it.key; T.follow = null; MG.veh.sel = it.key; T.joyB = 0; T.joyP = 0;
   document.body.classList.add('riding');
-  MG.qs('#tabs button[data-t=ride]').classList.add('on'); $('m-ride').classList.add('on'); $('m-3d').classList.remove('on');
+  $('m-3d').classList.add('on');
   T.setSel(g.pts, '#C1784F', true);
   try { T.map.setLayoutProperty('net3', 'visibility', 'none'); } catch (_) {}
   rideHud(true);
@@ -262,8 +270,8 @@
   if (!R && !T.ride) return;
   if (R && R.obj && tl) tl.scene.remove(R.obj);
   R = null; T.ride = null; MG.veh.sel = null; document.body.classList.remove('riding');
-  MG.qs('#tabs button[data-t=ride]').classList.remove('on'); T.setSel(null);
-  $('m-ride').classList.remove('on'); if (MG.mode3d) $('m-3d').classList.add('on');
+  T.setSel(null);
+  if (MG.mode3d) $('m-3d').classList.add('on');
   try { T.map.setLayoutProperty('net3', 'visibility', 'visible'); } catch (_) {}
   if (T.map && !quiet) { T.map.easeTo({pitch: 62, zoom: 16.4, padding: {top: 0, bottom: 0, left: 0, right: 0}, duration: 700}); }
  };

@@ -10,11 +10,9 @@
  MG.app = MG.app || {}; /* sdílené moduly čtou MG.app.hideTrains apod. */
 
  /* ---------- drobnosti ---------- */
- const clk = () => { const P = MG.pragueParts(MG.now()); return {P, ymd: P.ymd, day: D.dayIdx(P.ymd), m: P.h * 60 + P.mi + P.s / 60, s: (P.h * 60 + P.mi) * 60 + P.s}; };
- const fmtDur = m => { m = Math.round(m); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : ''); };
+ const K = MG.core, clk = K.clk, fmtDur = K.fmtDur, walkMin = K.walkMin;
  const czN = (n, a, b, c) => n === 1 ? a : n >= 2 && n <= 4 ? b : c;
  const stIcon = m => m & 1 ? 'fa-train' : m & 4 ? 'fa-train-subway' : m & 2 ? 'fa-train-tram' : 'fa-bus-simple';
- const walkMin = d => Math.max(1, Math.round(d * 1.25 / 75));
  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
  A.fmtDur = fmtDur;
  const okName = oi => D.okresy && D.okresy[oi] ? D.okresy[oi].name : '';
@@ -27,55 +25,22 @@
  });
  function setMe(p) {
   const c = p.coords, had = !!A.me; A.me = {lat: c.latitude, lon: c.longitude, acc: c.accuracy, t: Date.now()}; A.perm = 'granted';
-  if (!had) { startWatch(); const oi = D.okresAt(A.me.lat, A.me.lon); if (oi >= 0) D.loadOkres(oi).then(() => MG.emit('me', A.me)).catch(() => {}); }
+  if (!had) startWatch();
   MG.emit('me', A.me);
  }
  let watchId = null;
  function startWatch() { if (watchId != null || !navigator.geolocation) return; try { watchId = navigator.geolocation.watchPosition(p => { const c = p.coords; A.me = {lat: c.latitude, lon: c.longitude, acc: c.accuracy, hd: c.heading, t: Date.now()}; MG.emit('mepos', A.me); }, () => {}, {enableHighAccuracy: true, maximumAge: 5000}); } catch (_) {} }
- A.ensureAt = async (lat, lon) => { const oi = D.okresAt(lat, lon); if (oi >= 0 && !D.loaded.has(oi)) { busy(true, 'Načítám jízdní řády okresu ' + okName(oi) + '…'); try { await D.loadOkres(oi); } catch (e) { MG.err('okres', e); } busy(false); } return oi; };
+ A.ensureAt = async (lat, lon) => { await D.loadAll().catch(() => {}); return D.okresAt(lat, lon); };
  function busy(on, txt) { const b = $('busy'); if (!b) return; b.hidden = !on; if (txt) $('busy-t').textContent = txt; }
  A.busy = busy;
 
  /* ---------- Moje místa ---------- */
- const FAV_IC = {'Domů': 'fa-house', 'Práce': 'fa-briefcase', 'Škola': 'fa-graduation-cap'};
- A.favs = () => MG.store.get('favs', []) || [];
- A.saveFavs = F => { MG.store.set('favs', F); MG.emit('favs'); };
- A.addFav = (pt, label) => {
-  const F = A.favs(); label = (label || pt.name || 'Místo').trim();
-  const o = {label, name: pt.name, lat: +pt.lat.toFixed(6), lon: +pt.lon.toFixed(6), icon: FAV_IC[label] || pt.icon || 'fa-star'};
-  if (pt.st != null) o.st = pt.st;
-  const i = F.findIndex(f => f.label === label); if (i >= 0) F[i] = o; else F.push(o);
-  A.saveFavs(F); MG.toast('Uloženo do Mých míst: ' + label);
- };
+ const FAV_IC = K.FAV_IC;
+ A.favs = K.favs; A.saveFavs = K.saveFavs; A.addFav = K.addFav;
  A.isFav = (st) => A.favs().some(f => f.st === st);
 
  /* ---------- hledání zastávek a míst ---------- */
- A.findStops = async (q, n) => {
-  const idx = await D.loadIdx(); const f = MG.fold(q); if (!f) return [];
-  const words = f.split(' '), ref = A.me || A.focusPt() || {lat: 49.8, lon: 15.5};
-  const out = [];
-  for (const s of idx) {
-   let sc = 0; const last = s.f.split(' ').slice(-words.length).join(' ');
-   if (s.f === f || last === f) sc = 7; else if (s.f.startsWith(f)) sc = 6; else if (s.f.includes(' ' + f)) sc = 4; else if (words.every(w => s.f.includes(w))) sc = 2; else continue;
-   if (s.m & 1) sc += .5; if (s.m & 6) sc += .4;
-   out.push([sc - MG.dist(ref.lat, ref.lon, s.lat, s.lon) / 120000, s]);
-  }
-  out.sort((a, b) => b[0] - a[0]);
-  return out.slice(0, n || 8).map(x => x[1]);
- };
- A.geocode = async (q, n) => {
-  try {
-   const ref = A.me || A.focusPt() || {lat: 49.8, lon: 15.5};
-   const r = await fetch(MG.cfg.PHOTON + '?q=' + encodeURIComponent(q) + '&limit=' + (n || 5) + '&lang=de&lat=' + ref.lat.toFixed(4) + '&lon=' + ref.lon.toFixed(4) + '&bbox=12.09,48.55,18.86,51.06');
-   const j = await r.json();
-   return (j.features || []).map(f => { const p = f.properties || {}; const street = p.street ? p.street + (p.housenumber ? ' ' + p.housenumber : '') : ''; const name = p.name || street || p.city || ''; return {kind: 'addr', name, sub: [p.name && street ? street : '', p.district || '', p.city || p.town || p.village || ''].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i && x !== name).join(', '), lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0]}; }).filter(x => x.name);
-  } catch (_) { return []; }
- };
- A.nearestStops = async (lat, lon, n, maxD) => {
-  const idx = await D.loadIdx(); const out = [];
-  for (const s of idx) { if (Math.abs(s.lat - lat) > .03) continue; const d = MG.dist(lat, lon, s.lat, s.lon); if (d < (maxD || 1500)) out.push([d, s]); }
-  out.sort((a, b) => a[0] - b[0]); return out.slice(0, n || 6);
- };
+ A.findStops = K.findStops; A.geocode = K.geocode; A.nearestStops = K.nearestStops;
  async function suggest(q, opt) {
   opt = opt || {}; const out = [], f = MG.fold(q), F = A.favs();
   if (!f) {
@@ -119,39 +84,13 @@
   return {close};
  };
  /* "Moje poloha" → bod */
- A.mePoint = async () => { const me = A.me || await A.locate(false); return me ? {kind: 'me', name: 'Moje poloha', lat: me.lat, lon: me.lon} : null; };
+ A.mePoint = K.mePoint;
+ K.me = () => A.me; K.locate = () => A.locate(false);
+ K.ctx = () => ({stop: A.st, conn: A.conn, center: A.focusPt()});
+ K.wxPlace = () => A.wxPlace();
 
  /* ---------- živé polohy: instance spojů a párování ---------- */
- A.mkInst = (p, j, day) => {
-  const c = clk(), start = p.T[3 * j], prof = p.T[3 * j + 1], L_ = D.ln.get(p.l), n = p.dep[prof].length;
-  const m = c.m + (c.day - day) * 1440, end = start + p.arr[prof][n - 1];
-  const it = {key: p.i + ':' + j + ':' + day, p, j, day, prof, start, m, L: L_, spoj: p.c ? p.c[j] : 0, num: p.n ? p.n[j] : '', head: D.headsign(p, j), end};
-  const pos = D.tripPos(p, prof, m - start); it.lat = pos.lat; it.lon = pos.lon;
-  it.running = m >= start - 3 && m <= end + 25;
-  return it;
- };
- A.liveOf = (insts) => {
-  const out = new Map(); if (!LV.on) return out;
-  const run = insts.filter(it => it.running && it.L);
-  for (const it of run) if (it.L.k === 'vlak' && it.num) { const t = LV.trains.get(String(it.num)); if (t) out.set(it.key, t); }
-  const bus = run.filter(it => it.L.k !== 'vlak');
-  if (bus.length) { try { const {res} = LV.matchBus(bus); for (const [k, v] of res) out.set(k, v); } catch (e) { MG.err('match', e); } }
-  return out;
- };
- /* zpoždění: hlášené zdrojem, jinak odhad z polohy proti jízdnímu řádu */
- A.delayOf = (it, v) => {
-  if (!v) return null;
-  if (v.delay != null && isFinite(v.delay)) return {d: +v.delay, est: false, v};
-  if (isFinite(v.lat)) { if (v._estK !== it.key || Date.now() - (v._estAt || 0) > 15000) { v._est = D.estDelay(it, v.lat, v.lon); v._estAt = Date.now(); v._estK = it.key; } if (v._est != null) return {d: v._est, est: true, v}; }
-  return {d: null, est: false, v};
- };
- A.dlBadge = (x) => {
-  if (!x) return '';
-  if (x.d == null) return '<span class="dl on" title="vozidlo je na trase, zpoždění zdroj nehlásí"><i class="fa-solid fa-tower-broadcast"></i> živě</span>';
-  const d = x.d, t = x.est ? '~' : '', ti = x.est ? ' title="odhad podle polohy vozidla"' : ' title="hlášené zpoždění (' + H(x.v.src || 'živě') + ')"';
-  if (d < -1.5) return '<span class="dl ok"' + ti + '>' + t + Math.round(d) + ' min</span>';
-  return d <= .5 ? '<span class="dl ok"' + ti + '>' + t + 'včas</span>' : '<span class="dl ' + (d <= 3 ? 'mid' : 'bad') + '"' + ti + '>' + t + '+' + Math.round(d) + ' min</span>';
- };
+ A.mkInst = K.mkInst; A.liveOf = K.liveOf; A.delayOf = K.delayOf; A.dlBadge = K.dlBadge;
  /* oblast pro worker a stream IDS JMK: okolí vybraných míst */
  A.focusPt = () => { const f = A.focus[0]; if (f) return {lat: f[0], lon: f[1]}; return A.me ? {lat: A.me.lat, lon: A.me.lon} : null; };
  MG.liveBounds = (pad) => {
@@ -172,7 +111,7 @@
   if (!D.st.has(g)) {
    const idx = await D.loadIdx(); const x = idx.find(s => s.g === g);
    if (ok == null || ok < 0) ok = x ? x.ok : -1;
-   if (ok >= 0 && !D.loaded.has(ok)) { busy(true, 'Načítám jízdní řády okresu ' + okName(ok) + '…'); try { await D.loadOkres(ok); } catch (e) { MG.err('okres', e); } busy(false); }
+   await D.loadAll().catch(() => {});
   }
   if (!D.st.has(g)) { MG.toast('Zastávku se nepodařilo načíst'); return; }
   A.st = g; A.dep.lines = null; A.dep.plat = null; A.dep.open = null;
@@ -285,14 +224,7 @@
  }
  A.renderDep = renderDep;
  const cdTxt = (t, nowS) => { const s = Math.round(t * 60 - nowS); if (s <= 20) return 'teď'; if (s >= 600) return ''; return Math.floor(s / 60) + ':' + MG.pad(s % 60); };
- A.depItems = (g, opt) => {
-  opt = opt || {}; const c = clk();
-  const ymd = opt.ymd || c.ymd, from = opt.from != null ? opt.from : c.m, today = ymd === c.ymd;
-  const deps = D.departures(g, {ymd, from: from - 1, horizon: opt.horizon || (opt.from == null ? 300 : 480), limit: opt.limit || 60, lines: opt.lines, platform: opt.platform});
-  const insts = today ? deps.map(d => A.mkInst(d.p, d.j, d.day)) : [];
-  const live = today ? A.liveOf(insts) : new Map();
-  return deps.map((d, i) => { const it = insts[i]; const x = it ? A.delayOf(it, live.get(it.key)) : null; const dl = x && x.d > 0 ? x.d : 0; return {d, it, x, exp: d.t + dl, dl}; });
- };
+ A.depItems = K.depItems;
  function renderDepList() {
   const box = $('dep-list'); if (!box || A.st == null) return;
   const c = clk(), ymd = A.dep.ymd || c.ymd, today = ymd === c.ymd && A.dep.when == null;
@@ -376,12 +308,7 @@
  }
  function renderConnFavs() { const box = $('c-favs'); if (!box) return; box.innerHTML = favStrip('conn'); bindFavs(box, async f => { C.to = {kind: 'fav', name: f.label, lat: f.lat, lon: f.lon, st: f.st}; if (!C.from) C.from = await A.mePoint(); paintOD(); if (C.from) A.findConn(); }); }
  /* hledání; vrací i data pro AI rádce */
- A.planTrip = async (from, to, ymd, t, count) => {
-  const r = await MG.raptor.search(from, to, ymd, t, {count: count || 5});
-  if (r.err) return r;
-  r.ymd = ymd; r.t = t; r.from = from; r.to = to;
-  return r;
- };
+ A.planTrip = K.planTrip;
  A.findConn = async (tOverride) => {
   if (!C.from || !C.to) { $('c-st').textContent = 'Vyber, odkud a kam.'; return; }
   if (MG.dist(C.from.lat, C.from.lon, C.to.lat, C.to.lon) < 120) { $('c-st').textContent = 'Cíl je hned vedle – už jsi na místě.'; $('c-res').innerHTML = ''; C.res = null; return; }
@@ -389,8 +316,7 @@
   $('c-st').innerHTML = '<span class="spin"></span> Hledám spojení…'; $('c-res').innerHTML = '';
   C.busy = true; await MG.sleep(20);
   try {
-   busy(true, 'Načítám jízdní řády…');
-   const r = await A.planTrip(C.from, C.to, ymd, t, 6); busy(false);
+   const r = await A.planTrip(C.from, C.to, ymd, t, 6);
    C.busy = false;
    if (r.err) { $('c-st').textContent = r.err; return; }
    C.res = r; C.sel = 0;
@@ -398,25 +324,10 @@
    connFocus(); renderConn(); LV.tick();
   } catch (e) { busy(false); C.busy = false; MG.err('raptor', e); $('c-st').textContent = 'Při hledání nastala chyba.'; }
  };
- A.legTimes = (res, l) => { const st0 = l.p.T[3 * l.j] + (l.day - res.qday) * 1440; return {dep: st0 + l.p.dep[l.prof][l.bi], arr: st0 + l.p.arr[l.prof][l.ai]}; };
- A.connTimes = (res, c) => { const rides = c.legs.filter(l => !l.walk); const t1 = A.legTimes(res, rides[0]); return {dep: t1.dep - (c.acc[1] || 0), arr: c.arr, rides}; };
+ A.legTimes = K.legTimes; A.connTimes = K.connTimes;
  function connFocus() { const r = C.res; if (!r) return; const pts = []; for (const c of r.results) for (const l of c.legs) if (!l.walk) { const pl = D.pl.get(l.p.s[l.bi]); if (pl) pts.push([pl.lat, pl.lon]); } setFocus(pts.slice(0, 40)); }
  /* živé info pro spojení: zpoždění jednotlivých jízd a ohrožené přestupy */
- A.connLive = (res, c) => {
-  const rides = c.legs.filter(l => !l.walk);
-  const today = res.ymd === clk().ymd;
-  const insts = today ? rides.map(l => A.mkInst(l.p, l.j, l.day)) : [];
-  const live = today ? A.liveOf(insts) : new Map();
-  const out = rides.map((l, i) => { const it = insts[i]; return {l, t: A.legTimes(res, l), x: it ? A.delayOf(it, live.get(it.key)) : null}; });
-  for (let i = 1; i < out.length; i++) {
-   const a = out[i - 1], b = out[i];
-   const da = a.x && a.x.d > 0 ? a.x.d : 0, db = b.x && b.x.d > 0 ? b.x.d : 0;
-   const walk = c.legs.slice(c.legs.indexOf(a.l) + 1, c.legs.indexOf(b.l)).filter(l => l.walk).reduce((s, l) => s + l.dur, 0);
-   const slack = (b.t.dep + db) - (a.t.arr + da) - walk;
-   b.slack = slack; b.risk = da > 0 && slack < 1;
-  }
-  return out;
- };
+ A.connLive = K.connLive;
  const legChip = l => { const L_ = D.ln.get(l.p.l); return D.badge(L_, {text: legLabel(L_, l.p, l.j)}); };
  function renderConn() {
   const box = $('c-res'); if (!box) return;
@@ -480,15 +391,7 @@
   NAVIGACE NA ZASTÁVKU (pěšky, bez mapy: šipka, vzdálenost, pokyny, náčrtek trasy)
  ===================================================================== */
  const NV = A.navState = {dest: null, route: null, at: 0, heading: null, reAt: 0};
- const dec6 = (s) => { const out = []; let i = 0, la = 0, lo = 0; while (i < s.length) { for (let w = 0; w < 2; w++) { let sh = 0, r = 0, b; do { b = s.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5 } while (b >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if (w) lo += d; else la += d } out.push([la / 1e6, lo / 1e6]) } return out; };
- A.walkRoute = async (a, b) => {
-  const q = {locations: [{lat: a.lat, lon: a.lon}, {lat: b.lat, lon: b.lon}], costing: 'pedestrian', directions_options: {language: 'cs-CZ', units: 'kilometers'}};
-  const r = await fetch('https://valhalla1.openstreetmap.de/route?json=' + encodeURIComponent(JSON.stringify(q)));
-  if (!r.ok) throw Error('HTTP ' + r.status);
-  const j = await r.json(); const leg = j.trip.legs[0];
-  const pts = dec6(leg.shape), cd = [0]; for (let i = 1; i < pts.length; i++) cd.push(cd[i - 1] + MG.dist(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]));
-  return {pts, cd, len: j.trip.summary.length * 1000, time: j.trip.summary.time / 60, man: leg.maneuvers.map(m => ({t: m.instruction, i: m.begin_shape_index, len: m.length * 1000, type: m.type}))};
- };
+ A.walkRoute = K.walkRoute;
  const manIcon = t => ({1: 'fa-play', 4: 'fa-flag-checkered', 5: 'fa-flag-checkered', 6: 'fa-flag-checkered', 9: 'fa-arrow-turn-up fa-rotate-90', 10: 'fa-arrow-turn-up fa-rotate-90', 11: 'fa-arrow-right', 12: 'fa-rotate-left', 13: 'fa-rotate-left', 14: 'fa-arrow-left', 15: 'fa-arrow-left', 16: 'fa-arrow-turn-up fa-flip-horizontal', 26: 'fa-circle-notch', 27: 'fa-circle-notch'})[t] || 'fa-arrow-up';
  A.nav = async (dest) => {
   NV.dest = dest; NV.route = null; NV.at = 0; NV.far = 0;
@@ -574,21 +477,7 @@
  /* =====================================================================
   POČASÍ (Open-Meteo)
  ===================================================================== */
- const WX = {0: ['fa-sun', 'jasno', 'fa-moon'], 1: ['fa-cloud-sun', 'skoro jasno', 'fa-cloud-moon'], 2: ['fa-cloud-sun', 'polojasno', 'fa-cloud-moon'], 3: ['fa-cloud', 'zataženo'], 45: ['fa-smog', 'mlha'], 48: ['fa-smog', 'mlha s námrazou'], 51: ['fa-cloud-rain', 'slabé mrholení'], 53: ['fa-cloud-rain', 'mrholení'], 55: ['fa-cloud-rain', 'silné mrholení'], 56: ['fa-icicles', 'mrznoucí mrholení'], 57: ['fa-icicles', 'mrznoucí mrholení'], 61: ['fa-cloud-rain', 'slabý déšť'], 63: ['fa-cloud-rain', 'déšť'], 65: ['fa-cloud-showers-heavy', 'silný déšť'], 66: ['fa-icicles', 'mrznoucí déšť'], 67: ['fa-icicles', 'mrznoucí déšť'], 71: ['fa-snowflake', 'slabé sněžení'], 73: ['fa-snowflake', 'sněžení'], 75: ['fa-snowflake', 'silné sněžení'], 77: ['fa-snowflake', 'sněhová zrna'], 80: ['fa-cloud-sun-rain', 'přeháňky'], 81: ['fa-cloud-showers-heavy', 'přeháňky'], 82: ['fa-cloud-showers-heavy', 'prudké přeháňky'], 85: ['fa-snowflake', 'sněhové přeháňky'], 86: ['fa-snowflake', 'sněhové přeháňky'], 95: ['fa-cloud-bolt', 'bouřka'], 96: ['fa-cloud-bolt', 'bouřka s kroupami'], 99: ['fa-cloud-bolt', 'bouřka s kroupami']};
- const wxIc = (code, day) => { const w = WX[code] || ['fa-cloud', '']; return day === 0 && w[2] ? w[2] : w[0]; };
- const wxTx = code => (WX[code] || ['', 'neznámé'])[1];
- A.wxText = wxTx;
- const windDir = d => ['S', 'SV', 'V', 'JV', 'J', 'JZ', 'Z', 'SZ'][Math.round(((d % 360) + 360) % 360 / 45) % 8];
- A.weather = async (lat, lon) => {
-  const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat.toFixed(3) + '&longitude=' + lon.toFixed(3) +
-   '&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day' +
-   '&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,wind_speed_10m,is_day' +
-   '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset,uv_index_max,wind_speed_10m_max,wind_gusts_10m_max' +
-   '&timezone=Europe%2FPrague&forecast_days=7';
-  const r = await fetch(u); if (!r.ok) throw Error('HTTP ' + r.status);
-  const j = await r.json(); j._at = Date.now(); j._lat = lat; j._lon = lon;
-  return j;
- };
+ const wxIc = K.wxIc, wxTx = K.wxText; A.wxText = K.wxText; A.weather = K.weather; A.wxAdvice = K.wxAdvice;
  A.wxPlace = () => A.wx.place || (A.st != null && D.st.get(A.st) ? {name: D.st.get(A.st).name, lat: D.st.get(A.st).lat, lon: D.st.get(A.st).lon} : A.me ? {name: 'Moje poloha', lat: A.me.lat, lon: A.me.lon} : {name: 'Praha', lat: 50.0875, lon: 14.4213});
  async function loadWx(force) {
   const p = A.wxPlace(), cur = A.wx.data;
@@ -607,49 +496,12 @@
   b.hidden = false; b.innerHTML = '<i class="fa-solid ' + wxIc(j.current.weather_code, j.current.is_day) + '"></i><span>' + Math.round(j.current.temperature_2m) + '°</span>';
   b.title = 'Počasí: ' + wxTx(j.current.weather_code);
  }
- /* rada na cestu */
- A.wxAdvice = (j) => {
-  const out = [], c = j.current, hh = j.hourly; if (!c) return out;
-  const nowI = Math.max(0, hh.time.findIndex(t => t >= j.current.time.slice(0, 13)));
-  const next3 = [0, 1, 2, 3].map(k => nowI + k).filter(i => i < hh.time.length);
-  const pmax = Math.max(...next3.map(i => hh.precipitation_probability[i] || 0)), psum = next3.reduce((s, i) => s + (hh.precipitation[i] || 0), 0);
-  if (c.precipitation > .1) out.push(['fa-umbrella', 'Teď ' + (c.temperature_2m < 1 ? 'sněží nebo mrzne' : 'prší') + ' – vezmi si deštník, na zastávce hledej přístřešek.']);
-  else if (pmax >= 60 || psum > .8) out.push(['fa-umbrella', 'Během 3 hodin pravděpodobně zaprší (' + pmax + ' %). Deštník se hodí.']);
-  if (c.temperature_2m <= 1 && (c.precipitation > 0 || pmax > 40)) out.push(['fa-person-falling', 'Kolem nuly a vlhko – na chodnících a zastávkách může klouzat.']);
-  if (c.wind_gusts_10m >= 60) out.push(['fa-wind', 'Silné nárazy větru (' + Math.round(c.wind_gusts_10m) + ' km/h) – možné komplikace v dopravě.']);
-  if (c.apparent_temperature <= -8) out.push(['fa-temperature-low', 'Velká zima, pocitově ' + Math.round(c.apparent_temperature) + ' °C – nečekej na zastávce zbytečně dlouho, sleduj odjezd živě.']);
-  if (c.temperature_2m >= 30) out.push(['fa-temperature-high', 'Horko – vezmi si vodu, v klimatizovaných vozech bývá příjemněji.']);
-  if ([95, 96, 99].includes(c.weather_code)) out.push(['fa-cloud-bolt', 'Bouřka – na cestu raději počkej.']);
-  if (!out.length) out.push(['fa-circle-check', 'Počasí cestování neztěžuje.']);
-  return out;
- };
  function renderWx() {
   const el = $('wx-body'); if (!el) return;
   const j = A.wx.data, p = A.wxPlace();
   $('wx-place').textContent = p.name;
   if (!j || !j.current) { el.innerHTML = A.wx.err ? '<div class="empty"><i class="fa-solid fa-cloud"></i><p>Počasí se nepodařilo načíst.</p><button type="button" class="btn" id="wx-re">Zkusit znovu</button></div>' : '<div class="empty"><span class="spin"></span><p>Načítám počasí…</p></div>'; const x = $('wx-re'); if (x) x.onclick = () => loadWx(true); return; }
-  const c = j.current, d = j.daily, hh = j.hourly;
-  const nowI = Math.max(0, hh.time.findIndex(t => t >= c.time.slice(0, 13)));
-  let h = '<div class="wx-hero"><i class="fa-solid ' + wxIc(c.weather_code, c.is_day) + ' wx-big"></i><div><b class="wx-t">' + Math.round(c.temperature_2m) + '°</b><div class="wx-tx">' + H(cap(wxTx(c.weather_code))) + '</div><small>pocitově ' + Math.round(c.apparent_temperature) + '° · ' + Math.round(d.temperature_2m_min[0]) + '° / ' + Math.round(d.temperature_2m_max[0]) + '°</small></div></div>';
-  h += '<div class="wx-adv">' + A.wxAdvice(j).map(([i, t]) => '<div><i class="fa-solid ' + i + '"></i><span>' + H(t) + '</span></div>').join('') + '</div>';
-  h += '<div class="wx-grid">' + [['fa-wind', 'Vítr', Math.round(c.wind_speed_10m) + ' km/h ' + windDir(c.wind_direction_10m)], ['fa-wind', 'Nárazy', Math.round(c.wind_gusts_10m) + ' km/h'], ['fa-droplet', 'Vlhkost', c.relative_humidity_2m + ' %'], ['fa-umbrella', 'Srážky dnes', (d.precipitation_sum[0] || 0).toFixed(1).replace('.', ',') + ' mm'], ['fa-gauge', 'Tlak', Math.round(c.pressure_msl) + ' hPa'], ['fa-sun', 'UV index', d.uv_index_max[0] != null ? Math.round(d.uv_index_max[0]) : '–'], ['fa-arrow-up', 'Východ', d.sunrise[0].slice(11, 16)], ['fa-arrow-down', 'Západ', d.sunset[0].slice(11, 16)]].map(([i, l, v]) => '<div class="wg"><i class="fa-solid ' + i + '"></i><small>' + l + '</small><b>' + v + '</b></div>').join('') + '</div>';
-  h += '<div class="sec-t">Příštích 24 hodin</div><div class="wx-hours">';
-  for (let i = nowI; i < Math.min(hh.time.length, nowI + 24); i++) h += '<div class="wh"><small>' + (i === nowI ? 'teď' : hh.time[i].slice(11, 13)) + '</small><i class="fa-solid ' + wxIc(hh.weather_code[i], hh.is_day[i]) + '"></i><b>' + Math.round(hh.temperature_2m[i]) + '°</b><span class="pp' + (hh.precipitation_probability[i] >= 50 ? ' hi' : '') + '">' + (hh.precipitation_probability[i] || 0) + ' %</span></div>';
-  h += '</div><div class="sec-t">7 dní <small>klepni pro hodinový detail</small></div><div class="wx-days">';
-  const tmin = Math.min(...d.temperature_2m_min), tmax = Math.max(...d.temperature_2m_max);
-  d.time.forEach((day, k) => {
-   const op = A.wx.open === k;
-   const l = (d.temperature_2m_min[k] - tmin) / ((tmax - tmin) || 1) * 100, w = (d.temperature_2m_max[k] - d.temperature_2m_min[k]) / ((tmax - tmin) || 1) * 100;
-   h += '<div class="wd' + (op ? ' open' : '') + '"><button type="button" class="wd-h" data-wd="' + k + '"><span class="wd-n">' + (k === 0 ? 'Dnes' : k === 1 ? 'Zítra' : cap(MG.dowName(day)).slice(0, 2) + ' ' + +day.slice(8) + '. ' + +day.slice(5, 7) + '.') + '</span><i class="fa-solid ' + wxIc(d.weather_code[k], 1) + '"></i><span class="wd-p">' + (d.precipitation_probability_max[k] >= 20 ? '<i class="fa-solid fa-droplet"></i>' + d.precipitation_probability_max[k] + ' %' : '') + '</span><span class="wd-lo">' + Math.round(d.temperature_2m_min[k]) + '°</span><span class="wd-bar"><i style="left:' + l.toFixed(0) + '%;width:' + Math.max(6, w).toFixed(0) + '%"></i></span><span class="wd-hi">' + Math.round(d.temperature_2m_max[k]) + '°</span><i class="fa-solid fa-chevron-down chev"></i></button>';
-   if (op) {
-    h += '<div class="wd-b"><div class="wd-sum">' + H(cap(wxTx(d.weather_code[k]))) + ' · srážky ' + (d.precipitation_sum[k] || 0).toFixed(1).replace('.', ',') + ' mm · vítr až ' + Math.round(d.wind_gusts_10m_max[k]) + ' km/h · slunce ' + d.sunrise[k].slice(11, 16) + '–' + d.sunset[k].slice(11, 16) + '</div><div class="wd-rows">';
-    for (let i = 0; i < hh.time.length; i++) if (hh.time[i].startsWith(day) && +hh.time[i].slice(11, 13) % 3 === 0) h += '<div class="wr"><span>' + hh.time[i].slice(11, 16) + '</span><i class="fa-solid ' + wxIc(hh.weather_code[i], hh.is_day[i]) + '"></i><b>' + Math.round(hh.temperature_2m[i]) + '°</b><small>pocitově ' + Math.round(hh.apparent_temperature[i]) + '°</small><span class="pp' + (hh.precipitation_probability[i] >= 50 ? ' hi' : '') + '"><i class="fa-solid fa-droplet"></i>' + (hh.precipitation_probability[i] || 0) + ' %</span><small>' + Math.round(hh.wind_speed_10m[i]) + ' km/h</small></div>';
-    h += '</div></div>';
-   }
-   h += '</div>';
-  });
-  h += '</div><div class="pl-note">Předpověď: Open-Meteo (modely ICON, ECMWF a další). Aktualizováno ' + MG.hm2(MG.nowMin() - (Date.now() - j._at) / 60000) + '.</div>';
-  el.innerHTML = h;
+  el.innerHTML = K.wxHTML(j, A.wx.open);
   MG.qsa('[data-wd]', el).forEach(b => b.onclick = () => { const k = +b.dataset.wd; A.wx.open = A.wx.open === k ? null : k; renderWx(); });
  }
  function bindWxTop() {
@@ -770,7 +622,7 @@
   $('wx-chip').onclick = () => A.go('wx');
   $('live-pill').onclick = () => A.settings();
   $('brand').onclick = () => { A.clearStop(); A.go('dep'); };
-  try { await Promise.all([D.loadCore(), D.loadGeo()]); }
+  try { await Promise.all([D.loadCore(), D.loadGeo()]); const sp = MG.qs('#splash .spin'); if (sp) sp.insertAdjacentHTML('afterend', '<small id="sp-t">Načítám jízdní řády celé ČR…</small>'); await D.loadAll(); }
   catch (e) { $('dep-body').innerHTML = '<div class="empty"><i class="fa-solid fa-wifi"></i><p>Data se nepodařilo načíst – zkontroluj připojení k internetu.</p><button type="button" class="btn pri" onclick="location.reload()">Zkusit znovu</button></div>'; MG.err('core', e); return; }
   if (!D.dataValid()) MG.toast('Pozor: jízdní řády jsou pro jiné období (' + D.core.d0 + ')', 6000);
   bindDepTop(); bindConnTop(); bindWxTop();

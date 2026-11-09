@@ -140,14 +140,35 @@
  B['train-ic'] = (liv) => { const g = new THREE.Group(); for (let i = 0; i < 4; i++) railcar(g, 39 - i * 26.5, 26, liv, {front: i === 0, back: i === 3, glassLow: .4}); pantograph(g, 45, 4.5); return g; };
  B.funi = (liv) => { const g = new THREE.Group(); section(g, {l: 10, w: 2.6, h: 3, z0: .4, y0: 0, liv: {body: '#d6001c', low: '#a8001a', stripe: '#ffffff', roof: '#ddd'}, front: 1, back: 1, doors: [2, -2]}); return g; };
  B.boat = (liv) => { const g = new THREE.Group(); box(g, 4, 14, 1.4, 0, 0, .7, mat('#f4f4f4')); box(g, 3, 6, 2, 0, -1, 2.3, mat('#1c2630')); box(g, 3.2, 6.2, .2, 0, -1, 3.4, mat('#c8102e')); return g; };
- /* ---------- skutečné 3D modely (GLB, Sketchfab) ----------
-  Tramvaj: „Tatra T3“ – conflig, CC BY-NC 4.0; osobní vlak: „CD810 motor train“ – voxellation, CC BY 4.0.
-  Model je ilustrační (stejný pro všechna města a typy vozů). */
- MD.GLB = {
-  tram: {file: 'models/tatra_t3.glb', len: 14, name: 'Tatra T3', credit: 'Tatra T3 – conflig (Sketchfab), CC BY-NC 4.0', rot: 0},
-  'train-os': {file: 'models/cd810.glb', len: 14, name: 'ČD 810', credit: 'CD810 motor train – voxellation (Sketchfab), CC BY 4.0', rot: 0}
+ /* ---------- skutečné 3D modely (GLB) ----------
+  Modely z OpavaGO (prerekhu-cloud.github.io/Mhd): trolejbusy Škoda 26Tr/32Tr/36Tr, autobusy SOR, Iveco, Irisbus, Z-Group,
+  vlaky RegioNova, RegioShark a motorák 810; od uživatele: Tatra T3 (conflig, CC BY-NC 4.0) a ČD 810 (voxellation, CC BY 4.0).
+  Modely jsou ilustrační – skutečný typ vozu na spoji neznáme. Načítají se, až je vozidlo daného druhu vidět ve 3D.
+  Modely z OpavaGO mají čelo na opačné straně osy než naše konvence → otočení o 180° (rot). */
+ const OPAVA = 'https://prerekhu-cloud.github.io/Mhd/';
+ MD.MODELS = {
+  '26tr': {url: OPAVA + '26tr.glb', len: 12, name: 'Škoda 26Tr Solaris', rot: Math.PI},
+  '32tr': {url: OPAVA + '32tr.glb', len: 12, name: 'Škoda 32Tr SOR', rot: Math.PI},
+  '36tr': {url: OPAVA + '36tr.glb', len: 12, name: "Škoda 36Tr T'CITY", rot: Math.PI},
+  sorbus: {url: OPAVA + 'Sorbus.glb', len: 12, name: 'SOR NS 12', rot: Math.PI},
+  sorelektro: {url: OPAVA + 'Sorelektro.glb', len: 12, name: 'SOR NS 12 electric', rot: Math.PI},
+  iveco12m: {url: OPAVA + 'Iveco12m.glb', len: 12, name: 'Iveco Urbanway 12M', rot: Math.PI},
+  iveco10m: {url: OPAVA + 'Iveco10m.glb', len: 10.5, name: 'Iveco Urbanway 10,5M', rot: Math.PI},
+  irisbus: {url: OPAVA + 'Irisbus.glb', len: 12, name: 'Irisbus Citelis 12M', rot: Math.PI},
+  zgroupvelky: {url: OPAVA + 'Zgroupvelky.glb', len: 12, name: 'Z-Group (velký autobus)', rot: Math.PI},
+  zgroupmaly: {url: OPAVA + 'Zgroupmaly.glb', len: 10.5, name: 'Z-Group (malý autobus)', rot: Math.PI},
+  regionova: {url: OPAVA + 'Regionovamodra.glb', len: 28.4, name: 'RegioNova', rot: Math.PI},
+  regioshark: {url: OPAVA + 'Regioshark.glb', len: 45, name: 'RegioShark', rot: Math.PI},
+  motorak: {url: OPAVA + 'Motorakmaly.glb', len: 14, name: 'Motorák řady 810', rot: Math.PI},
+  tatra_t3: {file: 'models/tatra_t3.glb', len: 14, name: 'Tatra T3', credit: 'Tatra T3 – conflig (Sketchfab), CC BY-NC 4.0'},
+  cd810: {file: 'models/cd810.glb', len: 14, name: 'ČD 810', credit: 'CD810 motor train – voxellation (Sketchfab), CC BY 4.0'}
  };
- MD.glb = {};
+ /* druh vozidla → odpovídající modely (vybírá se stabilně podle linky) */
+ MD.VARIANTS = {trol12: ['26tr', '32tr', '36tr'], trol18: ['26tr', '36tr'], bus12: ['sorbus', 'sorelektro', 'iveco12m', 'irisbus'], bus18: ['sorbus', 'iveco12m'], bus10: ['iveco10m', 'zgroupmaly'],
+  regio: ['zgroupvelky', 'zgroupmaly', 'iveco12m'], coach: ['zgroupvelky'], tram: ['tatra_t3'], 'train-os': ['regionova', 'motorak', 'cd810', 'regioshark'], 'train-r': ['regioshark', 'regionova']};
+ MD.modelOf = (L_) => { const t = MD.typeOf(L_), v = MD.VARIANTS[t]; if (!v) return null; return v[(L_ && L_.i || 0) % v.length]; };
+ MD.GLB = {}; MD.glb = {};
+ MD.gm = {}; const gmP = {};
  const loadScript = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
  /* osy: GLB má Y nahoru → u nás Z nahoru; délka vozu podél +Y (dopředu), střed v počátku, kola na z = 0 */
  MD.normalize = (scene, cfg) => {
@@ -177,23 +198,32 @@
   if (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > .05) { n.emissive = m.emissive.clone(); n.emissiveMap = m.emissiveMap || null; n.emissiveIntensity = .5; }
   convCache.set(m, n); return n;
  }
- MD.loadGLB = () => {
-  if (MD._glbP) return MD._glbP;
-  MD._glbP = (async () => {
-   try { if (!THREE.GLTFLoader) await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'); } catch (_) { return; }
-   const loader = new THREE.GLTFLoader();
-   const bases = MG._goodBase ? [MG._goodBase, ...MG.cfg.DATA.filter(b => b !== MG._goodBase)] : MG.cfg.DATA;
-   for (const [type, cfg] of Object.entries(MD.GLB)) {
-    for (const b of bases) {
-     try { const g = await new Promise((ok, bad) => loader.load(b + cfg.file, ok, undefined, bad)); MD.glb[type] = MD.normalize(g.scene, cfg); break; } catch (_) {}
-    }
-   }
-   MG.emit('models');
-  })();
-  return MD._glbP;
+ let loader = null, active = 0; const queue = [];
+ const pump = () => {
+  while (active < 2 && queue.length) {
+   const [id, ok] = queue.shift(); const cfg = MD.MODELS[id]; active++;
+   const urls = cfg.url ? [cfg.url] : (MG._goodBase ? [MG._goodBase, ...MG.cfg.DATA.filter(b => b !== MG._goodBase)] : MG.cfg.DATA).map(b => b + cfg.file);
+   (async () => {
+    for (const u of urls) { try { const g = await new Promise((res, rej) => loader.load(u, res, undefined, rej)); MD.gm[id] = MD.normalize(g.scene, cfg); break; } catch (_) {} }
+    active--; ok(!!MD.gm[id]); MG.emit('models', id); pump();
+   })();
+  }
  };
- MD.build = (type, liv) => {
-  if (MD.glb[type]) return MD.glb[type].clone();
+ MD.need = (id) => {
+  if (!id || MD.gm[id]) return Promise.resolve(!!MD.gm[id]);
+  if (gmP[id]) return gmP[id];
+  gmP[id] = (async () => {
+   try { if (!THREE.GLTFLoader) await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'); } catch (_) { return false; }
+   if (!loader) { loader = new THREE.GLTFLoader(); try { loader.setCrossOrigin('anonymous'); } catch (_) {} }
+   return new Promise(ok => { queue.push([id, ok]); pump(); });
+  })();
+  return gmP[id];
+ };
+ /* nic se nestahuje dopředu – modely se načtou podle vozidel, která jsou ve 3D vidět */
+ MD.loadGLB = () => Promise.resolve();
+ MD.forLine = (L_) => { const id = MD.modelOf(L_); if (!id) return null; if (!MD.gm[id]) { MD.need(id); return null; } return MD.gm[id]; };
+ MD.build = (type, liv, L_) => {
+  const gm = L_ ? MD.forLine(L_) : null; if (gm) return gm.clone();
   const key = type + '|' + JSON.stringify(liv);
   let proto = MD.cache.get(key);
   if (!proto) { proto = (B[type] || B.bus12)(liv); MD.cache.set(key, proto); }
@@ -204,6 +234,6 @@
  /* popis pro panel jízdy: u skutečného modelu poctivě „ilustrační model“ */
  const KINDN = {mhd: 'Autobus MHD', trol: 'Trolejbus', tram: 'Tramvaj', metro: 'Metro', regio: 'Regionální autobus', mezi: 'Dálkový autobus', vlak: 'Vlak', lan: 'Lanovka', lod: 'Přívoz'};
  /* skutečný typ vozu neznáme: jen druh dopravy, u 3D modelu poctivě „ilustrační“ */
- MD.label = L_ => { const t = MD.typeOf(L_); return (KINDN[L_.k] || '') + (MD.glb[t] ? ' · ilustrační 3D model ' + MD.GLB[t].name : ' · ilustrační 3D model'); };
+ MD.label = L_ => { const id = MD.modelOf(L_); return (KINDN[L_.k] || '') + (id && MD.gm[id] ? ' · ilustrační 3D model ' + MD.MODELS[id].name : ' · ilustrační 3D model'); };
  MD.length = {bus12: 12, bus10: 10.5, bus18: 18, trol12: 12, trol18: 18, regio: 12, coach: 13, tram: 27, metro: 59, 'train-os': 52, 'train-r': 115, 'train-ic': 105, funi: 10, boat: 14};
 })();

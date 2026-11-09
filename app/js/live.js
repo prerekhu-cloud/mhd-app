@@ -3,7 +3,7 @@
   • Správa železnic – polohy všech osobních vlaků v ČR se zpožděním (veřejné API, CORS povolen)
   • IDS JMK (Brno a Jihomoravský kraj) – otevřený stream poloh data.brno.cz (KORDIS JMK, CC BY 4.0), přímo z prohlížeče
   • worker mhdGO (worker/mhdgo-worker.js) – PID, celostátní GTFS-RT regionálních autobusů a MHD (IDOL, JIKORD, ODIS, IDZK,
-    DÚK, DPMD…), ODIS přes proxy OpavaGO
+    DÚK, DPMD…), ODIS přes proxy OpavaGO, IREDO (Královéhradecký a Pardubický kraj), MHD Hradec Králové
   • záložně ODIS přímo přes proxy OpavaGO */
 (function(){
  const D = MG.D;
@@ -30,7 +30,15 @@
   } catch (e) { LV.st.sz = 'err'; LV.err.sz = String(e.message || e); }
  }
  /* ---------- ODIS (proxy) ---------- */
- const needOdis = () => { for (const oi of D.loaded) { const k = D.kraje[D.okresy[oi].kraj]; if (k && k.code === 'MSK') return true; } return false; };
+ /* zdroje vázané na kraj se stahují, jen když je kraj v zorném poli (celá ČR je načtená najednou) */
+ const krajBox = {};
+ const needKraj = (code) => {
+  const b = LV.bounds(.2); if (!b || !D.okresy) return false;
+  let kb = krajBox[code];
+  if (!kb) { kb = [90, 180, -90, -180]; D.okresy.forEach(o => { const k = D.kraje[o.kraj]; if (!k || k.code !== code) return; kb[0] = Math.min(kb[0], o.bbox[1]); kb[1] = Math.min(kb[1], o.bbox[0]); kb[2] = Math.max(kb[2], o.bbox[3]); kb[3] = Math.max(kb[3], o.bbox[2]); }); krajBox[code] = kb; }
+  return !(b[2] < kb[0] || b[0] > kb[2] || b[3] < kb[1] || b[1] > kb[3]);
+ };
+ const needOdis = () => needKraj('MSK');
  async function fetchOdis() {
   if (!MG.cfg.ODIS || !needOdis()) { LV.st.odis = ''; return; }
   try {
@@ -75,7 +83,7 @@
  /* ---------- IDS JMK: otevřený stream poloh (data.brno.cz) ---------- */
  const JMK = LV.jmk = {ws: null, veh: new Map(), names: null, filt: '', next: 0};
  const JMK_URL = 'wss://gis.brno.cz/geoevent/ws/services/Kordis_stream/StreamServer/subscribe';
- const needJmk = () => { for (const oi of D.loaded) { const k = D.kraje[D.okresy[oi].kraj]; if (k && k.code === 'JHM') return true; } return false; };
+ const needJmk = () => needKraj('JHM');
  function jmkFilter() {
   const ws = JMK.ws; if (!ws || ws.readyState !== 1) return;
   const bb = LV.bounds(.35); if (!bb) return;
@@ -119,16 +127,17 @@
  LV.matchBus = (insts) => {
   const res = new Map();
   const bus = LV.allBus(); if (!bus.length) return {res, extra: []};
-  const byCis = new Map(), byShort = new Map(), byPid = new Map();
+  const byCis = new Map(), byShort = new Map(), byPid = new Map(), byCity = new Map();
   for (const it of insts) {
    const L_ = it.L; if (!L_ || L_.k === 'vlak') continue;
    if (it.spoj) for (const c of (L_.cis || [])) byCis.set(c + ':' + it.spoj, it);
+   if (it.spoj && L_.city) byCity.set(L_.city + ':' + L_.n + ':' + it.spoj, it);
    if (L_.sys === 'PID' && it.spoj) byPid.set(L_.n + ':' + it.spoj, it);
    (byShort.get(L_.n) || byShort.set(L_.n, []).get(L_.n)).push(it);
   }
   const used = new Set(), rest = [], extra = [];
   for (const v of bus) {
-   const it = v.cis && v.spoj ? byCis.get(v.cis + ':' + v.spoj) : (v.src === 'PID' && v.spoj ? byPid.get(v.line + ':' + v.spoj) : null);
+   const it = v.cis && v.spoj ? byCis.get(v.cis + ':' + v.spoj) : (v.src === 'PID' && v.spoj ? byPid.get(v.line + ':' + v.spoj) : v.city && v.spoj ? byCity.get(v.city + ':' + v.line + ':' + v.spoj) : null);
    if (it && !used.has(it.key)) { used.add(it.key); res.set(it.key, v); }
    else if (v.cis && v.spoj) extra.push(v);         /* přesný klíč bez spoje v datech – nehádat */
    else rest.push(v);
@@ -169,12 +178,12 @@
  function updBtn() {
   const b = MG.$('live-btn'); if (!b) return;
   b.classList.remove('ok', 'warn', 'off');
-  if (!LV.on) { b.classList.add('off'); MG.$('live-n').textContent = ''; b.title = 'Živé polohy vypnuty'; return; }
+  if (!LV.on) { b.classList.add('off'); b.title = 'Živé polohy vypnuty'; return; }
   const ok = LV.st.sz === 'ok' || LV.st.odis === 'ok' || LV.st.worker === 'ok' || LV.st.jmk === 'ok';
   const err = LV.st.sz === 'err' && (LV.st.odis === 'err' || !LV.st.odis);
   b.classList.add(ok ? 'ok' : err ? 'warn' : 'off');
-  MG.$('live-n').textContent = LV.liveCount ? String(LV.liveCount) : '';
-  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO ' + Object.keys(LV.wStats || {}).filter(k => k !== 'alerts').map(k => ({jdf: 'regionální GTFS-RT', pid: 'PID', sz: 'SŽ', odis: 'ODIS'})[k] || k).join(', ') : '') + (LV.st.odis ? ', ODIS ' + LV.st.odis : '') + (LV.st.jmk ? ', IDS JMK ' + LV.st.jmk : '');
+  const ln = MG.$('live-n'); if (ln) ln.textContent = '';
+  b.title = 'Živé polohy: vlaky ' + (LV.st.sz || '–') + (LV.st.worker === 'ok' ? ', worker mhdGO ' + Object.keys(LV.wStats || {}).filter(k => k !== 'alerts').map(k => ({jdf: 'regionální GTFS-RT', pid: 'PID', sz: 'SŽ', odis: 'ODIS', iredo: 'IREDO', dpmhk: 'MHD Hradec Králové'})[k] || k).join(', ') : '') + (LV.st.odis ? ', ODIS ' + LV.st.odis : '') + (LV.st.jmk ? ', IDS JMK ' + LV.st.jmk : '');
  }
  LV.updBtn = updBtn;
  LV.toggle = (on) => { LV.on = on; MG.store.set('live', on); if (on) { tSZ = tB = 0; LV.tick(); } else { LV.trains = new Map(); LV.busOdis = []; LV.busWorker = []; jmkSync(); MG.emit('live'); } updBtn(); };

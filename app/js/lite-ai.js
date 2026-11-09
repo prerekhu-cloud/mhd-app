@@ -5,7 +5,7 @@
  Nástroje běží v prohlížeči nad stejnými daty jako aplikace: odjezdy (se živým zpožděním), spojení,
  zastávky v okolí, počasí, jízdné, Moje místa a pěší trasa. Ceny může rádce dohledat i na oficiálních webech. */
 (function(){
- const A = MG.lite, D = MG.D, $ = MG.$, H = MG.h;
+ const A = MG.core, D = MG.D, $ = MG.$, H = MG.h;
  const SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.2.0/+esm';
  const MODELS = [['claude-opus-5-5', 'Claude Opus 5.5', 'nejchytřejší'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5', 'rychlejší a levnější'], ['claude-haiku-5-5', 'Claude Haiku 5.5', 'nejrychlejší a nejlevnější']];
  const WEB_DOMAINS = ['pid.cz', 'idsjmk.cz', 'dpmb.cz', 'odis.cz', 'kodis.cz', 'dpo.cz', 'iidol.cz', 'dpmlj.cz', 'dopravauk.cz', 'dpmul.cz', 'iredo.info', 'dpmhk.cz', 'dpmp.cz', 'idsok.cz', 'dpmo.cz', 'idzk.cz', 'dszo.cz', 'idpk.cz', 'pmdp.cz', 'dpmcb.cz', 'dpmj.cz', 'dpkv.cz', 'cd.cz', 'regiojet.cz', 'leoexpress.com', 'arriva.cz', 'idos.cz', 'spravazeleznic.cz', 'md.gov.cz'];
@@ -22,14 +22,15 @@
  AI.sdk = sdk;
  async function client() {
   const Anthropic = await sdk();
-  if (AI.cfg.mode === 'worker') return new Anthropic({apiKey: AI.cfg.code, baseURL: workerBase() + 'ai', dangerouslyAllowBrowser: true, maxRetries: 1});
+  if (AI.cfg.mode !== 'key') return new Anthropic({apiKey: AI.cfg.code || 'mhdgo-open', baseURL: workerBase() + 'ai', dangerouslyAllowBrowser: true, maxRetries: 1});
   return new Anthropic({apiKey: AI.cfg.key, dangerouslyAllowBrowser: true, maxRetries: 1});
  }
- const ready = () => (AI.cfg.mode === 'worker' && AI.cfg.code) || (AI.cfg.mode === 'key' && /^sk-ant-/.test(AI.cfg.key || ''));
+ /* připraveno: vlastní klíč, nebo worker (otevřený rádce bez kódu, případně s přístupovým kódem) */
+ const ready = () => (AI.cfg.mode === 'key' && /^sk-ant-/.test(AI.cfg.key || '')) || (AI.cfg.mode !== 'key' && !!AI.status && AI.status.enabled && (AI.status.open || !!AI.cfg.code));
  async function workerStatus() {
   if (AI.status) return AI.status;
-  try { const r = await fetch(workerBase() + 'ai/status', {cache: 'no-store'}); const j = await r.json(); AI.status = {enabled: j && j.enabled === true}; }
-  catch (_) { AI.status = {enabled: false}; }
+  try { const r = await fetch(workerBase() + 'ai/status', {cache: 'no-store'}); const j = await r.json(); AI.status = {enabled: !!j && j.enabled === true, open: !!j && j.open === true, model: j && j.model}; }
+  catch (_) { AI.status = {enabled: false, open: false}; }
   return AI.status;
  }
 
@@ -121,7 +122,7 @@
   },
   async nearby_stops(i) {
    const p = i.place ? await resolvePlace(i.place) : await A.mePoint(); if (!p) throw Error('Poloha uživatele není dostupná.');
-   await A.ensureAt(p.lat, p.lon);
+   await D.loadAll().catch(() => {});
    const near = await A.nearestStops(p.lat, p.lon, 5, 1500), nowM = MG.nowMin();
    return {place: p.name, stops: near.map(([d, x]) => ({name: x.name, distance_m: Math.round(d), walk_min: Math.max(1, Math.round(d * 1.25 / 75)),
     next: D.st.has(x.g) ? A.depItems(x.g, {limit: 4, horizon: 60}).map(({d: q, exp, x: lx}) => ({line: lineName(q.L, q.p, q.j), direction: D.headsign(q.p, q.j), in_min: Math.round(exp - nowM), delay_min: lx && lx.d != null ? Math.round(lx.d) : undefined})) : undefined}))};
@@ -133,10 +134,10 @@
    if (to.st != null && D.st.has(to.st)) { const s = D.st.get(to.st); tgt = {name: s.name, lat: s.lat, lon: s.lon}; }
    if (MG.dist(from.lat, from.lon, tgt.lat, tgt.lon) > 15000) return {error: 'Cíl je přes 15 km daleko – pěšky to nedává smysl, použij plan_trip.'};
    const r = await A.walkRoute(from, tgt);
-   return {from: from.name, to: tgt.name, distance_m: Math.round(r.len), minutes: Math.round(r.time), steps: r.man.slice(0, 14).map(m => m.t), tip: 'V aplikaci lze spustit navigaci (Odjezdy → Navigovat sem).'};
+   return {from: from.name, to: tgt.name, distance_m: Math.round(r.len), minutes: Math.round(r.time), steps: r.man.slice(0, 14).map(m => m.t), tip: 'V aplikaci lze spustit pěší navigaci k zastávce.'};
   },
   async get_weather(i) {
-   const p = i.place ? await resolvePlace(i.place) : A.wxPlace();
+   const p = i.place ? await resolvePlace(i.place) : (A.wxPlace ? A.wxPlace() : await A.mePoint()) || {name: 'Praha', lat: 50.0875, lon: 14.4213};
    const j = await A.weather(p.lat, p.lon), c = j.current, hh = j.hourly, dd = j.daily;
    const n = Math.max(0, hh.time.findIndex(t => t >= c.time.slice(0, 13)));
    const WXT = A.wxText || (x => x);
@@ -146,7 +147,7 @@
     travel_advice: A.wxAdvice(j).map(x => x[1]), source: 'Open-Meteo'};
   },
   async get_ticket_info(i) {
-   const p = i.place ? await resolvePlace(i.place) : (A.me ? {lat: A.me.lat, lon: A.me.lon, name: 'Moje poloha'} : null);
+   const me = A.me(); const p = i.place ? await resolvePlace(i.place) : (me ? {lat: me.lat, lon: me.lon, name: 'Moje poloha'} : null);
    if (!p) return {error: 'Neznám místo – zeptej se, ve kterém městě nebo kraji uživatel jede.', systems: MG.tickets.SYS.map(s => s.name + ' (' + s.kraje.join(', ') + ')')};
    const s = MG.tickets.forPoint(p.lat, p.lon), oi = D.okresAt(p.lat, p.lon);
    return {place: p.name, district: oi >= 0 ? D.okresy[oi].name : null, region: oi >= 0 ? D.kraj(oi).name : null, system: MG.tickets.summary(s),
@@ -178,13 +179,14 @@
  async function contextText() {
   const p = MG.pragueParts(MG.now()), out = [];
   out.push('Dnes je ' + MG.dowName(p.ymd) + ' ' + p.d + '. ' + p.mo + '. ' + p.y + ', ' + MG.pad(p.h) + ':' + MG.pad(p.mi) + ' (Praha).');
-  if (A.me) {
-   const oi = D.okresAt(A.me.lat, A.me.lon); let near = '';
-   try { const n = await A.nearestStops(A.me.lat, A.me.lon, 1, 1500); if (n.length) near = ', nejbližší zastávka ' + n[0][1].name + ' (' + Math.round(n[0][0]) + ' m)'; } catch (_) {}
+  const me = A.me(), cx = A.ctx() || {};
+  if (me) {
+   const oi = D.okresAt(me.lat, me.lon); let near = '';
+   try { const n = await A.nearestStops(me.lat, me.lon, 1, 1500); if (n.length) near = ', nejbližší zastávka ' + n[0][1].name + ' (' + Math.round(n[0][0]) + ' m)'; } catch (_) {}
    out.push('Poloha uživatele je známá: okres ' + (oi >= 0 ? D.okresy[oi].name + ', ' + D.kraj(oi).name : 'mimo ČR') + near + '.');
   } else out.push('Poloha uživatele není známá.');
-  if (A.st != null && D.st.get(A.st)) out.push('V aplikaci má otevřené odjezdy ze zastávky ' + D.st.get(A.st).name + '.');
-  if (A.conn.from && A.conn.to) out.push('Naposledy hledal spojení ' + A.conn.from.name + ' → ' + A.conn.to.name + '.');
+  if (cx.stop != null && D.st.get(cx.stop)) out.push('V aplikaci má otevřené odjezdy ze zastávky ' + D.st.get(cx.stop).name + '.');
+  if (cx.conn && cx.conn.from && cx.conn.to) out.push('Naposledy hledal spojení ' + cx.conn.from.name + ' → ' + cx.conn.to.name + '.');
   const F = A.favs(); out.push(F.length ? 'Moje místa: ' + F.map(f => f.label + (f.name && f.name !== f.label ? ' (' + f.name + ')' : '')).join('; ') + '.' : 'Moje místa: zatím žádná.');
   if (D.core) out.push('Jízdní řády v aplikaci platí ' + D.core.d0 + ' až ' + MG.ymdAdd(D.core.d0, D.core.nd - 1) + '.');
   return '[Kontext z aplikace, doplněný automaticky]\n' + out.join('\n');
@@ -201,7 +203,7 @@
  /* ---------- konverzace ---------- */
  AI.send = async (text) => {
   text = String(text || '').trim(); if (!text || AI.busy) return;
-  if (!ready()) { AI.show(true); return; }
+  if (!ready()) { await workerStatus(); if (!ready()) { AI.show(true); return; } }
   const Anthropic = await sdk().catch(() => null);
   if (!Anthropic) { pushLog({r: 'err', t: 'Knihovnu rádce se nepodařilo načíst – zkontroluj připojení.'}); return; }
   AI.busy = true; paintInput();
@@ -289,10 +291,11 @@
  const SUGG = [['fa-house', 'Jak se dostanu domů?'], ['fa-clock', 'Co mi jede z nejbližší zastávky?'], ['fa-umbrella', 'Budu dnes potřebovat deštník?'], ['fa-ticket', 'Kolik stojí jízdenka a kde ji koupím?'], ['fa-person-walking', 'Jak daleko je to pěšky na zastávku?']];
  AI.show = async (forceSet) => {
   const el = $('ai-body'); if (!el) return;
+  if (!AI.status) { el.innerHTML = '<div class="ai-empty"><span class="spin"></span></div>'; await workerStatus(); }
   if (forceSet || !ready()) return setup(el);
   el.innerHTML = '<div class="ai-chat"><div class="ai-log" id="ai-log">' + (AI.log.length ? AI.log.map(x => { const c = Object.assign({}, x); delete c._el; return bubble(c); }).join('') : '<div class="ai-empty" id="ai-empty"><div class="ai-hi"><i class="fa-solid fa-wand-magic-sparkles"></i></div><b>Ahoj, jsem Rádce mhdGO</b><p>Najdu ti spojení, odjezdy se zpožděním, cestu pěšky na zastávku, počasí na cestu i informace o jízdném.</p><div class="ai-sug">' + SUGG.map(s => '<button type="button" class="chip" data-q="' + H(s[1]) + '"><i class="fa-solid ' + s[0] + '"></i> ' + H(s[1]) + '</button>').join('') + '</div></div>') + '</div>' +
    '<div class="ai-bar"><button type="button" class="ib" id="ai-new" title="Nová konverzace"><i class="fa-solid fa-rotate-left"></i></button><textarea id="ai-in" rows="1" placeholder="Zeptej se na cestu, odjezd, počasí…" enterkeyhint="send"></textarea><button type="button" class="sendb" id="ai-send" title="Odeslat"><i class="fa-solid fa-arrow-up"></i></button></div>' +
-   '<div class="ai-foot"><span>' + H((MODELS.find(m => m[0] === AI.cfg.model) || MODELS[0])[1]) + ' · ' + (AI.cfg.mode === 'worker' ? 'přes worker mhdGO' : 'vlastní klíč') + '</span><button type="button" class="lnk" id="ai-set">Nastavení rádce</button></div></div>';
+   '<div class="ai-foot"><span>' + H((MODELS.find(m => m[0] === AI.cfg.model) || MODELS[0])[1]) + ' · ' + (AI.cfg.mode !== 'key' ? 'přes worker mhdGO' : 'vlastní klíč') + '</span><button type="button" class="lnk" id="ai-set">Nastavení rádce</button></div></div>';
   AI.log.forEach(x => x._el = null);
   const kids = MG.qsa('#ai-log > .msg'); AI.log.forEach((x, k) => { x._el = kids[k] || null; });
   const inp = $('ai-in');
@@ -309,9 +312,10 @@
  async function setup(el) {
   const st = await workerStatus(), c = AI.cfg;
   const mode = c.mode || (st.enabled ? 'worker' : 'key');
+  const open = st.enabled && st.open;
   el.innerHTML = '<div class="ai-setup"><div class="ai-hi"><i class="fa-solid fa-wand-magic-sparkles"></i></div><h2>Rádce mhdGO</h2><p>Chytrý pomocník s cestou: „Jak se dostanu domů?“, „Stihnu přestup?“, „Vezmu si deštník?“. Odpovídá podle stejných jízdních řádů a živých dat jako aplikace. Běží na modelu Claude od společnosti Anthropic.</p>' +
    '<div class="seg wide"><button type="button" data-m="worker" class="' + (mode === 'worker' ? 'on' : '') + '">Přes worker mhdGO</button><button type="button" data-m="key" class="' + (mode === 'key' ? 'on' : '') + '">Vlastní API klíč</button></div>' +
-   '<div id="ai-m-worker"' + (mode === 'worker' ? '' : ' hidden') + '><p class="mut">' + (st.enabled ? 'Worker má rádce zapnutý. Zadej přístupový kód od správce aplikace.' : 'Worker ' + H(workerBase() || '(není nastaven)') + ' rádce zatím nemá. Správce ho zapne tajemstvími ANTHROPIC_API_KEY a AI_CODE (viz worker/mhdgo-worker.js).') + '</p><label class="lab">Přístupový kód</label><input class="inp" id="ai-code" type="password" autocomplete="off" value="' + H(c.code || '') + '"></div>' +
+   '<div id="ai-m-worker"' + (mode === 'worker' ? '' : ' hidden') + '><p class="mut">' + (open ? 'Rádce je na workeru mhdGO zapnutý pro všechny – nic dalšího zadávat nemusíš.' : st.enabled ? 'Worker má rádce zapnutý. Zadej přístupový kód od správce aplikace.' : 'Worker ' + H(workerBase() || '(není nastaven)') + ' rádce zatím nemá. Zapne se tajemstvím ANTHROPIC_API_KEY ve workeru (návod v README, kapitola o workeru). Do té doby můžeš použít vlastní API klíč.') + '</p>' + (open ? '<input type="hidden" id="ai-code" value="">' : '<label class="lab">Přístupový kód</label><input class="inp" id="ai-code" type="password" autocomplete="off" value="' + H(c.code || '') + '">') + '</div>' +
    '<div id="ai-m-key"' + (mode === 'key' ? '' : ' hidden') + '><p class="mut">Klíč z console.anthropic.com se uloží jen v tomto zařízení a posílá se přímo do Anthropic API. Používej klíč s nastaveným limitem útraty; útratu platíš ty.</p><label class="lab">Anthropic API klíč</label><input class="inp" id="ai-key" type="password" autocomplete="off" placeholder="sk-ant-…" value="' + H(c.key || '') + '"></div>' +
    '<label class="lab">Model</label><div class="mlist">' + MODELS.map(m => '<label class="mopt"><input type="radio" name="aim" value="' + m[0] + '"' + (c.model === m[0] ? ' checked' : '') + '><span><b>' + m[1] + '</b><small>' + m[2] + '</small></span></label>').join('') + '</div>' +
    '<div class="set-row"><span><b>Hledat ceny na oficiálních webech</b><small>webové hledání jen na stránkách dopravců a koordinátorů</small></span><label class="sw"><input type="checkbox" id="ai-web"' + (c.web ? ' checked' : '') + '><i></i></label></div>' +
@@ -322,7 +326,7 @@
   $('ai-ok').onclick = () => {
    const key = $('ai-key').value.trim(), code = $('ai-code').value.trim();
    if (m === 'key' && !/^sk-ant-/.test(key)) return MG.toast('Zadej platný API klíč (začíná sk-ant-)');
-   if (m === 'worker' && !code) return MG.toast('Zadej přístupový kód');
+   if (m === 'worker' && !code && !open) return MG.toast(st.enabled ? 'Zadej přístupový kód' : 'Rádce na workeru zatím není zapnutý');
    Object.assign(AI.cfg, {mode: m, key: m === 'key' ? key : AI.cfg.key, code: m === 'worker' ? code : AI.cfg.code, model: (MG.qs('input[name=aim]:checked', el) || {}).value || 'claude-opus-5-5', web: $('ai-web').checked});
    AI.noWeb = false; saveCfg(); AI.show();
   };

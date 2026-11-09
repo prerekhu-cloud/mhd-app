@@ -18,9 +18,12 @@
  *  - PID (Praha a Středočeský kraj)                 PID=1   mapa.pid.cz (veřejná mapa PID); nebo GOLEMIO_TOKEN=... api.golemio.cz
  *  - mimořádnosti a výluky PID                     ALERTS=1 pid.cz RSS (výstup alerts[])
  *  - Správa železnic (všechny vlaky v ČR)          SZ=1
+ *  - IREDO (autobusy a vlaky Královéhradeckého a Pardubického kraje) IREDO=1   veřejná mapa iredo.online
+ *  - MHD Hradec Králové                            DPMHK=1  veřejná mapa dpmhk.qrbus.me
  *  (Brno a Jihomoravský kraj: aplikace se připojuje přímo k otevřenému streamu poloh na data.brno.cz.)
  *
- * AI rádce (verze bez mapy): POST /ai/v1/messages – proxy na Claude API, zapne se tajemstvími ANTHROPIC_API_KEY a AI_CODE.
+ * AI rádce: POST /ai/v1/messages – proxy na Claude API. Zapne se tajemstvím ANTHROPIC_API_KEY (bez AI_CODE pro všechny
+ *   uživatele aplikace s limity, s AI_CODE jen s přístupovým kódem).
  *
  * Nasazení: Cloudflare → Workers & Pages → Create → Worker „mhdgo-live“ → Edit code → vložit tento soubor → Deploy
  *           (nebo „npx wrangler deploy“ ve složce worker/). Bez proměnných běží vše výchozí.
@@ -52,33 +55,57 @@ export default {
 };
 
 /* ---------- AI rádce: průchozí proxy na Claude Messages API ----------
- Klíč Anthropic je jen tady (tajemství ANTHROPIC_API_KEY), aplikace posílá přístupový kód (tajemství AI_CODE)
- jako „API klíč“ SDK. Bez obou tajemství je proxy vypnutá. Povolené jsou jen streamované zprávy rádce
- s omezeným počtem tokenů a vybranými modely – nikdo cizí tak nespotřebuje kredit bez kódu.
+ Klíč Anthropic je jen tady (tajemství ANTHROPIC_API_KEY) – do aplikace se nikdy nedostane.
+ • bez AI_CODE: rádce je zapnutý pro všechny uživatele aplikace (otevřený režim) s limity níže,
+ • s AI_CODE: aplikace musí znát přístupový kód (zadá se v Rádce → Nastavení rádce).
+ Propustí se jen dotazy rádce mhdGO (jeho systémová výzva a nástroje), jen streamované, s omezeným počtem
+ tokenů a povolenými modely; v otevřeném režimu navíc limit dotazů na IP adresu a celkový limit za hodinu.
+ Doporučení: v console.anthropic.com nastav pro klíč měsíční limit útraty (Limits → Spend limit).
    wrangler secret put ANTHROPIC_API_KEY
-   wrangler secret put AI_CODE            (libovolné heslo, zadá se v aplikaci → Rádce → Nastavení) */
+   wrangler secret put AI_CODE            (volitelné)
+ Proměnné: AI_MODEL (vynutí model, např. claude-sonnet-5-5), AI_IP_LIMIT (dotazů / 10 min, výchozí 40),
+           AI_HOUR_LIMIT (dotazů za hodinu na instanci, výchozí 600). */
 const AI_MODELS = new Set(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']);
+const AI_TOOLS = new Set(['plan_trip', 'get_departures', 'nearby_stops', 'walking_route', 'get_weather', 'get_ticket_info', 'list_favorites', 'web_search']);
+const AI_HITS = new Map(); let AI_HOUR = {t: 0, n: 0};
 function aiCors(req) {
  return {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': req.headers.get('Access-Control-Request-Headers') || 'authorization, content-type, anthropic-version, anthropic-beta',
   'Access-Control-Max-Age': '86400'};
 }
 const timingSafeEq = (a, b) => { a = String(a || ''); b = String(b || ''); let r = a.length ^ b.length; for (let i = 0; i < Math.max(a.length, b.length); i++) r |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0); return r === 0; };
+function aiLimit(req, env) {
+ const now = Date.now(), ip = req.headers.get('cf-connecting-ip') || 'x', per = +env.AI_IP_LIMIT || 40, hour = +env.AI_HOUR_LIMIT || 600;
+ const a = (AI_HITS.get(ip) || []).filter(t => now - t < 600000);
+ if (a.length >= per) return 'Too many requests from this address, try again in a few minutes';
+ if (now - AI_HOUR.t > 3600000) AI_HOUR = {t: now, n: 0};
+ if (AI_HOUR.n >= hour) return 'The advisor is busy, try again later';
+ a.push(now); AI_HITS.set(ip, a); AI_HOUR.n++;
+ if (AI_HITS.size > 5000) AI_HITS.clear();
+ return '';
+}
 async function aiProxy(req, env, url) {
- const h = aiCors(req), on = !!(env.ANTHROPIC_API_KEY && env.AI_CODE);
+ const h = aiCors(req), on = !!env.ANTHROPIC_API_KEY, open = on && !env.AI_CODE;
  const json = (o, st) => new Response(JSON.stringify(o), {status: st || 200, headers: Object.assign({'Content-Type': 'application/json'}, h)});
+ const err = (st, type, message) => json({type: 'error', error: {type, message}}, st);
  if (req.method === 'OPTIONS') return new Response(null, {headers: h});
- if (url.pathname === '/ai/status') return json({enabled: on, code: true});
- if (url.pathname !== '/ai/v1/messages' || req.method !== 'POST') return json({type: 'error', error: {type: 'not_found_error', message: 'Not found'}}, 404);
- if (!on) return json({type: 'error', error: {type: 'permission_error', message: 'AI proxy is disabled on this worker'}}, 403);
- const auth = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '') || req.headers.get('x-api-key') || '';
- if (!timingSafeEq(auth, env.AI_CODE)) return json({type: 'error', error: {type: 'authentication_error', message: 'Invalid access code'}}, 401);
- let body; try { body = await req.json(); } catch (_) { return json({type: 'error', error: {type: 'invalid_request_error', message: 'Invalid JSON'}}, 400); }
- if (!AI_MODELS.has(body.model)) return json({type: 'error', error: {type: 'invalid_request_error', message: 'Model not allowed'}}, 400);
- if (!body.stream) return json({type: 'error', error: {type: 'invalid_request_error', message: 'Only streaming requests are allowed'}}, 400);
+ if (url.pathname === '/ai/status') return json({enabled: on, open, code: on && !open, model: env.AI_MODEL || null});
+ if (url.pathname !== '/ai/v1/messages' || req.method !== 'POST') return err(404, 'not_found_error', 'Not found');
+ if (!on) return err(403, 'permission_error', 'AI proxy is disabled on this worker');
+ if (!open) { const auth = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '') || req.headers.get('x-api-key') || ''; if (!timingSafeEq(auth, env.AI_CODE)) return err(401, 'authentication_error', 'Invalid access code'); }
+ let body; try { body = await req.json(); } catch (_) { return err(400, 'invalid_request_error', 'Invalid JSON'); }
+ if (env.AI_MODEL) body.model = env.AI_MODEL;
+ if (!AI_MODELS.has(body.model)) return err(400, 'invalid_request_error', 'Model not allowed');
+ if (!body.stream) return err(400, 'invalid_request_error', 'Only streaming requests are allowed');
+ const sys = typeof body.system === 'string' ? body.system : Array.isArray(body.system) ? body.system.map(b => b && b.text || '').join('') : '';
+ if (!sys.startsWith('Jsi Rádce mhdGO')) return err(403, 'permission_error', 'Only the mhdGO advisor may use this proxy');
+ if (!Array.isArray(body.tools) || body.tools.some(t => !t || !AI_TOOLS.has(t.name))) return err(403, 'permission_error', 'Tools not allowed');
+ for (const t of body.tools) if (t.name === 'web_search') t.max_uses = Math.min(+t.max_uses || 3, 3);
+ if (open) { const lim = aiLimit(req, env); if (lim) return err(429, 'rate_limit_error', lim); }
  body.max_tokens = Math.min(+body.max_tokens || 4000, 16000);
  const fh = {'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': req.headers.get('anthropic-version') || '2023-06-01'};
  const beta = req.headers.get('anthropic-beta'); if (beta) fh['anthropic-beta'] = beta;
+ if (body.model === 'claude-haiku-5-5') { delete body.fallbacks; if (beta) { const b = beta.split(',').map(x => x.trim()).filter(x => !/^server-side-fallback/.test(x)); if (b.length) fh['anthropic-beta'] = b.join(','); else delete fh['anthropic-beta']; } }
  const r = await fetch('https://api.anthropic.com/v1/messages', {method: 'POST', headers: fh, body: JSON.stringify(body)});
  const oh = new Headers(h); oh.set('Content-Type', r.headers.get('content-type') || 'text/event-stream'); const rid = r.headers.get('request-id'); if (rid) oh.set('request-id', rid);
  return new Response(r.body, {status: r.status, headers: oh});
@@ -98,7 +125,11 @@ async function collect(env) {
  if (on(env, 'ALERTS', true)) jobs.push(run('alerts', () => pidAlerts(), r => { alerts.push(...r); return r.length; }));
  if (env.IDSJMK_URL) jobs.push(run('idsjmk', () => idsjmk(env.IDSJMK_URL), r => { vehicles.push(...r); return r.length; }));
  if (on(env, 'SZ', true)) jobs.push(run('sz', () => sz(), r => { const have = new Set(trains.map(t => t.num)); for (const t of r) if (!have.has(t.num)) trains.push(t); return r.length; }));
+ const extraTrains = [];
+ if (on(env, 'IREDO', true)) jobs.push(run('iredo', () => iredo(), r => { vehicles.push(...r.vehicles); extraTrains.push(...r.trains); return r.vehicles.length + r.trains.length; }));
+ if (on(env, 'DPMHK', true)) jobs.push(run('dpmhk', () => dpmhk(), r => { vehicles.push(...r); return r.length; }));
  await Promise.all(jobs);
+ { const have = new Set(trains.map(t => String(t.num))); for (const t of extraTrains) if (!have.has(String(t.num))) trains.push(t); }
  return {updated: Date.now(), vehicles, trains, alerts, stats, errors};
  async function run(name, f, put) {
   try { const r = await withTimeout(f(), 9000); stats[name] = put(r); }
@@ -106,6 +137,40 @@ async function collect(env) {
  }
 }
 function withTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]); }
+
+/* ---------- IREDO (Královéhradecký a Pardubický kraj): veřejná mapa iredo.online „Aktuální poloha spojů“ ----------
+ id spoje: „S-<linka CIS>-<spoj>“ (autobus) nebo „K-<číslo vlaku>“; zpoždění v minutách; time = čas poslední polohy (Praha). */
+const KHPA = {w: 14.95, s: 49.45, e: 16.95, n: 50.85};
+function pragueOffsetMin(d) { const s = d.toLocaleString('en-US', {timeZone: 'Europe/Prague', hour12: false, hour: '2-digit', minute: '2-digit', year: 'numeric', month: '2-digit', day: '2-digit'}); const m = s.match(/(\d+)\/(\d+)\/(\d+),\s*(\d+):(\d+)/); if (!m) return 60; const loc = Date.UTC(+m[3], +m[1] - 1, +m[2], +m[4] % 24, +m[5]); return Math.round((loc - Math.floor(d.getTime() / 60000) * 60000) / 60000); }
+function pragueClockAge(hms) { if (!/^\d{1,2}:\d{2}/.test(hms || '')) return 0; const now = new Date(), off = pragueOffsetMin(now); const [h, m, sec] = hms.split(':').map(Number); const loc = ((now.getUTCHours() * 60 + now.getUTCMinutes() + off) % 1440 + 1440) % 1440; let d = loc - (h * 60 + m + (sec || 0) / 60); if (d < -720) d += 1440; return d; }
+async function iredo() {
+ const r = await fetch('https://iredo.online/map/mapData', {method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json'}, body: JSON.stringify(Object.assign({zoom: 12}, KHPA))});
+ if (!r.ok) throw new Error('HTTP ' + r.status);
+ const j = await r.json(), vehicles = [], trains = [];
+ for (const c of (j.connections || [])) {
+  if (!c || !isFinite(c.lat) || !isFinite(c.lon)) continue;
+  if (pragueClockAge(c.time) > 10) continue; /* spoj už dojel – poloha stará */
+  const delay = isFinite(c.delay) ? +c.delay : null;
+  const m = /^S-(\d{6})-(\d+)$/.exec(String(c.id || ''));
+  if (c.vehicleType === 'V' || /^K-/.test(c.id || '')) { const num = String(c.trainNumber || String(c.id || '').replace(/^K-/, '')).replace(/\D/g, ''); if (num) trains.push({src: 'IREDO', num, cat: '', lat: c.lat, lon: c.lon, delay, head: String(c.dest || '').split(',').filter(Boolean).join(', '), carrier: c.operator || ''}); continue; }
+  vehicles.push({src: 'IREDO', cis: m ? m[1] : '', line: c.extLineName || (c.lineNumber != null ? String(c.lineNumber) : (m ? String(+m[1].slice(3)) : '')), spoj: m ? +m[2] : 0, lat: c.lat, lon: c.lon, delay, head: String(c.dest || '').split(',').filter(Boolean).join(', '), bearing: isFinite(c.angle) ? c.angle : null, carrier: c.operator || '', ts: Date.now()});
+ }
+ return {vehicles, trains};
+}
+/* ---------- MHD Hradec Králové (DPmHK): veřejná mapa dpmhk.qrbus.me ----------
+ ln = linka, tn = číslo spoje, la/lo = souřadnice × 1e5, d = zpoždění v sekundách, l = čas poslední komunikace (místní). */
+async function dpmhk() {
+ const r = await fetch('https://dpmhk.qrbus.me/index/getAllRtdVehicles', {method: 'POST', headers: {'Accept': 'application/json'}});
+ if (!r.ok) throw new Error('HTTP ' + r.status);
+ const j = await r.json(), out = [], now = Date.now(), off = pragueOffsetMin(new Date()) * 60000;
+ for (const v of (j.vehicles || [])) {
+  if (!v || !v.ln || !v.tn || !/^\d+$/.test(String(v.ln))) continue;
+  const lat = v.la * 1e-5, lon = v.lo * 1e-5; if (!(lat > 49 && lat < 51 && lon > 15 && lon < 17)) continue;
+  const t = Date.parse(v.l); if (isFinite(t) && now - (t - off) > 5 * 60000) continue;
+  out.push({src: 'DPMHK', city: 'Hradec Králové', line: String(+v.ln), spoj: +v.tn, lat, lon, delay: typeof v.d === 'number' && Math.abs(v.d) < 10800 ? v.d / 60 : null, plate: v.li ? String(v.li) : '', bearing: v.az || null, ts: now});
+ }
+ return out;
+}
 
 /* ---------- GTFS-RT: regionální autobusy a MHD (Oběhy, celostátní data JDF) ---------- */
 const JDF_SRC = {mpvnet: 'CHAPS', duk: 'DÚK', dpmd: 'DPMD', 'arriva-express': 'Arriva Express'};
