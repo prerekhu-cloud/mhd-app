@@ -43,3 +43,12 @@ if tok:
     open(os.path.join(ROOT, 'dist', 'mhdgo.html'), 'w', encoding='utf-8').write(html.replace('@MAPBOX@', tok))
     print('dist/mhdgo.html s tokenem')
 print('mhdgo.html', len(html), 'B')
+# ---- verze bez mapy: odjezdy, spojení, navigace, počasí, jízdné, Moje místa, AI rádce ----
+LJS = ['util.js', 'krovak.js', 'data.js', 'live.js', 'raptor.js', 'tickets.js', 'lite.js', 'lite-ai.js']
+lite = rd('lite.html')
+lite = lite.replace('@ICON96@', rd('assets/icon96.b64').strip()).replace('@ICON512@', rd('assets/icon512.b64').strip()).replace('@LOGO@', logo)
+lite = lite.replace('/*@CSS@*/', rd('css/lite.css'))
+ljs = '\n'.join('/* ---- %s ---- */\n' % f + rd('js/' + f) for f in LJS)
+lite = lite.replace('/*@JS@*/', ljs.replace('</script>', '<\\/script>'))
+open(os.path.join(ROOT, 'mhdgo-lite.html'), 'w', encoding='utf-8').write(lite.replace('@MAPBOX@', ''))
+print('mhdgo-lite.html', len(lite), 'B')

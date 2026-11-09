@@ -20,6 +20,8 @@
  *  - Správa železnic (všechny vlaky v ČR)          SZ=1
  *  (Brno a Jihomoravský kraj: aplikace se připojuje přímo k otevřenému streamu poloh na data.brno.cz.)
  *
+ * AI rádce (verze bez mapy): POST /ai/v1/messages – proxy na Claude API, zapne se tajemstvími ANTHROPIC_API_KEY a AI_CODE.
+ *
  * Nasazení: Cloudflare → Workers & Pages → Create → Worker „mhdgo-live“ → Edit code → vložit tento soubor → Deploy
  *           (nebo „npx wrangler deploy“ ve složce worker/). Bez proměnných běží vše výchozí.
  * Adresu workeru vlož v mhdGO: Více → Nastavení → Živé polohy a worker.
@@ -31,9 +33,10 @@ let MEM = null, MEM_AT = 0, PENDING = null;
 
 export default {
  async fetch(req, env, ctx) {
+  const url = new URL(req.url);
+  if (url.pathname.startsWith('/ai')) return aiProxy(req, env, url);
   if (req.method === 'OPTIONS') return new Response(null, {headers: cors()});
   if (req.method !== 'GET') return new Response('Method not allowed', {status: 405, headers: cors()});
-  const url = new URL(req.url);
   const bbox = parseBbox(url.searchParams.get('bbox')) || CZ;
   let all = null;
   if (MEM && Date.now() - MEM_AT < 9000) all = MEM;
@@ -48,6 +51,38 @@ export default {
  }
 };
 
+/* ---------- AI rádce: průchozí proxy na Claude Messages API ----------
+ Klíč Anthropic je jen tady (tajemství ANTHROPIC_API_KEY), aplikace posílá přístupový kód (tajemství AI_CODE)
+ jako „API klíč“ SDK. Bez obou tajemství je proxy vypnutá. Povolené jsou jen streamované zprávy rádce
+ s omezeným počtem tokenů a vybranými modely – nikdo cizí tak nespotřebuje kredit bez kódu.
+   wrangler secret put ANTHROPIC_API_KEY
+   wrangler secret put AI_CODE            (libovolné heslo, zadá se v aplikaci → Rádce → Nastavení) */
+const AI_MODELS = new Set(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']);
+function aiCors(req) {
+ return {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': req.headers.get('Access-Control-Request-Headers') || 'authorization, content-type, anthropic-version, anthropic-beta',
+  'Access-Control-Max-Age': '86400'};
+}
+const timingSafeEq = (a, b) => { a = String(a || ''); b = String(b || ''); let r = a.length ^ b.length; for (let i = 0; i < Math.max(a.length, b.length); i++) r |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0); return r === 0; };
+async function aiProxy(req, env, url) {
+ const h = aiCors(req), on = !!(env.ANTHROPIC_API_KEY && env.AI_CODE);
+ const json = (o, st) => new Response(JSON.stringify(o), {status: st || 200, headers: Object.assign({'Content-Type': 'application/json'}, h)});
+ if (req.method === 'OPTIONS') return new Response(null, {headers: h});
+ if (url.pathname === '/ai/status') return json({enabled: on, code: true});
+ if (url.pathname !== '/ai/v1/messages' || req.method !== 'POST') return json({type: 'error', error: {type: 'not_found_error', message: 'Not found'}}, 404);
+ if (!on) return json({type: 'error', error: {type: 'permission_error', message: 'AI proxy is disabled on this worker'}}, 403);
+ const auth = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '') || req.headers.get('x-api-key') || '';
+ if (!timingSafeEq(auth, env.AI_CODE)) return json({type: 'error', error: {type: 'authentication_error', message: 'Invalid access code'}}, 401);
+ let body; try { body = await req.json(); } catch (_) { return json({type: 'error', error: {type: 'invalid_request_error', message: 'Invalid JSON'}}, 400); }
+ if (!AI_MODELS.has(body.model)) return json({type: 'error', error: {type: 'invalid_request_error', message: 'Model not allowed'}}, 400);
+ if (!body.stream) return json({type: 'error', error: {type: 'invalid_request_error', message: 'Only streaming requests are allowed'}}, 400);
+ body.max_tokens = Math.min(+body.max_tokens || 4000, 16000);
+ const fh = {'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': req.headers.get('anthropic-version') || '2023-06-01'};
+ const beta = req.headers.get('anthropic-beta'); if (beta) fh['anthropic-beta'] = beta;
+ const r = await fetch('https://api.anthropic.com/v1/messages', {method: 'POST', headers: fh, body: JSON.stringify(body)});
+ const oh = new Headers(h); oh.set('Content-Type', r.headers.get('content-type') || 'text/event-stream'); const rid = r.headers.get('request-id'); if (rid) oh.set('request-id', rid);
+ return new Response(r.body, {status: r.status, headers: oh});
+}
 function cors() { return {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type'}; }
 function parseBbox(s) { if (!s) return null; const a = s.split(',').map(Number); if (a.length !== 4 || a.some(x => !isFinite(x))) return null; return {w: a[0], s: a[1], e: a[2], n: a[3]}; }
 const on = (env, k, def) => { const v = env[k]; return v == null ? def : !(v === '0' || v === 'false'); };

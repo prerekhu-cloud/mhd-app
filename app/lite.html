@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4ebe2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="mhdGO">
+<meta name="description" content="mhdGO bez mapy – odjezdy se živým zpožděním, vyhledávání spojení, navigace na zastávku, počasí, jízdné, Moje místa a AI rádce pro celou Českou republiku.">
+<title>mhdGO – odjezdy a spojení</title>
+<link rel="icon" type="image/png" sizes="96x96" href="data:image/png;base64,@ICON96@">
+<link rel="apple-touch-icon" href="data:image/png;base64,@ICON512@">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+/*@CSS@*/
+</style>
+</head>
+<body>
+<div id="splash"><div class="sp-logo">@LOGO@</div><b>mhdGO</b><span class="spin"></span></div>
+<header id="hdr">
+ <button type="button" class="brand" id="brand" title="mhdGO – domů"><span class="brand-ic">@LOGO@</span><span class="brand-tx"><b>mhd<i>GO</i></b><small>odjezdy · spojení · rádce</small></span></button>
+ <span class="hdr-sp"></span>
+ <button type="button" class="pill wait" id="live-pill" title="Živé polohy"><span class="pdot"></span>Připojuji…</button>
+ <button type="button" class="wx-chip" id="wx-chip" hidden title="Počasí"></button>
+ <button type="button" class="ib" id="set-btn" title="Nastavení"><i class="fa-solid fa-sliders"></i></button>
+</header>
+<nav id="tabs" role="tablist" aria-label="Sekce">
+ <button type="button" data-view="dep" role="tab"><i class="fa-regular fa-clock"></i><span>Odjezdy</span></button>
+ <button type="button" data-view="conn" role="tab"><i class="fa-solid fa-route"></i><span>Spojení</span></button>
+ <button type="button" data-view="ai" role="tab" class="ai-tab"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Rádce</span></button>
+ <button type="button" data-view="wx" role="tab"><i class="fa-solid fa-cloud-sun"></i><span>Počasí</span></button>
+ <button type="button" data-view="tix" role="tab"><i class="fa-solid fa-ticket"></i><span>Jízdné</span></button>
+</nav>
+<main id="main">
+ <section class="view" id="v-dep" hidden>
+  <h1 class="vt">Odjezdy</h1>
+  <div class="sbox"><div class="srch"><i class="fa-solid fa-magnifying-glass"></i><input id="dq" placeholder="Zastávka, adresa nebo místo" autocomplete="off" enterkeyhint="search"><button type="button" class="ib" id="dq-x" hidden title="Vymazat"><i class="fa-solid fa-xmark"></i></button><button type="button" class="ib" id="dq-me" title="Nejbližší zastávka"><i class="fa-solid fa-location-crosshairs"></i></button></div><div class="sug" id="dq-sug" hidden></div></div>
+  <div id="dep-body"></div>
+ </section>
+ <section class="view" id="v-conn" hidden>
+  <h1 class="vt">Spojení</h1>
+  <div class="od">
+   <div class="sbox"><div class="od-row"><span class="od-dot a"></span><input id="cf" placeholder="Odkud" autocomplete="off"><button type="button" class="ib" id="cf-me" title="Moje poloha"><i class="fa-solid fa-location-crosshairs"></i></button></div><div class="sug" id="cf-sug" hidden></div></div>
+   <div class="sbox"><div class="od-row"><span class="od-dot b"></span><input id="ct" placeholder="Kam" autocomplete="off"></div><div class="sug" id="ct-sug" hidden></div></div>
+   <button type="button" class="swap" id="c-swap" title="Prohodit"><i class="fa-solid fa-arrow-right-arrow-left fa-rotate-90"></i></button>
+  </div>
+  <div class="tctl"><button type="button" class="chip on" id="c-now">Teď</button><input type="time" id="c-t"><input type="date" id="c-d"><button type="button" class="btn pri" id="c-go"><i class="fa-solid fa-magnifying-glass"></i> Hledat</button></div>
+  <div id="c-favs"></div>
+  <div id="c-st" class="cst"></div>
+  <div id="c-res"></div>
+ </section>
+ <section class="view" id="v-ai" hidden>
+  <h1 class="vt">Rádce <small>AI</small></h1>
+  <div id="ai-body"></div>
+ </section>
+ <section class="view" id="v-wx" hidden>
+  <h1 class="vt">Počasí <small id="wx-place"></small></h1>
+  <div class="sbox"><div class="srch"><i class="fa-solid fa-magnifying-glass"></i><input id="wq" placeholder="Počasí jinde – město nebo zastávka" autocomplete="off"><button type="button" class="ib" id="wq-me" title="Moje poloha"><i class="fa-solid fa-location-crosshairs"></i></button></div><div class="sug" id="wq-sug" hidden></div></div>
+  <div id="wx-body"></div>
+ </section>
+ <section class="view" id="v-tix" hidden>
+  <h1 class="vt">Jízdné</h1>
+  <div id="tix-body"></div>
+ </section>
+</main>
+<div id="sheet" hidden></div>
+<div id="busy" hidden><span class="spin"></span><span id="busy-t">Načítám…</span></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+/*@JS@*/
+</script>
+</body>
+</html>

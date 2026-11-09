@@ -7,6 +7,32 @@ a panely vpravo vedle mapy) – jen pro všechna města, regionální a meziregi
 Aplikace je **jeden HTML soubor** – [`mhdgo.html`](mhdgo.html) (totéž je v `index.html` pro GitHub Pages).
 Jízdní řády si stahuje po okresech z adresáře [`data/`](data) tohoto repozitáře (přes `raw.githubusercontent.com`).
 
+Verze **bez mapy** je [`mhdgo-lite.html`](mhdgo-lite.html) – lehčí a rychlejší, pro každodenní cestování (viz níže).
+
+## mhdGO bez mapy (`mhdgo-lite.html`)
+
+Stejné jízdní řády a živá data jako mapová verze, ale bez mapy – jen to, co je potřeba na cestu:
+
+- **Odjezdy** – zastávky v okolí s nejbližšími odjezdy, našeptávač (zastávky celé ČR, adresy, Moje místa), odpočet m:ss,
+  filtr linek a nástupišť, jiný den a čas, rozbalení spoje se zbývajícími zastávkami.
+- **Živé zpoždění v odjezdech i ve spojeních** – vozidla na trase (SŽ, PID, IDS JMK, ODIS, celostátní GTFS-RT) se párují se spoji;
+  kde zdroj zpoždění nehlásí, odhaduje se z polohy (označeno „~“). Ve spojení se upozorní na **ohrožený přestup**.
+- **Spojení** – odkud/kam (Moje poloha, Moje místa, zastávky, adresy), dřívější/pozdější, detail s časovou osou, nástupišti,
+  pěšími úseky a odkazem na ověření a nákup v IDOS.
+- **Navigace na zastávku** – pěší trasa (Valhalla/OpenStreetMap) s pokyny česky, směrová šipka (s kompasem telefonu),
+  zbývající vzdálenost a čas příchodu, náčrtek trasy bez mapových podkladů, přepočet při sejití z trasy, odkazy do Mapy.cz a Google Maps.
+- **Počasí** (Open-Meteo) – teď, rada na cestu (deštník, náledí, vítr), 24 hodin a 7 dní; den se rozbalí na hodinový detail.
+- **Jízdné** – integrovaný systém podle místa, jak a kde koupit jízdenku, odkazy na oficiální ceníky a e-shopy; konkrétní ceny
+  jen tam, kde jsou ověřené z platného tarifu (PID od 1. 1. 2026, síťová jízdenka IDZK), jinak odkaz na oficiální ceník.
+- **Moje místa** – Domů, Práce a další (sdílené s mapovou verzí): karty s nejbližšími odjezdy a tlačítkem „Spojení sem“.
+- **Rádce (AI)** – ptáš se běžnou řečí („Jak se dostanu domů?“, „Stihnu přestup?“, „Budu potřebovat deštník?“). Rádce používá
+  model Claude od Anthropicu přes oficiální SDK a odpovídá z nástrojů nad daty aplikace (spojení, odjezdy se zpožděním,
+  zastávky v okolí, pěší trasa, počasí, jízdné, Moje místa); ceny umí dohledat na oficiálních webech dopravců.
+  Zapnutí – v aplikaci **Rádce → Nastavení rádce**, jedna ze dvou možností:
+  - **přes worker mhdGO** (doporučeno): na workeru nastav tajemství `ANTHROPIC_API_KEY` a `AI_CODE` (heslo pro aplikaci),
+    v aplikaci zadej jen přístupový kód – klíč Anthropic zůstane na serveru;
+  - **vlastní API klíč** z console.anthropic.com – uloží se jen v daném zařízení (doporučený je klíč s limitem útraty).
+
 ## Funkce
 
 - **Start v tvém okrese** – podle polohy; bez povolení polohy se vybere náhodný okres a po povolení se mapa přepne na tvůj okres.
@@ -83,8 +109,13 @@ IDS JMK (`IDSJMK_URL` – jen s oficiálním přístupem, veřejná mapa IDS JMK
 ```bash
 cd worker
 npx wrangler deploy
-npx wrangler secret put GOLEMIO_TOKEN   # volitelně, token zdarma na api.golemio.cz
+npx wrangler secret put GOLEMIO_TOKEN       # volitelně, token zdarma na api.golemio.cz
+npx wrangler secret put ANTHROPIC_API_KEY   # volitelně: AI rádce ve verzi bez mapy
+npx wrangler secret put AI_CODE             # přístupový kód k rádci (bez něj je proxy vypnutá)
 ```
+
+Worker má i proxy pro AI rádce (`POST /ai/v1/messages`, stav `GET /ai/status`): pustí jen streamované dotazy rádce
+s přístupovým kódem, s povolenými modely a omezeným počtem tokenů.
 
 Adresu workeru pak vlož v aplikaci: **Více → Nastavení → Živé polohy a worker**.
 
@@ -104,14 +135,16 @@ Pipeline (Python 3.12+, `pip install osmium shapely numpy scipy pandas pyvalhall
 6. `packs.py` – výstupní balíčky (barvy linek, klasifikace MHD/regio/meziregio/vlak)
    a `netmerge.py` – sloučení souběžných tras do jedné čáry (síť jako v OpavaGO)
 7. `bedekr.py` – památky z Wikidat
-8. `app/build.py` – sestavení `mhdgo.html` z `app/` (CSS, JS, ikona a logo)
+8. `app/build.py` – sestavení `mhdgo.html` a `mhdgo-lite.html` z `app/` (CSS, JS, ikona a logo)
 
 ## Vývoj aplikace
 
-Zdrojové soubory jsou v `app/` (`index.html`, `css/`, `js/`), `python3 app/build.py` z nich vytvoří jediný soubor.
+Zdrojové soubory jsou v `app/` (`index.html`, `css/`, `js/`; verze bez mapy `lite.html`, `css/lite.css`, `js/lite.js`,
+`js/lite-ai.js`, `js/tickets.js`), `python3 app/build.py` z nich vytvoří jednosouborové `mhdgo.html` a `mhdgo-lite.html`.
 Lokálně: `python3 -m http.server` v kořeni repozitáře a otevřít `http://localhost:8000/mhdgo.html`.
 
 Licence dat: CIS JŘ (veřejná data), PID (CC BY 4.0), OpenStreetMap (ODbL), Wikidata (CC0), Wikipedie/Commons (CC BY-SA, autoři u fotografií).
+Počasí: Open-Meteo (CC BY 4.0). Pěší trasy: Valhalla nad OpenStreetMap. Hledání adres: Photon (komoot).
 
 ## 3D modely
 

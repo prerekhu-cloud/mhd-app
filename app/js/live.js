@@ -52,13 +52,20 @@
    LV.busOdis = out; LV.at.odis = Date.now(); LV.st.odis = 'ok'; LV.err.odis = '';
   } catch (e) { LV.st.odis = 'err'; LV.err.odis = String(e.message || e); }
  }
+ /* oblast, pro kterou se stahují živé polohy: [jih, západ, sever, východ]; verze bez mapy nastaví MG.liveBounds */
+ LV.bounds = (pad) => {
+  if (MG.liveBounds) return MG.liveBounds(pad);
+  if (MG.mode3d && MG.m3d && MG.m3d.map) return MG.m3d.bounds();
+  if (!MG.map || !MG.map.m) return null;
+  const b = MG.map.m.getBounds().pad(pad || 0); return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()];
+ };
  /* ---------- vlastní worker mhdGO ---------- */
  async function fetchWorker() {
   if (!MG.cfg.WORKER) { LV.st.worker = ''; return; }
   if (LV.wFail >= 3 && Date.now() - LV.wLast < 120000) return; /* nedostupný worker zkoušíme jen občas */
   try {
-   const c = MG.map.m.getBounds();
-   const u = MG.cfg.WORKER + (MG.cfg.WORKER.includes('?') ? '&' : '?') + 'bbox=' + [c.getWest(), c.getSouth(), c.getEast(), c.getNorth()].map(x => x.toFixed(3)).join(',');
+   const b = LV.bounds(0); if (!b) return;
+   const u = MG.cfg.WORKER + (MG.cfg.WORKER.includes('?') ? '&' : '?') + 'bbox=' + [b[1], b[0], b[3], b[2]].map(x => x.toFixed(3)).join(',');
    const j = await getJSON(u, 12000);
    LV.busWorker = (j.vehicles || []).filter(v => isFinite(v.lat) && isFinite(v.lon)).map(v => Object.assign({src: v.src || 'mhdGO'}, v));
    for (const t of (j.trains || [])) if (t.num && !LV.trains.has(String(t.num))) LV.trains.set(String(t.num), Object.assign({train: true, src: t.src || 'mhdGO'}, t));
@@ -71,9 +78,8 @@
  const needJmk = () => { for (const oi of D.loaded) { const k = D.kraje[D.okresy[oi].kraj]; if (k && k.code === 'JHM') return true; } return false; };
  function jmkFilter() {
   const ws = JMK.ws; if (!ws || ws.readyState !== 1) return;
-  let s_, w_, n_, e_;
-  if (MG.mode3d && MG.m3d.map) { const b = MG.m3d.bounds(); [s_, w_, n_, e_] = b; }
-  else { const b = MG.map.m.getBounds().pad(.35); s_ = b.getSouth(); w_ = b.getWest(); n_ = b.getNorth(); e_ = b.getEast(); }
+  const bb = LV.bounds(.35); if (!bb) return;
+  const [s_, w_, n_, e_] = bb;
   const r = x => Math.round(x * 50) / 50;
   const box = {xmin: r(w_) - .02, ymin: r(s_) - .02, xmax: r(e_) + .02, ymax: r(n_) + .02};
   const key = JSON.stringify(box); if (key === JMK.filt) return; JMK.filt = key;
