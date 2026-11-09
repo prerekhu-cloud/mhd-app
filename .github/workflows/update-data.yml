@@ -45,7 +45,7 @@ jobs:
         run: |
           git config user.name "mhdGO bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data mhdgo.html index.html
+          git add data mhdgo.html mhdgo-lite.html index.html
           if git diff --cached --quiet; then echo "beze změn"; exit 0; fi
           git commit -m "Data: aktualizace jízdních řádů $(date +%Y-%m-%d)"
           git push
